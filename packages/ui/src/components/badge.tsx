@@ -7,7 +7,7 @@ export interface BadgeProps extends HTMLAttributes<HTMLSpanElement> {
 }
 
 export function Badge({ color, className, style, children, ...props }: BadgeProps) {
-  const badgeStyles = getBadgeStyles(color);
+  const estilosBadge = getBadgeStyles(color);
 
   return (
     <span
@@ -15,7 +15,7 @@ export function Badge({ color, className, style, children, ...props }: BadgeProp
         "inline-block rounded-sm px-2.5 py-0.5 font-data text-badge font-semibold border",
         className
       )}
-      style={{ ...badgeStyles, ...style }}
+      style={{ ...estilosBadge, ...style }}
       {...props}
     >
       {children}
