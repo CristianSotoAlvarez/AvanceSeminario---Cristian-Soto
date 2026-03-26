@@ -1,14 +1,14 @@
 import { KpiCard, Table, TableHeader, TableBody, TableRow, TableHead, TableCell, Badge } from "@dispatch-track/ui";
 import { TruckState, TRUCK_STATE_COLOR } from "@dispatch-track/types";
 
-const mockTrucks = [
+const camionesMock = [
   { plate: "BXRK-42", type: "Nacional", client: "Walmart Chile", dock: "A3", time: "08:30", state: TruckState.EN_CARGA },
   { plate: "HJTL-87", type: "Exportación", client: "Costco USA", dock: "F2", time: "07:45", state: TruckState.EN_TUNEL_FRIO },
   { plate: "PLWZ-15", type: "Nacional", client: "SMU / Unimarc", dock: "C1", time: "09:00", state: TruckState.LISTO },
   { plate: "DRKM-63", type: "Interplanta", client: "Planta Rosario", dock: "—", time: "10:15", state: TruckState.ESPERADO },
 ];
 
-const stateLabels: Record<TruckState, string> = {
+const etiquetasEstado: Record<TruckState, string> = {
   [TruckState.ESPERADO]: "ESPERADO",
   [TruckState.EN_PORTERIA]: "EN PORTERÍA",
   [TruckState.ASIGNADO]: "ASIGNADO",
@@ -24,7 +24,7 @@ const stateLabels: Record<TruckState, string> = {
 export default function DashboardPage() {
   return (
     <div className="space-y-6">
-      {/* KPI Row */}
+      {/* Fila de KPIs */}
       <div className="grid grid-cols-4 gap-4">
         <KpiCard label="Camiones Hoy" value={47} valueColor="#F56E0F" trend={{ value: "12% vs ayer", positive: true }} />
         <KpiCard label="Despachos a Tiempo" value="89%" valueColor="#7AB87A" trend={{ value: "3% vs ayer", positive: false }} />
@@ -32,7 +32,7 @@ export default function DashboardPage() {
         <KpiCard label="Atrasos" value={5} valueColor="#D4807A" />
       </div>
 
-      {/* Trucks Table */}
+      {/* Tabla de camiones */}
       <div>
         <h2 className="font-display text-h3 uppercase text-text-primary mb-4">
           Camiones Activos
@@ -49,16 +49,16 @@ export default function DashboardPage() {
             </tr>
           </TableHeader>
           <TableBody>
-            {mockTrucks.map((truck) => (
-              <TableRow key={truck.plate}>
-                <TableCell className="font-semibold">{truck.plate}</TableCell>
-                <TableCell className="font-display text-text-muted">{truck.type}</TableCell>
-                <TableCell className="font-display">{truck.client}</TableCell>
-                <TableCell>{truck.dock}</TableCell>
-                <TableCell>{truck.time}</TableCell>
+            {camionesMock.map((camion) => (
+              <TableRow key={camion.plate}>
+                <TableCell className="font-semibold">{camion.plate}</TableCell>
+                <TableCell className="font-display text-text-muted">{camion.type}</TableCell>
+                <TableCell className="font-display">{camion.client}</TableCell>
+                <TableCell>{camion.dock}</TableCell>
+                <TableCell>{camion.time}</TableCell>
                 <TableCell>
-                  <Badge color={TRUCK_STATE_COLOR[truck.state]}>
-                    {stateLabels[truck.state]}
+                  <Badge color={TRUCK_STATE_COLOR[camion.state]}>
+                    {etiquetasEstado[camion.state]}
                   </Badge>
                 </TableCell>
               </TableRow>

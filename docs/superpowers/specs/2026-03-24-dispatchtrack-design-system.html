@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>DispatchTrack — Especificación del Sistema de Diseño</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Oswald:wght@300;400;500;600;700&family=Sono:wght@400;600;700&display=swap');
+
+  :root {
+    --bg-primary: #151419;
+    --bg-surface: #1B1B1E;
+    --bg-elevated: #262626;
+    --text-primary: #FBFBFB;
+    --text-muted: #9A9A9A;
+    --accent: #F56E0F;
+    --success: #7AB87A;
+    --error: #D4807A;
+    --warning: #B8A860;
+    --info: #6896C8;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Oswald', sans-serif;
+    font-size: 13px;
+    color: var(--text-primary);
+    background: var(--bg-primary);
+    line-height: 1.7;
+  }
+
+  @media print {
+    body { background: #111; font-size: 11px; }
+    .page { box-shadow: none; margin: 0; padding: 18mm 20mm; }
+    .page-break { page-break-before: always; }
+    .cover { page-break-after: always; }
+  }
+
+  .page {
+    max-width: 960px;
+    margin: 0 auto;
+    background: var(--bg-surface);
+    padding: 60px 72px;
+    box-shadow: 0 4px 32px rgba(0,0,0,0.3);
+    border-radius: 4px;
+  }
+
+  /* Cover */
+  .cover {
+    min-height: 96vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 80px 72px;
+    background: linear-gradient(160deg, #0a0a0c 0%, #151419 40%, #1B1B1E 70%, #262626 100%);
+    color: white;
+    border-radius: 4px;
+    margin-bottom: 0;
+    border-bottom: 4px solid var(--accent);
+  }
+  .cover-logo {
+    display: flex; align-items: center; justify-content: center; gap: 16px;
+    font-size: 42px; font-weight: 700; letter-spacing: 4px; color: #fff;
+    margin-bottom: 8px;
+  }
+  .cover-logo-icon {
+    width: 56px; height: 56px; background: var(--accent); border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .cover-sub {
+    font-size: 16px; font-weight: 300; color: var(--text-muted);
+    margin-bottom: 48px; line-height: 1.5;
+  }
+  .cover-divider { width: 60px; height: 3px; background: var(--accent); border-radius: 2px; margin: 0 auto 40px; }
+  .cover-meta { display: flex; flex-direction: column; gap: 8px; }
+  .cover-meta-item { font-size: 13px; color: var(--text-muted); font-weight: 400; }
+  .cover-meta-item strong { color: #fff; font-weight: 600; }
+  .cover-badge {
+    margin-top: 48px; display: inline-block;
+    background: rgba(245,110,15,0.12); border: 1px solid rgba(245,110,15,0.25);
+    border-radius: 100px; padding: 6px 20px;
+    font-family: 'Sono', monospace; font-size: 12px; color: var(--accent); letter-spacing: 1px;
+  }
+
+  /* Headings */
+  h1 {
+    font-size: 22px; font-weight: 700; color: var(--text-primary);
+    border-left: 4px solid var(--accent); padding-left: 16px;
+    margin-bottom: 20px; margin-top: 8px; line-height: 1.3;
+    text-transform: uppercase; letter-spacing: 1px;
+  }
+  h2 {
+    font-size: 16px; font-weight: 600; color: var(--accent);
+    margin-top: 28px; margin-bottom: 12px; padding-bottom: 5px;
+    border-bottom: 1px solid var(--bg-elevated);
+    text-transform: uppercase; letter-spacing: 0.5px;
+  }
+  h3 {
+    font-size: 13px; font-weight: 500; color: var(--text-primary);
+    margin-top: 20px; margin-bottom: 8px;
+    text-transform: uppercase; letter-spacing: 0.3px;
+  }
+
+  p { margin-bottom: 12px; line-height: 1.75; color: var(--text-muted); font-weight: 300; }
+  strong { color: var(--text-primary); font-weight: 600; }
+
+  /* Tables */
+  .table-wrap { overflow-x: auto; margin: 16px 0 24px; border-radius: 6px; border: 1px solid var(--bg-elevated); }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  thead tr { background: var(--bg-elevated); }
+  thead th {
+    padding: 10px 14px; font-weight: 500; text-align: left;
+    letter-spacing: 0.8px; font-size: 10px; text-transform: uppercase;
+    color: var(--text-muted);
+  }
+  tbody tr:nth-child(even) { background: rgba(21,20,25,0.5); }
+  tbody tr:hover { background: rgba(245,110,15,0.04); }
+  tbody td {
+    padding: 10px 14px; border-bottom: 1px solid rgba(38,38,38,0.5);
+    vertical-align: top; line-height: 1.5;
+  }
+
+  /* Code */
+  code {
+    font-family: 'Sono', monospace; font-size: 11px; font-weight: 600;
+    background: rgba(245,110,15,0.08); color: var(--accent);
+    border: 1px solid rgba(245,110,15,0.15); border-radius: 3px;
+    padding: 1px 6px;
+  }
+
+  .flow {
+    background: var(--bg-primary); border: 1px solid var(--bg-elevated);
+    border-radius: 6px; padding: 16px 20px;
+    font-family: 'Sono', Courier, monospace; font-size: 12px;
+    line-height: 1.8; color: var(--text-muted); margin: 14px 0;
+    white-space: pre-wrap;
+  }
+
+  /* Badges */
+  .badge {
+    display: inline-block; border-radius: 4px;
+    padding: 3px 10px; font-size: 11px; font-weight: 600;
+    font-family: 'Sono', monospace; margin: 1px 2px;
+  }
+  .badge-accent  { background: rgba(245,110,15,0.12); color: var(--accent); border: 1px solid rgba(245,110,15,0.25); }
+  .badge-success { background: rgba(122,184,122,0.12); color: var(--success); border: 1px solid rgba(122,184,122,0.25); }
+  .badge-error   { background: rgba(212,128,122,0.12); color: var(--error); border: 1px solid rgba(212,128,122,0.25); }
+  .badge-warning { background: rgba(184,168,96,0.12); color: var(--warning); border: 1px solid rgba(184,168,96,0.25); }
+  .badge-info    { background: rgba(104,150,200,0.12); color: var(--info); border: 1px solid rgba(104,150,200,0.25); }
+  .badge-neutral { background: rgba(154,154,154,0.12); color: var(--text-muted); border: 1px solid rgba(154,154,154,0.25); }
+
+  /* Color swatches */
+  .swatch-row { display: flex; gap: 10px; flex-wrap: wrap; margin: 12px 0 20px; }
+  .swatch {
+    display: flex; flex-direction: column; align-items: center; gap: 6px;
+  }
+  .swatch-box {
+    width: 72px; height: 48px; border-radius: 6px; border: 1px solid var(--bg-elevated);
+  }
+  .swatch-label { font-size: 10px; color: var(--text-muted); text-align: center; }
+  .swatch-hex { font-family: 'Sono', monospace; font-size: 10px; color: var(--text-muted); }
+
+  /* Notes */
+  .note {
+    background: rgba(245,110,15,0.06); border-left: 3px solid var(--accent);
+    border-radius: 0 6px 6px 0; padding: 12px 16px;
+    margin: 14px 0; font-size: 12px; color: var(--text-muted);
+  }
+  .note strong { color: var(--accent); }
+
+  /* Lists */
+  ul, ol { padding-left: 22px; margin-bottom: 14px; }
+  li { margin-bottom: 5px; line-height: 1.65; color: var(--text-muted); font-weight: 300; }
+  li strong { color: var(--text-primary); }
+
+  /* Section */
+  .section { padding-top: 40px; }
+  .page-break { page-break-before: always; padding-top: 40px; }
+
+  /* Footer */
+  .footer {
+    text-align: center; margin-top: 60px; padding-top: 20px;
+    border-top: 1px solid var(--bg-elevated);
+    font-size: 11px; color: var(--text-muted);
+  }
+
+  /* Component preview blocks */
+  .preview {
+    background: var(--bg-primary); border: 1px solid var(--bg-elevated);
+    border-radius: 8px; padding: 24px; margin: 14px 0;
+  }
+</style>
+</head>
+<body>
+
+<!-- ══════════════════ PORTADA ══════════════════ -->
+<div class="page cover">
+  <div class="cover-logo">
+    <div class="cover-logo-icon">
+      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#FBFBFB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+    </div>
+    DISPATCHTRACK
+  </div>
+  <div class="cover-sub">Especificaci&oacute;n del Sistema de Dise&ntilde;o<br>&amp; Arquitectura Frontend</div>
+  <div class="cover-divider"></div>
+  <div class="cover-meta">
+    <div class="cover-meta-item"><strong>Proyecto:</strong> Seminario de T&iacute;tulo &mdash; Ingenier&iacute;a en Inform&aacute;tica</div>
+    <div class="cover-meta-item"><strong>Empresa:</strong> Agrosuper S.A.</div>
+    <div class="cover-meta-item"><strong>Documento:</strong> Sistema de Dise&ntilde;o v1.0</div>
+  </div>
+  <div class="cover-badge">MARZO 2026</div>
+</div>
+
+<!-- ══════════════════ 1. RESUMEN ══════════════════ -->
+<div class="page page-break" id="s1">
+  <h1>1. Resumen General</h1>
+  <p><strong>DispatchTrack</strong> es una plataforma de trazabilidad log&iacute;stica en tiempo real para el &aacute;rea de Despacho de Agrosuper S.A. (3 edificios, 11 andenes). Este documento define el sistema de dise&ntilde;o visual y las decisiones de arquitectura frontend validadas durante el brainstorming.</p>
+
+  <h2>Stack Tecnol&oacute;gico</h2>
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>Componente</th><th>Tecnolog&iacute;a</th><th>Prop&oacute;sito</th></tr></thead>
+    <tbody>
+      <tr><td>Framework Frontend</td><td><code>Next.js 15</code></td><td>SSR, App Router, renderizado</td></tr>
+      <tr><td>Estilos</td><td><code>TailwindCSS v4</code></td><td>Utilidades CSS, responsive</td></tr>
+      <tr><td>Componentes UI</td><td><code>shadcn/ui</code></td><td>Componentes accesibles y personalizables</td></tr>
+      <tr><td>Animaciones</td><td><code>Framer Motion</code></td><td>Transiciones y micro-interacciones</td></tr>
+      <tr><td>Gr&aacute;ficos</td><td><code>Apache ECharts</code></td><td>Dashboards y KPIs</td></tr>
+      <tr><td>Tiempo Real</td><td><code>Socket.io (client)</code></td><td>Eventos bidireccionales</td></tr>
+      <tr><td>Data Fetching</td><td><code>TanStack Query v5</code></td><td>Cach&eacute; y sincronizaci&oacute;n de estado</td></tr>
+      <tr><td>Monorepo</td><td><code>Turborepo</code></td><td>Builds optimizados, paquetes compartidos</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h2>Paquetes Compartidos</h2>
+  <div class="flow">packages/
+├── ui/          ← Componentes del design system (Button, Badge, Card, Table...)
+│   ├── src/components/
+│   ├── src/hooks/
+│   └── src/utils/   ← colorWithOpacity(), cn(), etc.
+├── types/       ← Tipos TypeScript compartidos
+└── utils/       ← Utilidades compartidas</div>
+</div>
+
+<!-- ══════════════════ 2. TOKENS DE COLOR ══════════════════ -->
+<div class="page page-break" id="s2">
+  <h1>2. Tokens de Color</h1>
+
+  <h2>2.1 Paleta Base</h2>
+  <div class="swatch-row">
+    <div class="swatch"><div class="swatch-box" style="background:#151419;"></div><div class="swatch-label">bg-primary</div><div class="swatch-hex">#151419</div></div>
+    <div class="swatch"><div class="swatch-box" style="background:#1B1B1E;"></div><div class="swatch-label">bg-surface</div><div class="swatch-hex">#1B1B1E</div></div>
+    <div class="swatch"><div class="swatch-box" style="background:#262626;"></div><div class="swatch-label">bg-elevated</div><div class="swatch-hex">#262626</div></div>
+    <div class="swatch"><div class="swatch-box" style="background:#9A9A9A;"></div><div class="swatch-label">text-muted</div><div class="swatch-hex">#9A9A9A</div></div>
+    <div class="swatch"><div class="swatch-box" style="background:#FBFBFB;"></div><div class="swatch-label">text-primary</div><div class="swatch-hex">#FBFBFB</div></div>
+    <div class="swatch"><div class="swatch-box" style="background:#F56E0F;"></div><div class="swatch-label">accent</div><div class="swatch-hex">#F56E0F</div></div>
+  </div>
+
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>Token</th><th>Hex</th><th>RGB</th><th>Uso</th></tr></thead>
+    <tbody>
+      <tr><td><code>--bg-primary</code></td><td style="font-family:'Sono',monospace;">#151419</td><td>21, 20, 25</td><td>Fondo de la aplicaci&oacute;n</td></tr>
+      <tr><td><code>--bg-surface</code></td><td style="font-family:'Sono',monospace;">#1B1B1E</td><td>27, 27, 30</td><td>Cards, sidebar, modales</td></tr>
+      <tr><td><code>--bg-elevated</code></td><td style="font-family:'Sono',monospace;">#262626</td><td>38, 38, 38</td><td>Headers de tabla, inputs, hover</td></tr>
+      <tr><td><code>--text-primary</code></td><td style="font-family:'Sono',monospace;">#FBFBFB</td><td>251, 251, 251</td><td>Texto principal</td></tr>
+      <tr><td><code>--text-muted</code></td><td style="font-family:'Sono',monospace;">#9A9A9A</td><td>154, 154, 154</td><td>Labels, texto secundario (WCAG AA 4.5:1)</td></tr>
+      <tr><td><code>--accent</code></td><td style="font-family:'Sono',monospace;">#F56E0F</td><td>245, 110, 15</td><td>Botones primarios, elementos activos</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h2>2.2 Colores Sem&aacute;nticos</h2>
+  <p>Los fondos y bordes de los badges se derivan program&aacute;ticamente del hex base usando <code>colorWithOpacity(hex, bgOpacity, borderOpacity)</code>.</p>
+
+  <div class="swatch-row">
+    <div class="swatch"><div class="swatch-box" style="background:#7AB87A;"></div><div class="swatch-label">success</div><div class="swatch-hex">#7AB87A</div></div>
+    <div class="swatch"><div class="swatch-box" style="background:#D4807A;"></div><div class="swatch-label">error</div><div class="swatch-hex">#D4807A</div></div>
+    <div class="swatch"><div class="swatch-box" style="background:#B8A860;"></div><div class="swatch-label">warning</div><div class="swatch-hex">#B8A860</div></div>
+    <div class="swatch"><div class="swatch-box" style="background:#6896C8;"></div><div class="swatch-label">info</div><div class="swatch-hex">#6896C8</div></div>
+    <div class="swatch"><div class="swatch-box" style="background:#F56E0F;"></div><div class="swatch-label">active</div><div class="swatch-hex">#F56E0F</div></div>
+    <div class="swatch"><div class="swatch-box" style="background:#9A9A9A;"></div><div class="swatch-label">neutral</div><div class="swatch-hex">#9A9A9A</div></div>
+  </div>
+
+  <p><strong>Patr&oacute;n de badges:</strong> Fondo = color base al 12% opacidad. Borde = color base al 25% opacidad. Texto = color base completo.</p>
+
+  <h2>2.3 Mapeo Estado → Color</h2>
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>Estado del Cami&oacute;n</th><th>Token</th><th>Preview</th></tr></thead>
+    <tbody>
+      <tr><td>ESPERADO</td><td><code>--neutral</code></td><td><span class="badge badge-neutral">ESPERADO</span></td></tr>
+      <tr><td>EN_PORTERIA</td><td><code>--info</code></td><td><span class="badge badge-info">EN PORTER&Iacute;A</span></td></tr>
+      <tr><td>ASIGNADO</td><td><code>--warning</code></td><td><span class="badge badge-warning">ASIGNADO</span></td></tr>
+      <tr><td>EN_CARGA</td><td><code>--active</code></td><td><span class="badge badge-accent">EN CARGA</span></td></tr>
+      <tr><td>EN_TUNEL_FRIO</td><td><code>--info</code></td><td><span class="badge badge-info">EN T&Uacute;NEL FR&Iacute;O</span></td></tr>
+      <tr><td>ESPERANDO_SAG</td><td><code>--warning</code></td><td><span class="badge badge-warning">ESPERANDO SAG</span></td></tr>
+      <tr><td>APROBADO_SAG</td><td><code>--success</code></td><td><span class="badge badge-success">APROBADO SAG</span></td></tr>
+      <tr><td>RECHAZADO_SAG</td><td><code>--error</code></td><td><span class="badge badge-error">RECHAZADO SAG</span></td></tr>
+      <tr><td>LISTO</td><td><code>--success</code></td><td><span class="badge badge-success">LISTO</span></td></tr>
+      <tr><td>DESPACHADO</td><td><code>--success</code></td><td><span class="badge badge-success">DESPACHADO</span></td></tr>
+    </tbody>
+  </table>
+  </div>
+</div>
+
+<!-- ══════════════════ 3. ESPACIADO ══════════════════ -->
+<div class="page page-break" id="s3">
+  <h1>3. Sistema de Espaciado</h1>
+  <p>Escala base-4. Todos los valores de espaciado derivan de m&uacute;ltiplos de 4px.</p>
+
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>Token</th><th>Valor</th><th>Uso</th></tr></thead>
+    <tbody>
+      <tr><td><code>--space-1</code></td><td style="font-family:'Sono',monospace;">4px</td><td>Gaps peque&ntilde;os (icono-texto en botones small)</td></tr>
+      <tr><td><code>--space-2</code></td><td style="font-family:'Sono',monospace;">8px</td><td>Gaps entre elementos inline</td></tr>
+      <tr><td><code>--space-3</code></td><td style="font-family:'Sono',monospace;">12px</td><td>Padding en componentes peque&ntilde;os, gap icono-label sidebar</td></tr>
+      <tr><td><code>--space-4</code></td><td style="font-family:'Sono',monospace;">16px</td><td>Padding de componentes (sidebar, cards), gaps entre cards</td></tr>
+      <tr><td><code>--space-5</code></td><td style="font-family:'Sono',monospace;">20px</td><td>M&aacute;rgenes de secci&oacute;n</td></tr>
+      <tr><td><code>--space-6</code></td><td style="font-family:'Sono',monospace;">24px</td><td>Padding grande (modales, secciones de p&aacute;gina)</td></tr>
+      <tr><td><code>--space-8</code></td><td style="font-family:'Sono',monospace;">32px</td><td>Separadores de secci&oacute;n</td></tr>
+      <tr><td><code>--space-10</code></td><td style="font-family:'Sono',monospace;">40px</td><td>Ritmo vertical a nivel de p&aacute;gina</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h1>4. Tipograf&iacute;a</h1>
+
+  <h2>4.1 Fuentes</h2>
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>Fuente</th><th>Origen</th><th>Rol</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Oswald</strong></td><td>Google Fonts</td><td>Headings, labels, botones, navegaci&oacute;n, headers de tabla, texto descriptivo</td></tr>
+      <tr><td><strong>Sono</strong></td><td>Google Fonts</td><td>KPIs, n&uacute;meros, patentes, c&oacute;digos, badges, datos en tablas, timestamps</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h2>4.2 Escala Tipogr&aacute;fica</h2>
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>Elemento</th><th>Fuente</th><th>Peso</th><th>Tama&ntilde;o</th><th>Estilo</th></tr></thead>
+    <tbody>
+      <tr><td>H1</td><td>Oswald</td><td style="font-family:'Sono',monospace;">700</td><td style="font-family:'Sono',monospace;">28px</td><td>Uppercase, letter-spacing 1px</td></tr>
+      <tr><td>H2</td><td>Oswald</td><td style="font-family:'Sono',monospace;">600</td><td style="font-family:'Sono',monospace;">20px</td><td>Uppercase, letter-spacing 0.8px</td></tr>
+      <tr><td>H3</td><td>Oswald</td><td style="font-family:'Sono',monospace;">500</td><td style="font-family:'Sono',monospace;">16px</td><td>Uppercase, letter-spacing 0.5px</td></tr>
+      <tr><td>Body</td><td>Oswald</td><td style="font-family:'Sono',monospace;">400</td><td style="font-family:'Sono',monospace;">13px</td><td>Normal</td></tr>
+      <tr><td>Label</td><td>Oswald</td><td style="font-family:'Sono',monospace;">400</td><td style="font-family:'Sono',monospace;">11px</td><td>Uppercase, letter-spacing 0.8px</td></tr>
+      <tr><td>Caption</td><td>Oswald</td><td style="font-family:'Sono',monospace;">300</td><td style="font-family:'Sono',monospace;">11px</td><td>Normal, text-muted</td></tr>
+      <tr><td>Header tabla</td><td>Oswald</td><td style="font-family:'Sono',monospace;">500</td><td style="font-family:'Sono',monospace;">10px</td><td>Uppercase, letter-spacing 0.8px</td></tr>
+      <tr><td>KPI (card)</td><td>Sono</td><td style="font-family:'Sono',monospace;">700</td><td style="font-family:'Sono',monospace;">36px</td><td>&mdash;</td></tr>
+      <tr><td>KPI (inline)</td><td>Sono</td><td style="font-family:'Sono',monospace;">700</td><td style="font-family:'Sono',monospace;">32px</td><td>&mdash;</td></tr>
+      <tr><td>Datos tabla</td><td>Sono</td><td style="font-family:'Sono',monospace;">400</td><td style="font-family:'Sono',monospace;">12px</td><td>&mdash;</td></tr>
+      <tr><td>C&oacute;digo/Patente</td><td>Sono</td><td style="font-family:'Sono',monospace;">600</td><td style="font-family:'Sono',monospace;">12px</td><td>&mdash;</td></tr>
+      <tr><td>Badge</td><td>Sono</td><td style="font-family:'Sono',monospace;">600</td><td style="font-family:'Sono',monospace;">11px</td><td>&mdash;</td></tr>
+      <tr><td>Bot&oacute;n small</td><td>Oswald</td><td style="font-family:'Sono',monospace;">500</td><td style="font-family:'Sono',monospace;">11px</td><td>Uppercase, letter-spacing 0.5px</td></tr>
+      <tr><td>Bot&oacute;n medium</td><td>Oswald</td><td style="font-family:'Sono',monospace;">500</td><td style="font-family:'Sono',monospace;">12px</td><td>Uppercase, letter-spacing 0.8px</td></tr>
+      <tr><td>Bot&oacute;n large</td><td>Oswald</td><td style="font-family:'Sono',monospace;">500</td><td style="font-family:'Sono',monospace;">14px</td><td>Uppercase, letter-spacing 1px</td></tr>
+    </tbody>
+  </table>
+  </div>
+</div>
+
+<!-- ══════════════════ 5. Z-INDEX + 6. COMPONENTES ══════════════════ -->
+<div class="page page-break" id="s5">
+  <h1>5. Capas Z-Index</h1>
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>Token</th><th>Valor</th><th>Uso</th></tr></thead>
+    <tbody>
+      <tr><td><code>--z-base</code></td><td style="font-family:'Sono',monospace;">0</td><td>Contenido de la p&aacute;gina</td></tr>
+      <tr><td><code>--z-sidebar</code></td><td style="font-family:'Sono',monospace;">10</td><td>Sidebar de navegaci&oacute;n</td></tr>
+      <tr><td><code>--z-header</code></td><td style="font-family:'Sono',monospace;">20</td><td>Header superior</td></tr>
+      <tr><td><code>--z-dropdown</code></td><td style="font-family:'Sono',monospace;">30</td><td>Dropdowns, selects, popovers</td></tr>
+      <tr><td><code>--z-tooltip</code></td><td style="font-family:'Sono',monospace;">40</td><td>Tooltips</td></tr>
+      <tr><td><code>--z-modal-overlay</code></td><td style="font-family:'Sono',monospace;">50</td><td>Backdrop del modal</td></tr>
+      <tr><td><code>--z-modal</code></td><td style="font-family:'Sono',monospace;">60</td><td>Contenido del modal</td></tr>
+      <tr><td><code>--z-toast</code></td><td style="font-family:'Sono',monospace;">70</td><td>Notificaciones toast (capa superior)</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h1>6. Componentes</h1>
+
+  <h2>6.1 Botones (seg&uacute;n cheatsheet UX de Jan Mr&aacute;z)</h2>
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>Tama&ntilde;o</th><th>Altura</th><th>Padding H.</th><th>Icono</th><th>Gap</th><th>Uso</th></tr></thead>
+    <tbody>
+      <tr><td>Small</td><td style="font-family:'Sono',monospace;">32px / 36px</td><td style="font-family:'Sono',monospace;">12px</td><td style="font-family:'Sono',monospace;">14px</td><td style="font-family:'Sono',monospace;">4px</td><td>Filtros, acciones secundarias</td></tr>
+      <tr><td>Medium</td><td style="font-family:'Sono',monospace;">40px / 48px</td><td style="font-family:'Sono',monospace;">16px</td><td style="font-family:'Sono',monospace;">16px</td><td style="font-family:'Sono',monospace;">8px</td><td>Acciones principales</td></tr>
+      <tr><td>Large</td><td style="font-family:'Sono',monospace;">52px / 56px</td><td style="font-family:'Sono',monospace;">24px</td><td style="font-family:'Sono',monospace;">18px</td><td style="font-family:'Sono',monospace;">8px</td><td>CTA de login, acciones cr&iacute;ticas</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>Altura default para uso normal. Altura &eacute;nfasis para CTAs independientes o cuando el bot&oacute;n es la acci&oacute;n principal de la p&aacute;gina.</p>
+
+  <h3>Variantes</h3>
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>Variante</th><th>Fondo</th><th>Texto</th><th>Borde</th><th>Uso</th></tr></thead>
+    <tbody>
+      <tr><td>Primary</td><td><code>--accent</code></td><td><code>--bg-primary</code> (oscuro)</td><td>ninguno</td><td>Acciones principales</td></tr>
+      <tr><td>Outline</td><td>transparente</td><td><code>--accent</code></td><td><code>1px solid --accent</code></td><td>Acciones secundarias</td></tr>
+      <tr><td>Secondary</td><td><code>--bg-elevated</code></td><td><code>--text-primary</code></td><td><code>1px solid --bg-elevated</code></td><td>Cancelar, cerrar</td></tr>
+      <tr><td>Danger</td><td><code>--error</code></td><td><code>--bg-primary</code> (oscuro)</td><td>ninguno</td><td>Acciones destructivas</td></tr>
+      <tr><td>Success</td><td><code>--success</code></td><td><code>--bg-primary</code> (oscuro)</td><td>ninguno</td><td>Aprobaciones</td></tr>
+      <tr><td>Disabled</td><td><code>--bg-elevated</code> 50%</td><td><code>--text-muted</code></td><td>ninguno</td><td>Estado inactivo, cursor not-allowed</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>Todos los botones: <code>border-radius: 4px</code> (6px en Large &eacute;nfasis). Fuente Oswald uppercase. Animaci&oacute;n de press: scale 0.97 por 100ms.</p>
+
+  <h2>6.2 Cards KPI</h2>
+  <ul>
+    <li><strong>Fondo:</strong> <code>--bg-surface</code></li>
+    <li><strong>Borde:</strong> <code>1px solid --bg-elevated</code></li>
+    <li><strong>Border-radius:</strong> 6px</li>
+    <li><strong>Padding:</strong> <code>--space-4</code> (16px)</li>
+    <li><strong>Label:</strong> Oswald 11px uppercase, <code>--text-muted</code></li>
+    <li><strong>Valor:</strong> Sono 36px bold, color seg&uacute;n significado sem&aacute;ntico</li>
+    <li><strong>Tendencia:</strong> Sono 12px, coloreado (success/error)</li>
+  </ul>
+
+  <h2>6.3 Tablas</h2>
+  <ul>
+    <li><strong>Header:</strong> <code>--bg-elevated</code>, Oswald 10px uppercase <code>--text-muted</code></li>
+    <li><strong>Filas:</strong> Alternando <code>--bg-surface</code> / <code>--bg-primary</code></li>
+    <li><strong>Celdas:</strong> Sono 12px para datos, Oswald 12px para campos descriptivos</li>
+    <li><strong>Hover:</strong> <code>rgba(245,110,15,0.04)</code> + <code>border-left: 2px solid --accent</code></li>
+    <li><strong>Contenedor:</strong> <code>1px solid --bg-elevated</code>, <code>border-radius: 6px</code></li>
+    <li><strong>Filtros:</strong> Tabs sobre la tabla: activo = accent 12% + borde, inactivo = <code>--bg-elevated</code></li>
+  </ul>
+
+  <h2>6.4 Inputs</h2>
+  <ul>
+    <li><strong>Fondo:</strong> <code>--bg-elevated</code></li>
+    <li><strong>Borde reposo:</strong> <code>1px solid --bg-elevated</code></li>
+    <li><strong>Borde focus:</strong> <code>1px solid --accent</code> + glow <code>rgba(245,110,15,0.15)</code></li>
+    <li><strong>Borde error:</strong> <code>1px solid --error</code> + glow <code>rgba(212,128,122,0.15)</code></li>
+    <li><strong>Altura:</strong> 40px (default, alineado con botones Medium), 32px (compacto)</li>
+    <li><strong>Padding:</strong> <code>--space-2</code> vertical (8px), <code>--space-4</code> horizontal (16px)</li>
+    <li><strong>Label:</strong> Oswald 11px uppercase, cambia color seg&uacute;n estado</li>
+    <li><strong>Texto ayuda:</strong> Oswald 11px, <code>--text-muted</code> (hint) o <code>--error</code> (validaci&oacute;n)</li>
+    <li><strong>Disabled:</strong> 50% opacidad, <code>cursor: not-allowed</code></li>
+  </ul>
+
+  <h2>6.5 Selects / Dropdowns</h2>
+  <ul>
+    <li><strong>Trigger:</strong> Mismo estilo que inputs</li>
+    <li><strong>Panel:</strong> <code>--bg-surface</code>, borde <code>--bg-elevated</code>, <code>border-radius: 6px</code>, sombra</li>
+    <li><strong>Hover opci&oacute;n:</strong> <code>rgba(245,110,15,0.06)</code></li>
+    <li><strong>Seleccionado:</strong> Texto <code>--accent</code> + icono check</li>
+    <li><strong>Z-index:</strong> <code>--z-dropdown</code></li>
+  </ul>
+
+  <h2>6.6 Tooltips</h2>
+  <ul>
+    <li><strong>Fondo:</strong> <code>--bg-elevated</code>, texto <code>--text-primary</code>, Oswald 12px</li>
+    <li><strong>Border-radius:</strong> 4px, padding 6px 10px, flecha 6px</li>
+    <li><strong>Delay:</strong> 300ms para mostrar, instant&aacute;neo para ocultar</li>
+    <li><strong>Z-index:</strong> <code>--z-tooltip</code></li>
+  </ul>
+
+  <h2>6.7 Modales</h2>
+  <ul>
+    <li><strong>Fondo:</strong> <code>--bg-surface</code>, borde <code>--bg-elevated</code>, <code>border-radius: 8px</code></li>
+    <li><strong>Overlay:</strong> <code>rgba(0,0,0,0.6)</code> con <code>backdrop-filter: blur(4px)</code></li>
+    <li><strong>Padding:</strong> <code>--space-6</code> (24px)</li>
+    <li><strong>Animaci&oacute;n:</strong> Scale desde 0.95 + fade, 200ms</li>
+    <li><strong>Z-index:</strong> overlay <code>--z-modal-overlay</code>, contenido <code>--z-modal</code></li>
+  </ul>
+
+  <h2>6.8 Toasts / Notificaciones</h2>
+  <ul>
+    <li><strong>Librer&iacute;a:</strong> Sonner (integrado con shadcn/ui)</li>
+    <li><strong>Posici&oacute;n:</strong> Arriba a la derecha</li>
+    <li><strong>Estilo:</strong> <code>--bg-surface</code>, borde <code>--bg-elevated</code>, acento izquierdo de 3px en color sem&aacute;ntico</li>
+    <li><strong>Auto-dismiss:</strong> 5 segundos. M&aacute;ximo 3 visibles, el m&aacute;s antiguo se descarta al llegar al 4to</li>
+    <li><strong>Animaci&oacute;n:</strong> Slide-in desde la derecha, 300ms</li>
+    <li><strong>Z-index:</strong> <code>--z-toast</code></li>
+  </ul>
+
+  <h2>6.9 Estados de Carga y Vac&iacute;os</h2>
+  <ul>
+    <li><strong>Skeleton:</strong> Rect&aacute;ngulos pulsantes <code>--bg-elevated</code> sobre <code>--bg-surface</code>. Pulso: opacidad 0.4 → 1 → 0.4, 1.5s infinite.</li>
+    <li><strong>Estado vac&iacute;o:</strong> Icono Lucide centrado (48px, <code>--text-muted</code>), mensaje Oswald 16px, bot&oacute;n de acci&oacute;n opcional.</li>
+    <li><strong>Loading inline:</strong> Spinner 16px usando <code>--accent</code>.</li>
+  </ul>
+
+  <h2>6.10 Iconos</h2>
+  <ul>
+    <li><strong>Librer&iacute;a:</strong> Lucide Icons (incluido con shadcn/ui)</li>
+    <li><strong>Tama&ntilde;os:</strong> 14px (small), 16px (medium), 18px (large)</li>
+    <li><strong>Stroke:</strong> 2px. Color hereda del texto padre.</li>
+  </ul>
+</div>
+
+<!-- ══════════════════ 7. SIDEBAR ══════════════════ -->
+<div class="page page-break" id="s7">
+  <h1>7. Sidebar de Navegaci&oacute;n</h1>
+
+  <h2>7.1 Estructura</h2>
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>Propiedad</th><th>Valor</th></tr></thead>
+    <tbody>
+      <tr><td>Ancho expandido</td><td style="font-family:'Sono',monospace;">230px</td></tr>
+      <tr><td>Ancho colapsado</td><td style="font-family:'Sono',monospace;">56px</td></tr>
+      <tr><td>Fondo</td><td><code>--bg-surface</code></td></tr>
+      <tr><td>Borde derecho</td><td><code>1px solid --bg-elevated</code></td></tr>
+      <tr><td>Logo</td><td>Cuadrado naranja 34x34 con icono SVG cami&oacute;n + "DISPATCHTRACK" Oswald 15px</td></tr>
+      <tr><td>Z-index</td><td><code>--z-sidebar</code></td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h2>7.2 Items de Navegaci&oacute;n</h2>
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>Estado</th><th>Estilo</th></tr></thead>
+    <tbody>
+      <tr><td>Reposo</td><td>Icono Lucide 18px <code>--text-muted</code> + Oswald 12px uppercase <code>--text-muted</code></td></tr>
+      <tr><td>Activo</td><td>Icono y texto <code>--accent</code>, border-left 3px <code>--accent</code>, bg <code>rgba(245,110,15,0.08)</code></td></tr>
+      <tr><td>Hover</td><td><code>rgba(251,251,251,0.03)</code></td></tr>
+      <tr><td>Colapsado</td><td>Solo icono centrado en &aacute;rea 38x38, mismos estados</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p><strong>Altura item:</strong> 40px. <strong>Padding:</strong> 8px vertical, 16px horizontal. <strong>Gap icono-label:</strong> 12px. <strong>Animaci&oacute;n colapso:</strong> Width transition 200ms ease.</p>
+
+  <h2>7.3 Items por Grupo de Rol</h2>
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>Grupo</th><th>Roles</th><th>Items del Men&uacute;</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Platform</strong></td><td>Jefe Despacho, Coordinadores, Supervisor</td><td>Dashboard, Camiones, Andenes, Pallets, Reportes, SAG, Configuraci&oacute;n</td></tr>
+      <tr><td><strong>Operativo</strong></td><td>Pickinero, Cargador, Operador T&uacute;nel</td><td>Solo items relevantes al rol (ej: Pickinero ve solo Picking)</td></tr>
+      <tr><td><strong>SAG</strong></td><td>Inspector SAG</td><td>Exportaciones, Historial</td></tr>
+    </tbody>
+  </table>
+  </div>
+</div>
+
+<!-- ══════════════════ 8. ARQUITECTURA ══════════════════ -->
+<div class="page page-break" id="s8">
+  <h1>8. Arquitectura Frontend (Enfoque H&iacute;brido)</h1>
+
+  <h2>8.1 Grupos de Rutas (Next.js App Router)</h2>
+  <div class="flow">app/
+├── middleware.ts               ← Validaci&oacute;n JWT + protecci&oacute;n por rol
+├── (auth)/login/               ← Login con video de fondo
+├── (platform)/                 ← Roles globales: Jefe, Coordinadores, Supervisor
+│   ├── layout.tsx             ← Sidebar completa + header
+│   ├── dashboard/
+│   ├── camiones/
+│   ├── andenes/
+│   ├── pallets/
+│   └── reportes/
+├── (operativo)/                ← Planta: Pickinero, Cargador
+│   ├── layout.tsx             ← Sidebar simplificada
+│   ├── picking/
+│   ├── carga/
+│   └── tunel/
+└── (sag)/                      ← Portal inspector SAG
+    ├── layout.tsx             ← Layout independiente
+    └── exportaciones/</div>
+
+  <h2>8.2 Protecci&oacute;n de Rutas (middleware.ts)</h2>
+  <ul>
+    <li>Lee JWT desde cookie/header en cada request</li>
+    <li>Valida token y extrae el rol del usuario</li>
+    <li>Redirige usuarios no autenticados a <code>(auth)/login</code></li>
+    <li>Redirige usuarios autenticados a su grupo de rutas seg&uacute;n rol</li>
+  </ul>
+
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>Grupo de Rutas</th><th>Roles Permitidos</th></tr></thead>
+    <tbody>
+      <tr><td><code>(platform)</code></td><td>JEFE_DESPACHO, COORDINADOR, COORDINADOR_TRANSPORTE, SUPERVISOR</td></tr>
+      <tr><td><code>(operativo)</code></td><td>PICKINERO, CARGADOR, OPERADOR_TUNEL, SUPERVISOR</td></tr>
+      <tr><td><code>(sag)</code></td><td>SAG</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="note"><strong>Supervisor</strong> puede acceder tanto a <code>(platform)</code> como a <code>(operativo)</code>. Redirige a <code>(platform)</code> por defecto.</div>
+
+  <h2>8.3 Gesti&oacute;n de Estado en Tiempo Real</h2>
+  <ul>
+    <li><strong>TanStack Query</strong> para estado del servidor (fetching, cach&eacute;, refetching)</li>
+    <li><strong>Socket.io client</strong> se conecta al montar el layout, se une a salas por rol (global, edificio, sag)</li>
+    <li><strong>WebSocket → Invalidaci&oacute;n de Query:</strong> Al recibir un evento, invalida la query key relevante para disparar un refetch con transici&oacute;n animada</li>
+    <li><strong>Sin store global separado</strong> &mdash; TanStack Query sirve como cach&eacute; de estado del servidor</li>
+  </ul>
+
+  <h2>8.4 Estrategia de Reconexi&oacute;n</h2>
+  <ul>
+    <li>Socket.io auto-reconnect con backoff exponencial</li>
+    <li>Al desconectar: toast sutil "Reconectando..." con acento <code>--warning</code></li>
+    <li>Al reconectar: invalida todas las queries activas para sincronizar datos</li>
+    <li>Si desconectado &gt;30s: banner persistente en la parte superior del layout</li>
+  </ul>
+</div>
+
+<!-- ══════════════════ 9. LOGIN ══════════════════ -->
+<div class="page page-break" id="s9">
+  <h1>9. P&aacute;gina de Login</h1>
+  <ul>
+    <li><strong>Fondo:</strong> Video en loop de camiones/log&iacute;stica con overlay oscuro <code>rgba(0,0,0,0.7)</code></li>
+    <li><strong>Formulario:</strong> Card centrada flotante sobre <code>--bg-surface</code> con <code>backdrop-filter: blur(8px)</code></li>
+    <li><strong>CTA:</strong> Bot&oacute;n Large &eacute;nfasis (56px) con <code>--accent</code></li>
+    <li><strong>Logo:</strong> Branding DispatchTrack prominente sobre el formulario</li>
+    <li><strong>Campos:</strong> RUT/Email + Contrase&ntilde;a, con estados de validaci&oacute;n</li>
+    <li><strong>Recordarme:</strong> Checkbox opcional</li>
+  </ul>
+
+  <h1>10. Tema ECharts</h1>
+  <p>Los gr&aacute;ficos del dashboard siguen la paleta del sistema de dise&ntilde;o:</p>
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>Elemento</th><th>Color / Estilo</th></tr></thead>
+    <tbody>
+      <tr><td>Fondo</td><td>Transparente (hereda <code>--bg-surface</code> de la card)</td></tr>
+      <tr><td>Texto (ejes, leyenda)</td><td><code>--text-muted</code>, Oswald 11px</td></tr>
+      <tr><td>L&iacute;neas de eje</td><td><code>--bg-elevated</code></td></tr>
+      <tr><td>L&iacute;neas de grilla</td><td><code>rgba(38,38,38,0.5)</code> (sutil)</td></tr>
+      <tr><td>Tooltip</td><td><code>--bg-elevated</code> fondo, <code>--text-primary</code> texto</td></tr>
+      <tr><td>Paleta de series</td><td><code>--accent</code>, <code>--info</code>, <code>--success</code>, <code>--warning</code>, <code>--error</code>, <code>#9B7BCC</code></td></tr>
+      <tr><td>Relleno barras/&aacute;reas</td><td>80% opacidad del color de la serie</td></tr>
+      <tr><td>Highlight hover</td><td>Opacidad completa + glow sutil</td></tr>
+    </tbody>
+  </table>
+  </div>
+</div>
+
+<!-- ══════════════════ 11. ANIMACIONES ══════════════════ -->
+<div class="page page-break" id="s11">
+  <h1>11. Animaciones (Framer Motion)</h1>
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>Interacci&oacute;n</th><th>Animaci&oacute;n</th><th>Duraci&oacute;n</th></tr></thead>
+    <tbody>
+      <tr><td>Carga de p&aacute;gina</td><td>Fade-in + slide-up (y: 8px → 0)</td><td style="font-family:'Sono',monospace;">200ms</td></tr>
+      <tr><td>Cards/filas aparecen</td><td>Stagger fade-in</td><td style="font-family:'Sono',monospace;">50ms entre items</td></tr>
+      <tr><td>N&uacute;meros KPI</td><td>Count-up al montar</td><td style="font-family:'Sono',monospace;">600ms</td></tr>
+      <tr><td>Cambio estado cami&oacute;n</td><td>Badge pulso (scale 1.1 → 1) + transici&oacute;n de color</td><td style="font-family:'Sono',monospace;">300ms</td></tr>
+      <tr><td>Hover card/fila</td><td>translateY -2px + border-left accent</td><td style="font-family:'Sono',monospace;">150ms</td></tr>
+      <tr><td>Colapso sidebar</td><td>Transici&oacute;n de ancho</td><td style="font-family:'Sono',monospace;">200ms ease</td></tr>
+      <tr><td>Modales</td><td>Scale desde 0.95 + fade</td><td style="font-family:'Sono',monospace;">200ms</td></tr>
+      <tr><td>Notificaci&oacute;n WebSocket</td><td>Slide-in desde la derecha</td><td style="font-family:'Sono',monospace;">300ms</td></tr>
+      <tr><td>Press bot&oacute;n</td><td>Scale down 0.97</td><td style="font-family:'Sono',monospace;">100ms</td></tr>
+      <tr><td>Skeleton pulse</td><td>Opacidad 0.4 → 1 → 0.4</td><td style="font-family:'Sono',monospace;">1500ms infinite</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h2>Actualizaciones en Tiempo Real</h2>
+  <ul>
+    <li>Eventos WebSocket disparan transiciones animadas en los elementos afectados</li>
+    <li>Nuevas llegadas de camiones animan su entrada a la lista con flash de highlight</li>
+    <li>Cambios de estado en camiones visibles animan el swap de color del badge con pulso</li>
+    <li>N&uacute;meros de KPI re-cuentan cuando los valores se actualizan</li>
+  </ul>
+</div>
+
+<!-- ══════════════════ 12. RESPONSIVE + 13. ACCESIBILIDAD + 14. PRINCIPIOS ══════════════════ -->
+<div class="page page-break" id="s12">
+  <h1>12. Comportamiento Responsive</h1>
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>Breakpoint</th><th>Layout</th></tr></thead>
+    <tbody>
+      <tr><td>Desktop (&gt;1024px)</td><td>Sidebar completa expandida + contenido</td></tr>
+      <tr><td>Tablet (768-1024px)</td><td>Sidebar colapsada por defecto, expandible con tap</td></tr>
+      <tr><td>M&oacute;vil (&lt;768px)</td><td>No es target principal. Sidebar se convierte en drawer off-canvas. Vistas Operativo son touch-optimized y funcionan bien en tablet/m&oacute;vil. Vistas Platform degradan gracefully pero son desktop-first.</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>Las <strong>vistas Operativo</strong> est&aacute;n dise&ntilde;adas tablet-first: targets de toque grandes (m&iacute;nimo 44x44px), layouts simplificados, workflows compatibles con esc&aacute;ner.</p>
+
+  <h1>13. Accesibilidad</h1>
+  <ul>
+    <li><strong>Contraste:</strong> Todo el texto cumple WCAG AA (4.5:1 texto normal, 3:1 texto grande). <code>--text-muted</code> ajustado a <code>#9A9A9A</code> para cumplir 4.5:1 sobre <code>--bg-surface</code>.</li>
+    <li><strong>Indicadores de foco:</strong> Todos los elementos interactivos muestran focus ring visible (glow <code>--accent</code>) al navegar con teclado.</li>
+    <li><strong>Navegaci&oacute;n por teclado:</strong> Todas las acciones accesibles v&iacute;a Tab/Enter/Escape. Modales atrapan el foco. Items de sidebar navegables con flechas.</li>
+    <li><strong>Lectores de pantalla:</strong> HTML sem&aacute;ntico (nav, main, aside, table, button). ARIA labels en botones de solo icono y sidebar colapsada. Cambios de badges anunciados v&iacute;a <code>aria-live="polite"</code>.</li>
+    <li><strong>Movimiento reducido:</strong> Respetar <code>prefers-reduced-motion</code> &mdash; desactivar animaciones Framer Motion, usar transiciones instant&aacute;neas.</li>
+  </ul>
+
+  <h1>14. Principios UX Clave</h1>
+  <ol>
+    <li><strong>Interactividad primero</strong> &mdash; Todo debe sentirse vivo y responsivo</li>
+    <li><strong>Complejidad apropiada al rol</strong> &mdash; Roles globales obtienen dashboards ricos; trabajadores de planta obtienen vistas de tarea enfocadas</li>
+    <li><strong>Feedback en tiempo real</strong> &mdash; Actualizaciones WebSocket reflejadas inmediatamente con transiciones visuales</li>
+    <li><strong>Est&eacute;tica industrial</strong> &mdash; Bordes definidos, separaciones claras, sensaci&oacute;n de panel de control</li>
+    <li><strong>Claridad de datos</strong> &mdash; Sono monospace para datos asegura escaneo r&aacute;pido de n&uacute;meros y c&oacute;digos</li>
+    <li><strong>Espaciado consistente</strong> &mdash; Sistema de espaciado base-4 + tama&ntilde;os de bot&oacute;n siguiendo mejores pr&aacute;cticas UX</li>
+    <li><strong>Accesible por defecto</strong> &mdash; Cumplimiento WCAG AA, navegaci&oacute;n por teclado, soporte lectores de pantalla</li>
+  </ol>
+
+  <div class="footer">
+    DispatchTrack &mdash; Especificaci&oacute;n del Sistema de Dise&ntilde;o &nbsp;&bull;&nbsp; Versi&oacute;n 1.0 &nbsp;&bull;&nbsp; Marzo 2026 &nbsp;&bull;&nbsp; Seminario de T&iacute;tulo &mdash; Ingenier&iacute;a en Inform&aacute;tica
+  </div>
+</div>
+
+</body>
+</html>

@@ -1,9 +1,9 @@
-// Utils
+// Utilidades
 export { cn } from "./utils/cn";
 export { hexToRgba, semanticColors, getBadgeStyles } from "./utils/colors";
 export type { SemanticColorKey } from "./utils/colors";
 
-// Components
+// Componentes
 export { Button, type ButtonProps } from "./components/button";
 export { Badge, type BadgeProps } from "./components/badge";
 export { Card, KpiCard, type KpiCardProps } from "./components/card";

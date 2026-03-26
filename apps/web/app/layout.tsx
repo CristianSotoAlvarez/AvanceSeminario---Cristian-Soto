@@ -1,18 +1,16 @@
 import type { Metadata } from "next";
-import { Oswald, Sono } from "next/font/google";
+import { Geist, Geist_Mono } from "next/font/google";
 import { Providers } from "@/components/providers";
 import "./globals.css";
 
-const oswald = Oswald({
+const geist = Geist({
   subsets: ["latin"],
   variable: "--font-display",
-  weight: ["300", "400", "500", "600", "700"],
 });
 
-const sono = Sono({
+const geistMono = Geist_Mono({
   subsets: ["latin"],
   variable: "--font-data",
-  weight: ["400", "600", "700"],
 });
 
 export const metadata: Metadata = {
@@ -26,7 +24,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="es" className={`${oswald.variable} ${sono.variable}`}>
+    <html lang="es" className={`${geist.variable} ${geistMono.variable}`}>
       <body className="antialiased">
         <Providers>{children}</Providers>
       </body>

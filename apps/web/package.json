@@ -9,21 +9,22 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@dispatch-track/types": "*",
+    "@dispatch-track/ui": "*",
+    "@dispatch-track/utils": "*",
+    "lucide-react": "^0.460",
+    "motion": "^11",
     "next": "^15",
     "react": "^19",
-    "react-dom": "^19",
-    "motion": "^11",
-    "lucide-react": "^0.460",
-    "@dispatch-track/ui": "*",
-    "@dispatch-track/types": "*",
-    "@dispatch-track/utils": "*"
+    "react-dom": "^19"
   },
   "devDependencies": {
-    "typescript": "^5.7",
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "25.5.0",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "postcss": "^8",
     "tailwindcss": "^4",
-    "@tailwindcss/postcss": "^4",
-    "postcss": "^8"
+    "typescript": "^5.7"
   }
 }

@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { SidebarItem } from "./sidebar-item";
 
-const platformItems = [
+const elementosPlataforma = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/dashboard" },
   { icon: Truck, label: "Camiones", href: "/camiones" },
   { icon: Warehouse, label: "Andenes", href: "/andenes" },
@@ -29,12 +29,12 @@ interface SidebarProps {
 }
 
 export function Sidebar({ currentPath = "/dashboard" }: SidebarProps) {
-  const [collapsed, setCollapsed] = useState(false);
+  const [colapsado, setColapsado] = useState(false);
 
   return (
     <motion.aside
       className="h-screen bg-bg-surface border-r border-bg-elevated flex flex-col z-sidebar"
-      animate={{ width: collapsed ? 56 : 230 }}
+      animate={{ width: colapsado ? 56 : 230 }}
       transition={{ duration: 0.2, ease: "easeInOut" }}
     >
       {/* Logo */}
@@ -42,7 +42,7 @@ export function Sidebar({ currentPath = "/dashboard" }: SidebarProps) {
         <div className="w-[34px] h-[34px] bg-accent rounded-md flex items-center justify-center shrink-0">
           <Truck size={20} className="text-text-primary" />
         </div>
-        {!collapsed && (
+        {!colapsado && (
           <motion.span
             className="font-display text-[15px] font-semibold text-text-primary uppercase tracking-[0.5px]"
             initial={{ opacity: 0 }}
@@ -54,14 +54,14 @@ export function Sidebar({ currentPath = "/dashboard" }: SidebarProps) {
         )}
       </div>
 
-      {/* Nav Items */}
+      {/* Elementos de navegación */}
       <nav className="flex-1 py-2">
-        {platformItems.map((item) => (
+        {elementosPlataforma.map((elemento) => (
           <SidebarItem
-            key={item.href}
-            {...item}
-            active={currentPath === item.href}
-            collapsed={collapsed}
+            key={elemento.href}
+            {...elemento}
+            active={currentPath === elemento.href}
+            collapsed={colapsado}
           />
         ))}
 
@@ -72,17 +72,17 @@ export function Sidebar({ currentPath = "/dashboard" }: SidebarProps) {
           label="Configuración"
           href="/configuracion"
           active={currentPath === "/configuracion"}
-          collapsed={collapsed}
+          collapsed={colapsado}
         />
       </nav>
 
-      {/* Collapse Toggle */}
+      {/* Botón de colapsar/expandir */}
       <button
-        onClick={() => setCollapsed(!collapsed)}
+        onClick={() => setColapsado(!colapsado)}
         className="flex items-center justify-center h-10 border-t border-bg-elevated text-text-muted hover:text-text-primary transition-colors"
-        aria-label={collapsed ? "Expandir sidebar" : "Colapsar sidebar"}
+        aria-label={colapsado ? "Expandir sidebar" : "Colapsar sidebar"}
       >
-        {collapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
+        {colapsado ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
       </button>
     </motion.aside>
   );

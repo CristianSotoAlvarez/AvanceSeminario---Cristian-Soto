@@ -10,17 +10,17 @@ export interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
 
 export const Input = forwardRef<HTMLInputElement, InputProps>(
   ({ label, error, hint, compact, className, id, ...props }, ref) => {
-    const inputId = id || label?.toLowerCase().replace(/\s+/g, "-");
-    const hasError = !!error;
+    const idInput = id || label?.toLowerCase().replace(/\s+/g, "-");
+    const tieneError = !!error;
 
     return (
       <div className="flex flex-col gap-1.5">
         {label && (
           <label
-            htmlFor={inputId}
+            htmlFor={idInput}
             className={cn(
               "font-display text-label uppercase",
-              hasError ? "text-semantic-error" : "text-text-muted"
+              tieneError ? "text-semantic-error" : "text-text-muted"
             )}
           >
             {label}
@@ -28,12 +28,12 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
         )}
         <input
           ref={ref}
-          id={inputId}
+          id={idInput}
           className={cn(
             "bg-bg-elevated border rounded-sm px-4 py-2 font-display text-body text-text-primary",
             "outline-none transition-all",
             compact ? "h-8" : "h-10",
-            hasError
+            tieneError
               ? "border-semantic-error shadow-[0_0_0_3px_rgba(212,128,122,0.15)]"
               : "border-bg-elevated focus:border-accent focus:shadow-[0_0_0_3px_rgba(245,110,15,0.15)]",
             "disabled:opacity-50 disabled:cursor-not-allowed",
@@ -44,7 +44,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
         {(error || hint) && (
           <span className={cn(
             "font-display text-caption",
-            hasError ? "text-semantic-error" : "text-text-muted"
+            tieneError ? "text-semantic-error" : "text-text-muted"
           )}>
             {error || hint}
           </span>
