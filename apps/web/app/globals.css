@@ -1,0 +1,71 @@
+@import "tailwindcss";
+@source "../../../packages/ui/src/**/*.{ts,tsx}";
+
+@theme {
+  /* Background */
+  --color-bg-primary: #151419;
+  --color-bg-surface: #1B1B1E;
+  --color-bg-elevated: #262626;
+
+  /* Text */
+  --color-text-primary: #FBFBFB;
+  --color-text-muted: #9A9A9A;
+
+  /* Accent */
+  --color-accent: #F56E0F;
+  --color-accent-hover: #FF8534;
+
+  /* Semantic */
+  --color-semantic-success: #7AB87A;
+  --color-semantic-error: #D4807A;
+  --color-semantic-warning: #B8A860;
+  --color-semantic-info: #6896C8;
+  --color-semantic-neutral: #9A9A9A;
+
+  /* Fonts — next/font/google inyecta los valores via --font-display y --font-data en <html> */
+  --font-display: "Oswald", sans-serif;
+  --font-data: "Sono", monospace;
+
+  /* Spacing: usamos el scale nativo de Tailwind (1=4px, 2=8px, 4=16px, 6=24px, 8=32px, 10=40px) */
+  /* No necesitamos tokens custom — el scale default es idéntico */
+
+  /* Z-index */
+  --z-sidebar: 10;
+  --z-header: 20;
+  --z-dropdown: 30;
+  --z-tooltip: 40;
+  --z-modal-overlay: 50;
+  --z-modal: 60;
+  --z-toast: 70;
+
+  /* Animation */
+  --animate-skeleton-pulse: skeleton-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes skeleton-pulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 1; }
+}
+
+/* Base styles */
+body {
+  font-family: var(--font-display);
+  background-color: var(--color-bg-primary);
+  color: var(--color-text-primary);
+}
+
+/* Scrollbar dark theme */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--color-bg-primary);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-bg-elevated);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #333;
+}
