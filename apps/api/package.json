@@ -1,0 +1,12 @@
+{
+  "name": "@dispatch-track/api",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "dev": "echo 'API placeholder — Fase 2'",
+    "build": "echo 'API placeholder — Fase 2'"
+  },
+  "dependencies": {
+    "@dispatch-track/types": "*"
+  }
+}
