@@ -5,6 +5,7 @@ import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
 import { UsuariosModule } from './usuarios/usuarios.module';
+import { CamionesModule } from './camiones/camiones.module';
 
 @Module({
   imports: [
@@ -28,6 +29,9 @@ import { UsuariosModule } from './usuarios/usuarios.module';
 
     // Gestión de usuarios
     UsuariosModule,
+
+    // Gestión de camiones con máquina de estados
+    CamionesModule,
   ],
   providers: [
     // Aplicar ThrottlerGuard globalmente
