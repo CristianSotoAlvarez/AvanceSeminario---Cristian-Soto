@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { PrismaModule } from './prisma/prisma.module';
 
 @Module({
   imports: [
@@ -16,6 +17,9 @@ import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
       ttl: 60000,
       limit: 60,
     }]),
+
+    // Módulo global de Prisma para acceso a base de datos
+    PrismaModule,
   ],
   providers: [
     // Aplicar ThrottlerGuard globalmente
