@@ -4,6 +4,7 @@ import { ConfigModule } from '@nestjs/config';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
+import { UsuariosModule } from './usuarios/usuarios.module';
 
 @Module({
   imports: [
@@ -24,6 +25,9 @@ import { AuthModule } from './auth/auth.module';
 
     // Autenticación JWT dual token
     AuthModule,
+
+    // Gestión de usuarios
+    UsuariosModule,
   ],
   providers: [
     // Aplicar ThrottlerGuard globalmente
