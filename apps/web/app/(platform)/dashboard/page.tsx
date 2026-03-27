@@ -1,70 +1,97 @@
-import { KpiCard, Table, TableHeader, TableBody, TableRow, TableHead, TableCell, Badge } from "@dispatch-track/ui";
+"use client";
+
+import { KpiCard, Table, TableHeader, TableBody, TableRow, TableHead, TableCell, Badge, Skeleton } from "@dispatch-track/ui";
 import { TruckState, TRUCK_STATE_COLOR } from "@dispatch-track/types";
+import { useCamiones } from "@/hooks/use-camiones";
 
-const camionesMock = [
-  { plate: "BXRK-42", type: "Nacional", client: "Walmart Chile", dock: "A3", time: "08:30", state: TruckState.EN_CARGA },
-  { plate: "HJTL-87", type: "Exportación", client: "Costco USA", dock: "F2", time: "07:45", state: TruckState.EN_TUNEL_FRIO },
-  { plate: "PLWZ-15", type: "Nacional", client: "SMU / Unimarc", dock: "C1", time: "09:00", state: TruckState.LISTO },
-  { plate: "DRKM-63", type: "Interplanta", client: "Planta Rosario", dock: "—", time: "10:15", state: TruckState.ESPERADO },
-];
+const etiquetasEstado: Record<string, string> = {
+  ESPERADO: "ESPERADO",
+  EN_PORTERIA: "EN PORTERÍA",
+  ASIGNADO: "ASIGNADO",
+  EN_CARGA: "EN CARGA",
+  EN_TUNEL_FRIO: "EN TÚNEL FRÍO",
+  ESPERANDO_SAG: "ESPERANDO SAG",
+  APROBADO_SAG: "APROBADO SAG",
+  RECHAZADO_SAG: "RECHAZADO SAG",
+  LISTO: "LISTO",
+  DESPACHADO: "DESPACHADO",
+};
 
-const etiquetasEstado: Record<TruckState, string> = {
-  [TruckState.ESPERADO]: "ESPERADO",
-  [TruckState.EN_PORTERIA]: "EN PORTERÍA",
-  [TruckState.ASIGNADO]: "ASIGNADO",
-  [TruckState.EN_CARGA]: "EN CARGA",
-  [TruckState.EN_TUNEL_FRIO]: "EN TÚNEL FRÍO",
-  [TruckState.ESPERANDO_SAG]: "ESPERANDO SAG",
-  [TruckState.APROBADO_SAG]: "APROBADO SAG",
-  [TruckState.RECHAZADO_SAG]: "RECHAZADO SAG",
-  [TruckState.LISTO]: "LISTO",
-  [TruckState.DESPACHADO]: "DESPACHADO",
+const etiquetasTipo: Record<string, string> = {
+  NACIONAL: "Nacional",
+  EXPORTACION: "Exportación",
+  INTERPLANTA: "Interplanta",
 };
 
 export default function DashboardPage() {
+  const { camiones, cargando } = useCamiones();
+
+  const totalCamiones = camiones.length;
+  const despachados = camiones.filter((c) => c.estado === "DESPACHADO").length;
+  const andenesOcupados = new Set(
+    camiones.filter((c) => c.andenId).map((c) => c.andenId),
+  ).size;
+  const camionesActivos = camiones.filter((c) => c.estado !== "DESPACHADO");
+
   return (
     <div className="space-y-6">
-      {/* Fila de KPIs */}
       <div className="grid grid-cols-4 gap-4">
-        <KpiCard label="Camiones Hoy" value={47} valueColor="#F56E0F" trend={{ value: "12% vs ayer", positive: true }} />
-        <KpiCard label="Despachos a Tiempo" value="89%" valueColor="#7AB87A" trend={{ value: "3% vs ayer", positive: false }} />
-        <KpiCard label="Andenes Ocupados" value="8/11" />
-        <KpiCard label="Atrasos" value={5} valueColor="#D4807A" />
+        <KpiCard label="Camiones Hoy" value={cargando ? "—" : totalCamiones} valueColor="#F56E0F" />
+        <KpiCard label="Despachados" value={cargando ? "—" : despachados} valueColor="#7AB87A" />
+        <KpiCard label="Andenes Ocupados" value={cargando ? "—" : `${andenesOcupados}/11`} />
+        <KpiCard label="Activos" value={cargando ? "—" : camionesActivos.length} valueColor="#6896C8" />
       </div>
 
-      {/* Tabla de camiones */}
       <div>
         <h2 className="font-display text-h3 uppercase text-text-primary mb-4">
           Camiones Activos
         </h2>
-        <Table>
-          <TableHeader>
-            <tr>
-              <TableHead>Patente</TableHead>
-              <TableHead>Tipo</TableHead>
-              <TableHead>Cliente</TableHead>
-              <TableHead>Andén</TableHead>
-              <TableHead>Hora Plan.</TableHead>
-              <TableHead>Estado</TableHead>
-            </tr>
-          </TableHeader>
-          <TableBody>
-            {camionesMock.map((camion) => (
-              <TableRow key={camion.plate}>
-                <TableCell className="font-semibold">{camion.plate}</TableCell>
-                <TableCell className="font-display text-text-muted">{camion.type}</TableCell>
-                <TableCell className="font-display">{camion.client}</TableCell>
-                <TableCell>{camion.dock}</TableCell>
-                <TableCell>{camion.time}</TableCell>
-                <TableCell>
-                  <Badge color={TRUCK_STATE_COLOR[camion.state]}>
-                    {etiquetasEstado[camion.state]}
-                  </Badge>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+
+        {cargando ? (
+          <div className="space-y-3">
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-full" />
+          </div>
+        ) : camionesActivos.length === 0 ? (
+          <div className="text-center py-12 text-text-muted font-display">
+            No hay camiones activos
+          </div>
+        ) : (
+          <Table>
+            <TableHeader>
+              <tr>
+                <TableHead>Patente</TableHead>
+                <TableHead>Tipo</TableHead>
+                <TableHead>Cliente</TableHead>
+                <TableHead>Andén</TableHead>
+                <TableHead>Hora Plan.</TableHead>
+                <TableHead>Estado</TableHead>
+              </tr>
+            </TableHeader>
+            <TableBody>
+              {camionesActivos.map((camion) => (
+                <TableRow key={camion.id}>
+                  <TableCell className="font-semibold">{camion.patente}</TableCell>
+                  <TableCell className="font-display text-text-muted">{etiquetasTipo[camion.tipo] || camion.tipo}</TableCell>
+                  <TableCell className="font-display">{camion.pedido?.cliente?.nombre || "—"}</TableCell>
+                  <TableCell>{camion.anden?.codigo || "—"}</TableCell>
+                  <TableCell>
+                    {new Date(camion.horaLlegadaPlanificada).toLocaleTimeString("es-CL", {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </TableCell>
+                  <TableCell>
+                    <Badge color={TRUCK_STATE_COLOR[camion.estado as TruckState] || "neutral"}>
+                      {etiquetasEstado[camion.estado] || camion.estado}
+                    </Badge>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
       </div>
     </div>
   );
