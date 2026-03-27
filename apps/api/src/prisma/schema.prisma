@@ -1,0 +1,281 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// =====================
+// ENUMS
+// =====================
+
+enum RolUsuario {
+  COORDINADOR_TRANSPORTE
+  COORDINADOR
+  PICKINERO
+  CARGADOR
+  SUPERVISOR
+  OPERADOR_TUNEL
+  JEFE_DESPACHO
+  SAG
+}
+
+enum TipoEdificio {
+  AVES
+  CERDO
+  FRIGORIFICO
+}
+
+enum EstadoCamion {
+  ESPERADO
+  EN_PORTERIA
+  ASIGNADO
+  EN_CARGA
+  EN_TUNEL_FRIO
+  ESPERANDO_SAG
+  APROBADO_SAG
+  RECHAZADO_SAG
+  LISTO
+  DESPACHADO
+}
+
+enum TipoCamion {
+  NACIONAL
+  EXPORTACION
+  INTERPLANTA
+}
+
+enum EstadoInspeccion {
+  PENDIENTE
+  APROBADO
+  RECHAZADO
+}
+
+enum EstadoPallet {
+  EN_ARMADO
+  ARMADO
+  CARGADO
+  VERIFICADO
+}
+
+// =====================
+// MODELOS
+// =====================
+
+model Usuario {
+  id            String      @id @default(cuid())
+  nombre        String
+  rut           String      @unique
+  email         String      @unique
+  passwordHash  String
+  rol           RolUsuario
+  edificioId    String?
+  edificio      Edificio?   @relation(fields: [edificioId], references: [id])
+  activo        Boolean     @default(true)
+  creadoEn      DateTime    @default(now())
+  actualizadoEn DateTime    @updatedAt
+
+  // Relaciones
+  eventosCamion   EventoCamion[]
+  palletsArmados  Pallet[]        @relation("PalletPickinero")
+  palletsCargados Pallet[]        @relation("PalletCargador")
+  inspecciones    InspeccionSAG[]
+  eventosTunel    EventoTunel[]
+  atrasos         Atraso[]
+  auditorias      AuditLog[]
+
+  @@map("usuarios")
+}
+
+model Edificio {
+  id        String        @id @default(cuid())
+  nombre    String
+  tipo      TipoEdificio  @unique
+  andenes   Anden[]
+  usuarios  Usuario[]
+  atrasos   Atraso[]
+
+  @@map("edificios")
+}
+
+model Anden {
+  id          String    @id @default(cuid())
+  codigo      String    @unique
+  edificioId  String
+  edificio    Edificio  @relation(fields: [edificioId], references: [id])
+  ocupado     Boolean   @default(false)
+  camiones    Camion[]
+
+  @@index([edificioId])
+  @@map("andenes")
+}
+
+model Cliente {
+  id          String    @id @default(cuid())
+  nombre      String
+  rut         String    @unique
+  tipoDestino TipoCamion
+  pedidos     Pedido[]
+
+  @@map("clientes")
+}
+
+model Pedido {
+  id            String    @id @default(cuid())
+  numero        String    @unique
+  clienteId     String
+  cliente       Cliente   @relation(fields: [clienteId], references: [id])
+  totalPallets  Int
+  totalBultos   Int
+  fechaEntrega  DateTime
+  camiones      Camion[]
+  pallets       Pallet[]
+
+  @@map("pedidos")
+}
+
+model Camion {
+  id                      String        @id @default(cuid())
+  patente                 String
+  tipo                    TipoCamion
+  estado                  EstadoCamion  @default(ESPERADO)
+  pedidoId                String?
+  pedido                  Pedido?       @relation(fields: [pedidoId], references: [id])
+  andenId                 String?
+  anden                   Anden?        @relation(fields: [andenId], references: [id])
+  horaLlegadaPlanificada  DateTime
+  horaSalidaPlanificada   DateTime?
+  horaLlegadaReal         DateTime?
+  horaSalidaReal          DateTime?
+  cargaPreviaDescripcion  String?
+  creadoEn                DateTime      @default(now())
+  actualizadoEn           DateTime      @updatedAt
+
+  // Relaciones
+  eventos       EventoCamion[]
+  pallets       Pallet[]
+  inspecciones  InspeccionSAG[]
+  eventosTunel  EventoTunel[]
+  atrasos       Atraso[]
+
+  @@index([estado])
+  @@index([tipo])
+  @@index([andenId])
+  @@map("camiones")
+}
+
+/// Registro inmutable (append-only) de cada cambio de estado
+model EventoCamion {
+  id          String        @id @default(cuid())
+  camionId    String
+  camion      Camion        @relation(fields: [camionId], references: [id])
+  estado      EstadoCamion
+  timestamp   DateTime      @default(now())
+  usuarioId   String?
+  usuario     Usuario?      @relation(fields: [usuarioId], references: [id])
+  nota        String?
+
+  @@index([camionId])
+  @@index([timestamp])
+  @@map("eventos_camion")
+}
+
+model Pallet {
+  id                  String        @id @default(cuid())
+  codigoUnico         String        @unique
+  camionId            String?
+  camion              Camion?       @relation(fields: [camionId], references: [id])
+  pedidoId            String?
+  pedido              Pedido?       @relation(fields: [pedidoId], references: [id])
+  pickineroId         String?
+  pickinero           Usuario?      @relation("PalletPickinero", fields: [pickineroId], references: [id])
+  cargadorId          String?
+  cargador            Usuario?      @relation("PalletCargador", fields: [cargadorId], references: [id])
+  edificioId          String?
+  estado              EstadoPallet  @default(EN_ARMADO)
+  timestampInicio     DateTime      @default(now())
+  timestampFin        DateTime?
+  tiempoArmadoSegundos Int?
+  productos           ProductoPallet[]
+
+  @@index([camionId])
+  @@index([pedidoId])
+  @@map("pallets")
+}
+
+model ProductoPallet {
+  id            String  @id @default(cuid())
+  palletId      String
+  pallet        Pallet  @relation(fields: [palletId], references: [id], onDelete: Cascade)
+  codigoBarras  String
+  descripcion   String
+  cantidad      Int
+  pesoKg        Float
+  temperatura   Float?
+
+  @@map("productos_pallet")
+}
+
+model InspeccionSAG {
+  id                    String            @id @default(cuid())
+  camionId              String
+  camion                Camion            @relation(fields: [camionId], references: [id])
+  inspectorId           String
+  inspector             Usuario           @relation(fields: [inspectorId], references: [id])
+  estado                EstadoInspeccion  @default(PENDIENTE)
+  timestampInicio       DateTime          @default(now())
+  timestampResolucion   DateTime?
+  observaciones         String?
+  documentoUrl          String?
+
+  @@index([camionId])
+  @@map("inspecciones_sag")
+}
+
+model EventoTunel {
+  id                    String    @id @default(cuid())
+  camionId              String
+  camion                Camion    @relation(fields: [camionId], references: [id])
+  operadorId            String
+  operador              Usuario   @relation(fields: [operadorId], references: [id])
+  temperaturaRegistrada Float
+  timestamp             DateTime  @default(now())
+  observaciones         String?
+
+  @@map("eventos_tunel")
+}
+
+model Atraso {
+  id              String    @id @default(cuid())
+  camionId        String
+  camion          Camion    @relation(fields: [camionId], references: [id])
+  edificioId      String
+  edificio        Edificio  @relation(fields: [edificioId], references: [id])
+  motivoCodigo    String
+  motivoDetalle   String?
+  minutosAtraso   Int
+  registradoPor   String
+  registrador     Usuario   @relation(fields: [registradoPor], references: [id])
+  timestamp       DateTime  @default(now())
+
+  @@index([camionId])
+  @@map("atrasos")
+}
+
+model AuditLog {
+  id          String    @id @default(cuid())
+  usuarioId   String?
+  usuario     Usuario?  @relation(fields: [usuarioId], references: [id])
+  accion      String
+  entidadTipo String
+  entidadId   String
+  payload     Json?
+  ip          String?
+  timestamp   DateTime  @default(now())
+
+  @@index([entidadTipo, entidadId])
+  @@index([timestamp])
+  @@map("audit_log")
+}
