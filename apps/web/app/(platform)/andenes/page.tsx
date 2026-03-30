@@ -1,44 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { Truck, RefreshCw, Loader2, X, Clock, Package, User, ChevronRight } from "lucide-react";
 import { Button, Badge, Skeleton } from "@dispatch-track/ui";
 import { TruckState, TRUCK_STATE_COLOR } from "@dispatch-track/types";
 import { useAndenes } from "@/hooks/use-andenes";
 import { cambiarEstadoCamionApi } from "@/lib/api";
+import { etiquetasEstado, etiquetasTipo, ACCIONES_ESTADO } from "@/lib/camion-config";
+import { formatearHora } from "@/lib/formato";
 import type { Anden } from "@/lib/api";
 
-const etiquetasEstado: Record<string, string> = {
-  ESPERADO: "ESPERADO",
-  EN_PORTERIA: "EN PORTERÍA",
-  ASIGNADO: "ASIGNADO",
-  EN_CARGA: "EN CARGA",
-  EN_TUNEL_FRIO: "EN TÚNEL FRÍO",
-  ESPERANDO_SAG: "ESPERANDO SAG",
-  APROBADO_SAG: "APROBADO SAG",
-  RECHAZADO_SAG: "RECHAZADO SAG",
-  LISTO: "LISTO",
-  DESPACHADO: "DESPACHADO",
-};
-
-const etiquetasTipo: Record<string, string> = {
-  NACIONAL: "Nacional",
-  EXPORTACION: "Exportación",
-  INTERPLANTA: "Interplanta",
-};
-
-const ACCIONES_ESTADO: Record<string, { endpoint: string; label: string }[]> = {
-  EN_PORTERIA: [{ endpoint: "asignar", label: "Asignar Andén" }],
-  ASIGNADO: [{ endpoint: "iniciar-carga", label: "Iniciar Carga" }],
-  EN_CARGA: [{ endpoint: "finalizar-carga", label: "Finalizar Carga" }],
-  EN_TUNEL_FRIO: [{ endpoint: "temperatura-ok", label: "Temp. OK" }],
-};
-
-const CONFIG_EDIFICIO: Record<string, { label: string; color: string; colorOscuro: string; bg: string; bgOcupado: string; border: string }> = {
+const CONFIG_EDIFICIO: Record<string, { label: string; color: string; bg: string; bgOcupado: string; border: string }> = {
   AVES: {
     label: "Aves",
     color: "#1E40AF",
-    colorOscuro: "#1E3A8A",
     bg: "#F8FAFC",
     bgOcupado: "#EFF6FF",
     border: "#BFDBFE",
@@ -46,7 +21,6 @@ const CONFIG_EDIFICIO: Record<string, { label: string; color: string; colorOscur
   CERDO: {
     label: "Cerdo",
     color: "#7C3AED",
-    colorOscuro: "#5B21B6",
     bg: "#F8FAFC",
     bgOcupado: "#FAF5FF",
     border: "#DDD6FE",
@@ -54,14 +28,11 @@ const CONFIG_EDIFICIO: Record<string, { label: string; color: string; colorOscur
   FRIGORIFICO: {
     label: "Frigorífico",
     color: "#0369A1",
-    colorOscuro: "#075985",
     bg: "#F8FAFC",
     bgOcupado: "#F0F9FF",
     border: "#BAE6FD",
   },
 };
-
-// ─── Panel lateral de detalle ───────────────────────────────────────────────
 
 function PanelDetalle({
   anden,
@@ -79,240 +50,168 @@ function PanelDetalle({
   const acciones = camion ? (ACCIONES_ESTADO[camion.estado] ?? []) : [];
 
   return (
-    <>
-      {/* Panel */}
+    <div
+      className="fixed right-0 top-0 h-full w-[380px] z-modal flex flex-col shadow-2xl"
+      style={{ background: "#FFFFFF", borderLeft: `2px solid ${edif.border}` }}
+    >
       <div
-        className="fixed right-0 top-0 h-full w-[380px] z-modal flex flex-col shadow-2xl"
-        style={{ background: "#FFFFFF", borderLeft: `2px solid ${edif.border}` }}
+        className="flex items-center justify-between px-6 py-5"
+        style={{ background: edif.color }}
       >
-        {/* Cabecera del panel */}
-        <div
-          className="flex items-center justify-between px-6 py-5"
-          style={{ background: edif.color, borderBottom: `3px solid ${edif.colorOscuro}` }}
-        >
-          <div className="flex items-center gap-3">
-            <div
-              className="w-10 h-10 rounded-lg flex items-center justify-center font-display font-bold text-lg"
-              style={{ background: "rgba(255,255,255,0.2)", color: "#fff" }}
-            >
-              {anden.codigo}
+        <div className="flex items-center gap-3">
+          <div
+            className="w-10 h-10 rounded-lg flex items-center justify-center font-display font-bold text-lg"
+            style={{ background: "rgba(255,255,255,0.2)", color: "#fff" }}
+          >
+            {anden.codigo}
+          </div>
+          <div>
+            <p className="text-white font-display font-bold text-base uppercase tracking-wide">
+              Andén {anden.codigo}
+            </p>
+            <p className="text-white/70 font-display text-xs uppercase tracking-wider">
+              {edif.label}
+            </p>
+          </div>
+        </div>
+        <button onClick={onCerrar} className="text-white/70 hover:text-white transition-colors" aria-label="Cerrar panel">
+          <X size={20} />
+        </button>
+      </div>
+
+      <div
+        className="px-6 py-3 flex items-center gap-2 border-b"
+        style={{ borderColor: edif.border, background: edif.bgOcupado }}
+      >
+        <div className="w-2.5 h-2.5 rounded-full" style={{ background: camion ? edif.color : "#16A34A" }} />
+        <span className="font-display text-xs uppercase tracking-widest text-text-muted">
+          {camion ? "Andén ocupado" : "Andén disponible"}
+        </span>
+      </div>
+
+      <div className="flex-1 overflow-y-auto p-6">
+        {camion ? (
+          <div className="space-y-6">
+            <div className="rounded-xl p-5 border-2" style={{ borderColor: edif.border, background: edif.bgOcupado }}>
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ background: edif.color }}>
+                  <Truck size={20} className="text-white" />
+                </div>
+                <div>
+                  <p className="font-data text-xl font-bold text-text-primary tracking-widest">{camion.patente}</p>
+                  <p className="font-display text-xs text-text-muted uppercase">{etiquetasTipo[camion.tipo] || camion.tipo}</p>
+                </div>
+              </div>
+              <Badge color={TRUCK_STATE_COLOR[camion.estado as TruckState] || "neutral"}>
+                {etiquetasEstado[camion.estado] || camion.estado}
+              </Badge>
             </div>
-            <div>
-              <p className="text-white font-display font-bold text-base uppercase tracking-wide">
-                Andén {anden.codigo}
+
+            {camion.pedido && (
+              <div className="space-y-1">
+                <p className="font-display text-label uppercase text-text-muted tracking-wide flex items-center gap-1.5">
+                  <User size={11} /> Cliente
+                </p>
+                <p className="font-display text-sm text-text-primary font-semibold">
+                  {camion.pedido.cliente?.nombre ?? "—"}
+                </p>
+                <p className="font-data text-xs text-text-muted">Pedido #{camion.pedido.numero}</p>
+              </div>
+            )}
+
+            <div className="space-y-3">
+              <p className="font-display text-label uppercase text-text-muted tracking-wide flex items-center gap-1.5">
+                <Clock size={11} /> Horarios
               </p>
-              <p className="text-white/70 font-display text-xs uppercase tracking-wider">
-                {edif.label}
-              </p>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="rounded-lg p-3 border" style={{ borderColor: edif.border, background: edif.bgOcupado }}>
+                  <p className="font-display text-[10px] uppercase text-text-muted tracking-wide mb-1">Llegada plan.</p>
+                  <p className="font-data text-sm font-bold text-text-primary">{formatearHora(camion.horaLlegadaPlanificada)}</p>
+                </div>
+                <div className="rounded-lg p-3 border" style={{ borderColor: edif.border, background: edif.bgOcupado }}>
+                  <p className="font-display text-[10px] uppercase text-text-muted tracking-wide mb-1">Salida plan.</p>
+                  <p className="font-data text-sm font-bold text-text-primary">
+                    {camion.horaSalidaPlanificada ? formatearHora(camion.horaSalidaPlanificada) : "—"}
+                  </p>
+                </div>
+                {camion.horaLlegadaReal && (
+                  <div className="rounded-lg p-3 border col-span-2" style={{ borderColor: "#BBF7D0", background: "#F0FDF4" }}>
+                    <p className="font-display text-[10px] uppercase text-semantic-success tracking-wide mb-1">Llegada real</p>
+                    <p className="font-data text-sm font-bold text-semantic-success">{formatearHora(camion.horaLlegadaReal)}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {acciones.length > 0 && (
+              <div className="space-y-2">
+                <p className="font-display text-label uppercase text-text-muted tracking-wide flex items-center gap-1.5">
+                  <Package size={11} /> Acciones disponibles
+                </p>
+                {acciones.map((accion) => (
+                  <Button
+                    key={accion.endpoint}
+                    className="w-full"
+                    disabled={procesando}
+                    onClick={() => onAccion(camion.id, accion.endpoint)}
+                  >
+                    {procesando ? <Loader2 size={14} className="mr-2 animate-spin" /> : <ChevronRight size={14} className="mr-2" />}
+                    {accion.label}
+                  </Button>
+                ))}
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="flex flex-col items-center justify-center h-full gap-4 opacity-50">
+            <div
+              className="w-16 h-16 rounded-2xl flex items-center justify-center"
+              style={{ background: edif.bgOcupado, border: `2px dashed ${edif.border}` }}
+            >
+              <Truck size={28} style={{ color: edif.color }} />
+            </div>
+            <div className="text-center">
+              <p className="font-display text-sm text-text-primary font-semibold">Andén libre</p>
+              <p className="font-display text-xs text-text-muted mt-1">No hay camiones asignados actualmente</p>
             </div>
           </div>
-          <button
-            onClick={onCerrar}
-            className="text-white/70 hover:text-white transition-colors"
-            aria-label="Cerrar panel"
-          >
-            <X size={20} />
-          </button>
-        </div>
-
-        {/* Estado del andén */}
-        <div
-          className="px-6 py-3 flex items-center gap-2 border-b"
-          style={{ borderColor: edif.border, background: edif.bgOcupado }}
-        >
-          <div
-            className="w-2.5 h-2.5 rounded-full"
-            style={{ background: camion ? edif.color : "#16A34A" }}
-          />
-          <span className="font-display text-xs uppercase tracking-widest text-text-muted">
-            {camion ? "Andén ocupado" : "Andén disponible"}
-          </span>
-        </div>
-
-        {/* Contenido */}
-        <div className="flex-1 overflow-y-auto p-6">
-          {camion ? (
-            <div className="space-y-6">
-              {/* Patente y tipo */}
-              <div
-                className="rounded-xl p-5 border-2"
-                style={{ borderColor: edif.border, background: edif.bgOcupado }}
-              >
-                <div className="flex items-center gap-3 mb-3">
-                  <div
-                    className="w-10 h-10 rounded-lg flex items-center justify-center"
-                    style={{ background: edif.color }}
-                  >
-                    <Truck size={20} className="text-white" />
-                  </div>
-                  <div>
-                    <p className="font-data text-xl font-bold text-text-primary tracking-widest">
-                      {camion.patente}
-                    </p>
-                    <p className="font-display text-xs text-text-muted uppercase">
-                      {etiquetasTipo[camion.tipo] || camion.tipo}
-                    </p>
-                  </div>
-                </div>
-                <Badge color={TRUCK_STATE_COLOR[camion.estado as TruckState] || "neutral"}>
-                  {etiquetasEstado[camion.estado] || camion.estado}
-                </Badge>
-              </div>
-
-              {/* Info cliente */}
-              {camion.pedido && (
-                <div className="space-y-1">
-                  <p className="font-display text-label uppercase text-text-muted tracking-wide flex items-center gap-1.5">
-                    <User size={11} />
-                    Cliente
-                  </p>
-                  <p className="font-display text-sm text-text-primary font-semibold">
-                    {camion.pedido.cliente?.nombre ?? "—"}
-                  </p>
-                  <p className="font-data text-xs text-text-muted">
-                    Pedido #{camion.pedido.numero}
-                  </p>
-                </div>
-              )}
-
-              {/* Horarios */}
-              <div className="space-y-3">
-                <p className="font-display text-label uppercase text-text-muted tracking-wide flex items-center gap-1.5">
-                  <Clock size={11} />
-                  Horarios
-                </p>
-                <div className="grid grid-cols-2 gap-3">
-                  <div
-                    className="rounded-lg p-3 border"
-                    style={{ borderColor: edif.border, background: edif.bgOcupado }}
-                  >
-                    <p className="font-display text-[10px] uppercase text-text-muted tracking-wide mb-1">
-                      Llegada plan.
-                    </p>
-                    <p className="font-data text-sm font-bold text-text-primary">
-                      {new Date(camion.horaLlegadaPlanificada).toLocaleTimeString("es-CL", {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
-                    </p>
-                  </div>
-                  <div
-                    className="rounded-lg p-3 border"
-                    style={{ borderColor: edif.border, background: edif.bgOcupado }}
-                  >
-                    <p className="font-display text-[10px] uppercase text-text-muted tracking-wide mb-1">
-                      Salida plan.
-                    </p>
-                    <p className="font-data text-sm font-bold text-text-primary">
-                      {camion.horaSalidaPlanificada
-                        ? new Date(camion.horaSalidaPlanificada).toLocaleTimeString("es-CL", {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })
-                        : "—"}
-                    </p>
-                  </div>
-                  {camion.horaLlegadaReal && (
-                    <div
-                      className="rounded-lg p-3 border col-span-2"
-                      style={{ borderColor: "#BBF7D0", background: "#F0FDF4" }}
-                    >
-                      <p className="font-display text-[10px] uppercase text-semantic-success tracking-wide mb-1">
-                        Llegada real
-                      </p>
-                      <p className="font-data text-sm font-bold text-semantic-success">
-                        {new Date(camion.horaLlegadaReal).toLocaleTimeString("es-CL", {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Acciones */}
-              {acciones.length > 0 && (
-                <div className="space-y-2">
-                  <p className="font-display text-label uppercase text-text-muted tracking-wide flex items-center gap-1.5">
-                    <Package size={11} />
-                    Acciones disponibles
-                  </p>
-                  {acciones.map((accion) => (
-                    <Button
-                      key={accion.endpoint}
-                      className="w-full"
-                      disabled={procesando}
-                      onClick={() => onAccion(camion.id, accion.endpoint)}
-                    >
-                      {procesando ? (
-                        <Loader2 size={14} className="mr-2 animate-spin" />
-                      ) : (
-                        <ChevronRight size={14} className="mr-2" />
-                      )}
-                      {accion.label}
-                    </Button>
-                  ))}
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="flex flex-col items-center justify-center h-full gap-4 opacity-50">
-              <div
-                className="w-16 h-16 rounded-2xl flex items-center justify-center"
-                style={{ background: edif.bgOcupado, border: `2px dashed ${edif.border}` }}
-              >
-                <Truck size={28} style={{ color: edif.color }} />
-              </div>
-              <div className="text-center">
-                <p className="font-display text-sm text-text-primary font-semibold">Andén libre</p>
-                <p className="font-display text-xs text-text-muted mt-1">
-                  No hay camiones asignados actualmente
-                </p>
-              </div>
-            </div>
-          )}
-        </div>
+        )}
       </div>
-    </>
+    </div>
   );
 }
-
-// ─── Figura de andén (forma de bahía de carga) ──────────────────────────────
 
 function FiguraAnden({
   anden,
   seleccionado,
-  onClick,
+  onSeleccionar,
 }: {
   anden: Anden;
   seleccionado: boolean;
-  onClick: () => void;
+  onSeleccionar: (anden: Anden) => void;
 }) {
   const camion = anden.camiones[0] ?? null;
   const ocupado = camion !== null;
   const edif = CONFIG_EDIFICIO[anden.edificio.tipo] ?? CONFIG_EDIFICIO["AVES"];
 
-  const colorFondo = ocupado ? edif.bgOcupado : "#FFFFFF";
-  const colorBorde = seleccionado ? edif.colorOscuro : ocupado ? edif.color : "#CBD5E1";
+  const colorBorde = seleccionado ? "#1E3A8A" : ocupado ? edif.color : "#CBD5E1";
   const grosorBorde = seleccionado ? 3 : 2;
 
   return (
     <button
-      onClick={onClick}
+      onClick={() => onSeleccionar(anden)}
       className="relative flex flex-col items-stretch transition-all duration-150 focus:outline-none group"
       style={{ width: "100%" }}
       aria-label={`Andén ${anden.codigo}`}
     >
-      {/* Sombra de selección */}
       {seleccionado && (
         <div
-          className="absolute inset-0 rounded-t-lg pointer-events-none"
+          className="absolute inset-0 pointer-events-none"
           style={{ boxShadow: `0 0 0 3px ${edif.color}55`, borderRadius: "8px 8px 0 0" }}
         />
       )}
 
-      {/* ── Pared del edificio (franja superior) ── */}
+      {/* Pared del edificio */}
       <div
         className="rounded-t-lg flex items-center justify-between px-3 py-2"
         style={{
@@ -321,19 +220,15 @@ function FiguraAnden({
           borderBottom: "none",
         }}
       >
-        <span className="font-display font-bold text-white text-sm tracking-widest uppercase">
-          {anden.codigo}
-        </span>
-        {ocupado && (
-          <div className="w-2 h-2 rounded-full bg-white/80 animate-pulse" />
-        )}
+        <span className="font-display font-bold text-white text-sm tracking-widest uppercase">{anden.codigo}</span>
+        {ocupado && <div className="w-2 h-2 rounded-full bg-white/80 animate-pulse" />}
       </div>
 
-      {/* ── Zona de bahía (espacio interior del andén) ── */}
+      {/* Zona de bahía */}
       <div
         className="flex flex-col items-center justify-center transition-colors duration-150 group-hover:brightness-95"
         style={{
-          background: colorFondo,
+          background: ocupado ? edif.bgOcupado : "#FFFFFF",
           border: `${grosorBorde}px solid ${colorBorde}`,
           borderTop: "none",
           borderBottom: "none",
@@ -343,16 +238,13 @@ function FiguraAnden({
       >
         {ocupado ? (
           <div className="flex flex-col items-center gap-1.5 w-full">
-            {/* Silueta del camión */}
             <div
               className="w-full flex items-center justify-center rounded-md py-2"
               style={{ background: `${edif.color}18`, border: `1px dashed ${edif.border}` }}
             >
               <Truck size={22} style={{ color: edif.color }} />
             </div>
-            <span className="font-data text-[11px] font-bold tracking-widest text-text-primary">
-              {camion!.patente}
-            </span>
+            <span className="font-data text-[11px] font-bold tracking-widest text-text-primary">{camion!.patente}</span>
           </div>
         ) : (
           <div className="flex flex-col items-center gap-1 opacity-30">
@@ -362,29 +254,17 @@ function FiguraAnden({
         )}
       </div>
 
-      {/* ── Tope de andén / bumpers (parte inferior) ── */}
+      {/* Bumpers */}
       <div
         className="flex"
         style={{ border: `${grosorBorde}px solid ${colorBorde}`, borderTop: "none", borderRadius: "0 0 4px 4px", overflow: "hidden" }}
       >
-        {/* Bumper izquierdo */}
-        <div
-          className="flex-1 h-4"
-          style={{ background: ocupado ? edif.color : "#94A3B8", opacity: 0.7 }}
-        />
-        {/* Apertura central (entrada del camión) */}
-        <div
-          className="h-4"
-          style={{ width: "40%", background: "#F1F5F9" }}
-        />
-        {/* Bumper derecho */}
-        <div
-          className="flex-1 h-4"
-          style={{ background: ocupado ? edif.color : "#94A3B8", opacity: 0.7 }}
-        />
+        <div className="flex-1 h-4" style={{ background: ocupado ? edif.color : "#94A3B8", opacity: 0.7 }} />
+        <div className="h-4" style={{ width: "40%", background: "#F1F5F9" }} />
+        <div className="flex-1 h-4" style={{ background: ocupado ? edif.color : "#94A3B8", opacity: 0.7 }} />
       </div>
 
-      {/* Flecha de "entrada" debajo */}
+      {/* Flecha de entrada */}
       <div className="flex justify-center mt-1 opacity-40">
         <div
           className="w-0 h-0"
@@ -398,8 +278,6 @@ function FiguraAnden({
     </button>
   );
 }
-
-// ─── Grupo por edificio ──────────────────────────────────────────────────────
 
 function GrupoEdificio({
   tipo,
@@ -419,15 +297,10 @@ function GrupoEdificio({
 
   return (
     <div>
-      {/* Cabecera del edificio */}
       <div className="flex items-center gap-3 mb-5">
         <div className="w-3 h-3 rounded-full" style={{ background: edif.color }} />
-        <h2 className="font-display text-h3 uppercase text-text-primary tracking-wider">
-          Edificio {edif.label}
-        </h2>
-        <span className="font-display text-sm text-text-muted">
-          {ocupados}/{andenes.length} andenes ocupados
-        </span>
+        <h2 className="font-display text-h3 uppercase text-text-primary tracking-wider">Edificio {edif.label}</h2>
+        <span className="font-display text-sm text-text-muted">{ocupados}/{andenes.length} andenes ocupados</span>
         <div className="flex-1 h-1.5 bg-bg-elevated rounded-full overflow-hidden">
           <div
             className="h-full rounded-full transition-all duration-500"
@@ -436,17 +309,14 @@ function GrupoEdificio({
         </div>
       </div>
 
-      <div
-        className="rounded-xl p-5"
-        style={{ background: "#F1F5F9", border: "2px solid #E2E8F0" }}
-      >
+      <div className="rounded-xl p-5" style={{ background: "#F1F5F9", border: "2px solid #E2E8F0" }}>
         <div className="grid gap-4" style={{ gridTemplateColumns: `repeat(${andenes.length}, 1fr)` }}>
           {andenes.map((anden) => (
             <FiguraAnden
               key={anden.id}
               anden={anden}
               seleccionado={seleccionadoId === anden.id}
-              onClick={() => onSeleccionar(anden)}
+              onSeleccionar={onSeleccionar}
             />
           ))}
         </div>
@@ -455,33 +325,34 @@ function GrupoEdificio({
   );
 }
 
-// ─── Página principal ────────────────────────────────────────────────────────
-
 export default function AndenesPage() {
   const { andenes, cargando, recargar } = useAndenes();
-  const [andenSeleccionado, setAndenSeleccionado] = useState<Anden | null>(null);
+  const [andenSeleccionadoId, setAndenSeleccionadoId] = useState<string | null>(null);
   const [procesando, setProcesando] = useState(false);
 
-  const grupos = {
+  // Deriva el andén seleccionado desde el array fresco — evita stale closure
+  const andenSeleccionado = useMemo(
+    () => andenes.find((a) => a.id === andenSeleccionadoId) ?? null,
+    [andenes, andenSeleccionadoId],
+  );
+
+  const grupos = useMemo(() => ({
     AVES: andenes.filter((a) => a.edificio.tipo === "AVES"),
     CERDO: andenes.filter((a) => a.edificio.tipo === "CERDO"),
     FRIGORIFICO: andenes.filter((a) => a.edificio.tipo === "FRIGORIFICO"),
-  };
+  }), [andenes]);
 
-  const totalOcupados = andenes.filter((a) => a.camiones.length > 0).length;
-  const totalAndenes = andenes.length;
+  const totalOcupados = useMemo(() => andenes.filter((a) => a.camiones.length > 0).length, [andenes]);
+
+  const seleccionarAnden = useCallback((anden: Anden) => {
+    setAndenSeleccionadoId((prev) => (prev === anden.id ? null : anden.id));
+  }, []);
 
   async function manejarAccion(camionId: string, endpoint: string) {
     setProcesando(true);
     try {
       await cambiarEstadoCamionApi(camionId, endpoint);
       await recargar();
-      // Actualizar andén seleccionado con datos frescos
-      setAndenSeleccionado((prev) => {
-        if (!prev) return null;
-        const actualizado = andenes.find((a) => a.id === prev.id);
-        return actualizado ?? prev;
-      });
     } catch (err: any) {
       alert(err.message || "Error al cambiar estado");
     } finally {
@@ -489,39 +360,33 @@ export default function AndenesPage() {
     }
   }
 
-  function seleccionarAnden(anden: Anden) {
-    setAndenSeleccionado((prev) => (prev?.id === anden.id ? null : anden));
-  }
-
   return (
     <div
       className="space-y-8 transition-all duration-300"
       style={{ marginRight: andenSeleccionado ? "396px" : "0" }}
     >
-      {/* Panel de detalle */}
       {andenSeleccionado && (
         <PanelDetalle
           anden={andenSeleccionado}
-          onCerrar={() => setAndenSeleccionado(null)}
+          onCerrar={() => setAndenSeleccionadoId(null)}
           onAccion={manejarAccion}
           procesando={procesando}
         />
       )}
 
-      {/* Resumen global */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-8">
           <div>
             <p className="font-display text-label uppercase text-text-muted tracking-wide">Total</p>
-            <p className="font-data text-kpi-lg text-text-primary">{cargando ? "—" : totalAndenes}</p>
+            <p className="font-data text-kpi-lg text-text-primary">{cargando ? "—" : andenes.length}</p>
           </div>
           <div>
             <p className="font-display text-label uppercase text-text-muted tracking-wide">Ocupados</p>
-            <p className="font-data text-kpi-lg" style={{ color: "#1E40AF" }}>{cargando ? "—" : totalOcupados}</p>
+            <p className="font-data text-kpi-lg text-accent">{cargando ? "—" : totalOcupados}</p>
           </div>
           <div>
             <p className="font-display text-label uppercase text-text-muted tracking-wide">Libres</p>
-            <p className="font-data text-kpi-lg text-semantic-success">{cargando ? "—" : totalAndenes - totalOcupados}</p>
+            <p className="font-data text-kpi-lg text-semantic-success">{cargando ? "—" : andenes.length - totalOcupados}</p>
           </div>
         </div>
         <Button variant="outline" size="sm" onClick={recargar} disabled={cargando}>
@@ -530,7 +395,6 @@ export default function AndenesPage() {
         </Button>
       </div>
 
-      {/* Leyenda */}
       <div className="flex items-center gap-6">
         <div className="flex items-center gap-2">
           <div className="w-4 h-4 rounded" style={{ background: "#94A3B8" }} />
@@ -544,19 +408,16 @@ export default function AndenesPage() {
           <div className="w-4 h-4 rounded border-2" style={{ borderColor: "#1E3A8A" }} />
           <span className="font-display text-xs text-text-muted uppercase tracking-wide">Seleccionado</span>
         </div>
-        <span className="font-display text-xs text-text-muted ml-2">
-          · Haz click en un andén para ver detalles
-        </span>
+        <span className="font-display text-xs text-text-muted ml-2">· Haz click en un andén para ver detalles</span>
       </div>
 
-      {/* Grupos */}
       {cargando ? (
         <div className="space-y-8">
           {[5, 3, 3].map((n, i) => (
             <div key={i}>
               <Skeleton className="h-6 w-48 mb-5" />
               <div className="rounded-xl p-5 bg-slate-100 border-2 border-slate-200">
-                <div className={`grid gap-4`} style={{ gridTemplateColumns: `repeat(${n}, 1fr)` }}>
+                <div className="grid gap-4" style={{ gridTemplateColumns: `repeat(${n}, 1fr)` }}>
                   {Array.from({ length: n }).map((_, j) => (
                     <Skeleton key={j} className="h-36 w-full rounded-lg" />
                   ))}
@@ -567,9 +428,9 @@ export default function AndenesPage() {
         </div>
       ) : (
         <div className="space-y-10">
-          <GrupoEdificio tipo="AVES" andenes={grupos.AVES} seleccionadoId={andenSeleccionado?.id ?? null} onSeleccionar={seleccionarAnden} />
-          <GrupoEdificio tipo="CERDO" andenes={grupos.CERDO} seleccionadoId={andenSeleccionado?.id ?? null} onSeleccionar={seleccionarAnden} />
-          <GrupoEdificio tipo="FRIGORIFICO" andenes={grupos.FRIGORIFICO} seleccionadoId={andenSeleccionado?.id ?? null} onSeleccionar={seleccionarAnden} />
+          <GrupoEdificio tipo="AVES" andenes={grupos.AVES} seleccionadoId={andenSeleccionadoId} onSeleccionar={seleccionarAnden} />
+          <GrupoEdificio tipo="CERDO" andenes={grupos.CERDO} seleccionadoId={andenSeleccionadoId} onSeleccionar={seleccionarAnden} />
+          <GrupoEdificio tipo="FRIGORIFICO" andenes={grupos.FRIGORIFICO} seleccionadoId={andenSeleccionadoId} onSeleccionar={seleccionarAnden} />
         </div>
       )}
     </div>

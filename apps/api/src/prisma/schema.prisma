@@ -163,6 +163,7 @@ model Camion {
   @@index([estado])
   @@index([tipo])
   @@index([andenId])
+  @@index([andenId, estado, horaLlegadaPlanificada])
   @@map("camiones")
 }
 
