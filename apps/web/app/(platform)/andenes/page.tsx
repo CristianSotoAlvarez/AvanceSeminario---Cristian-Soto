@@ -80,17 +80,10 @@ function PanelDetalle({
 
   return (
     <>
-      {/* Overlay */}
-      <div
-        className="fixed inset-0 z-modal-overlay"
-        style={{ background: "rgba(30,58,138,0.18)", backdropFilter: "blur(2px)" }}
-        onClick={onCerrar}
-      />
-
       {/* Panel */}
       <div
         className="fixed right-0 top-0 h-full w-[380px] z-modal flex flex-col shadow-2xl"
-        style={{ background: "#FFFFFF", borderLeft: `1px solid ${edif.border}` }}
+        style={{ background: "#FFFFFF", borderLeft: `2px solid ${edif.border}` }}
       >
         {/* Cabecera del panel */}
         <div
@@ -443,16 +436,10 @@ function GrupoEdificio({
         </div>
       </div>
 
-      {/* Representación visual del muro con andenes */}
       <div
         className="rounded-xl p-5"
         style={{ background: "#F1F5F9", border: "2px solid #E2E8F0" }}
       >
-        {/* Etiqueta de muro */}
-        <p className="font-display text-[10px] uppercase text-text-muted tracking-widest mb-4 text-center">
-          ← Muro del edificio →
-        </p>
-
         <div className="grid gap-4" style={{ gridTemplateColumns: `repeat(${andenes.length}, 1fr)` }}>
           {andenes.map((anden) => (
             <FiguraAnden
@@ -463,11 +450,6 @@ function GrupoEdificio({
             />
           ))}
         </div>
-
-        {/* Etiqueta de exterior */}
-        <p className="font-display text-[10px] uppercase text-text-muted tracking-widest mt-4 text-center">
-          ← Zona de maniobras (exterior) →
-        </p>
       </div>
     </div>
   );
@@ -512,7 +494,10 @@ export default function AndenesPage() {
   }
 
   return (
-    <div className="space-y-8">
+    <div
+      className="space-y-8 transition-all duration-300"
+      style={{ marginRight: andenSeleccionado ? "396px" : "0" }}
+    >
       {/* Panel de detalle */}
       {andenSeleccionado && (
         <PanelDetalle
