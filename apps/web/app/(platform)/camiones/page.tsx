@@ -17,32 +17,8 @@ import { TruckState, TRUCK_STATE_COLOR } from "@dispatch-track/types";
 import { RefreshCw, Plus, X } from "lucide-react";
 import { useCamiones } from "@/hooks/use-camiones";
 import { cambiarEstadoCamionApi, crearCamionApi } from "@/lib/api";
-
-const etiquetasEstado: Record<string, string> = {
-  ESPERADO: "ESPERADO",
-  EN_PORTERIA: "EN PORTERÍA",
-  ASIGNADO: "ASIGNADO",
-  EN_CARGA: "EN CARGA",
-  EN_TUNEL_FRIO: "EN TÚNEL FRÍO",
-  ESPERANDO_SAG: "ESPERANDO SAG",
-  APROBADO_SAG: "APROBADO SAG",
-  RECHAZADO_SAG: "RECHAZADO SAG",
-  LISTO: "LISTO",
-  DESPACHADO: "DESPACHADO",
-};
-
-const etiquetasTipo: Record<string, string> = {
-  NACIONAL: "Nacional",
-  EXPORTACION: "Exportación",
-  INTERPLANTA: "Interplanta",
-};
-
-const ACCIONES_ESTADO: Record<string, { endpoint: string; label: string }[]> = {
-  EN_PORTERIA: [{ endpoint: "asignar", label: "Asignar Andén" }],
-  ASIGNADO: [{ endpoint: "iniciar-carga", label: "Iniciar Carga" }],
-  EN_CARGA: [{ endpoint: "finalizar-carga", label: "Finalizar Carga" }],
-  EN_TUNEL_FRIO: [{ endpoint: "temperatura-ok", label: "Temp. OK" }],
-};
+import { etiquetasEstado, etiquetasTipo, ACCIONES_ESTADO } from "@/lib/camion-config";
+import { formatearHora } from "@/lib/formato";
 
 function ModalCrearCamion({ onCerrar, onCreado }: { onCerrar: () => void; onCreado: () => void }) {
   const [patente, setPatente] = useState("");
@@ -249,10 +225,7 @@ export default function CamionesPage() {
                 </TableCell>
                 <TableCell>{camion.anden?.codigo || "—"}</TableCell>
                 <TableCell>
-                  {new Date(camion.horaLlegadaPlanificada).toLocaleTimeString("es-CL", {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })}
+                  {formatearHora(camion.horaLlegadaPlanificada)}
                 </TableCell>
                 <TableCell>
                   <Badge color={TRUCK_STATE_COLOR[camion.estado as TruckState] || "neutral"}>
