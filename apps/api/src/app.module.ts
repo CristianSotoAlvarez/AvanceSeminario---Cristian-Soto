@@ -6,6 +6,7 @@ import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
 import { UsuariosModule } from './usuarios/usuarios.module';
 import { CamionesModule } from './camiones/camiones.module';
+import { AndenesModule } from './andenes/andenes.module';
 
 @Module({
   imports: [
@@ -32,6 +33,9 @@ import { CamionesModule } from './camiones/camiones.module';
 
     // Gestión de camiones con máquina de estados
     CamionesModule,
+
+    // Gestión de andenes
+    AndenesModule,
   ],
   providers: [
     // Aplicar ThrottlerGuard globalmente

@@ -150,3 +150,33 @@ export async function cambiarEstadoCamionApi(id: string, endpoint: string, body?
     body: body ? JSON.stringify(body) : undefined,
   });
 }
+
+export interface CrearCamionDatos {
+  patente: string;
+  tipo: string;
+  horaLlegadaPlanificada: string;
+  horaSalidaPlanificada?: string;
+}
+
+export async function crearCamionApi(datos: CrearCamionDatos): Promise<Camion> {
+  return fetchApi<Camion>('/camiones', {
+    method: 'POST',
+    body: JSON.stringify(datos),
+  });
+}
+
+// =====================
+// Endpoints de Andenes
+// =====================
+
+export interface Anden {
+  id: string;
+  codigo: string;
+  ocupado: boolean;
+  edificio: { id: string; nombre: string; tipo: string };
+  camiones: Camion[];
+}
+
+export async function listarAndenesApi(): Promise<Anden[]> {
+  return fetchApi<Anden[]>('/andenes');
+}
