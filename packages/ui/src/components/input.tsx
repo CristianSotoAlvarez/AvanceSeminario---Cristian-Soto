@@ -30,12 +30,12 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
           ref={ref}
           id={idInput}
           className={cn(
-            "bg-bg-elevated border rounded-sm px-4 py-2 font-display text-body text-text-primary",
+            "bg-bg-surface border rounded-sm px-4 py-2 font-display text-body text-text-primary",
             "outline-none transition-all",
             compact ? "h-8" : "h-10",
             tieneError
               ? "border-semantic-error shadow-[0_0_0_3px_rgba(212,128,122,0.15)]"
-              : "border-bg-elevated focus:border-accent focus:shadow-[0_0_0_3px_rgba(245,110,15,0.15)]",
+              : "border-bg-elevated focus:border-accent focus:shadow-[0_0_0_3px_rgba(30,64,175,0.15)]",
             "disabled:opacity-50 disabled:cursor-not-allowed",
             className
           )}

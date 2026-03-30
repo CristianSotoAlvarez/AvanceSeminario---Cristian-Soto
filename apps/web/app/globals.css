@@ -3,24 +3,24 @@
 
 @theme {
   /* Fondo */
-  --color-bg-primary: #151419;
-  --color-bg-surface: #1B1B1E;
-  --color-bg-elevated: #262626;
+  --color-bg-primary: #F8FAFC;
+  --color-bg-surface: #FFFFFF;
+  --color-bg-elevated: #DBEAFE;
 
   /* Texto */
-  --color-text-primary: #FBFBFB;
-  --color-text-muted: #9A9A9A;
+  --color-text-primary: #1E3A8A;
+  --color-text-muted: #64748B;
 
   /* Acento */
-  --color-accent: #F56E0F;
-  --color-accent-hover: #FF8534;
+  --color-accent: #1E40AF;
+  --color-accent-hover: #1D4ED8;
 
   /* Semántico */
-  --color-semantic-success: #7AB87A;
-  --color-semantic-error: #D4807A;
-  --color-semantic-warning: #B8A860;
-  --color-semantic-info: #6896C8;
-  --color-semantic-neutral: #9A9A9A;
+  --color-semantic-success: #16A34A;
+  --color-semantic-error: #DC2626;
+  --color-semantic-warning: #D97706;
+  --color-semantic-info: #2563EB;
+  --color-semantic-neutral: #64748B;
 
   /* Fuentes — next/font/google inyecta los valores via --font-display y --font-data en <html> */
   --font-display: "Geist", sans-serif;
@@ -53,7 +53,7 @@ body {
   color: var(--color-text-primary);
 }
 
-/* Scrollbar tema oscuro */
+/* Scrollbar tema claro */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
@@ -62,9 +62,9 @@ body {
   background: var(--color-bg-primary);
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--color-bg-elevated);
+  background: #BFDBFE;
   border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #333;
+  background: #93C5FD;
 }

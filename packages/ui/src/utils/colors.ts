@@ -10,14 +10,14 @@ export function hexToRgba(hex: string, opacity: number): string {
   return `rgba(${r},${g},${b},${opacity})`;
 }
 
-/** Colores semánticos del design system */
+/** Colores semánticos del design system — Analytics Amber (tema claro) */
 export const semanticColors = {
-  success: "#7AB87A",
-  error: "#D4807A",
-  warning: "#B8A860",
-  info: "#6896C8",
-  active: "#F56E0F",
-  neutral: "#9A9A9A",
+  success: "#16A34A",
+  error: "#DC2626",
+  warning: "#D97706",
+  info: "#2563EB",
+  active: "#F59E0B",
+  neutral: "#64748B",
 } as const;
 
 /** Re-export del tipo centralizado en @dispatch-track/types */

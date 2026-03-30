@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DispatchTrack — Preview de Paletas</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: system-ui, sans-serif; background: #111; color: #fff; padding: 32px 24px; }
+    h1 { text-align: center; font-size: 22px; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 8px; color: #fff; }
+    .subtitle { text-align: center; color: #888; font-size: 13px; margin-bottom: 40px; }
+
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(480px, 1fr)); gap: 28px; }
+
+    .paleta { border-radius: 12px; overflow: hidden; border: 2px solid #333; }
+    .paleta-label { background: #1a1a1a; padding: 10px 16px; font-size: 12px; color: #aaa; letter-spacing: 1px; text-transform: uppercase; display: flex; align-items: center; gap: 8px; }
+    .paleta-label strong { color: #fff; font-size: 14px; }
+
+    /* ===== Mini UI mockup ===== */
+    .mockup { display: flex; height: 300px; }
+    .sidebar { width: 56px; display: flex; flex-direction: column; align-items: center; padding: 12px 0; gap: 8px; }
+    .sidebar-icon { width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 16px; cursor: pointer; }
+    .sidebar-icon.active { opacity: 1; }
+    .sidebar-icon.muted { opacity: 0.35; }
+    .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+    .topbar { height: 44px; display: flex; align-items: center; justify-content: space-between; padding: 0 16px; border-bottom-width: 1px; border-bottom-style: solid; flex-shrink: 0; }
+    .topbar-title { font-size: 11px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; }
+    .topbar-user { display: flex; align-items: center; gap: 8px; }
+    .avatar { width: 28px; height: 28px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: bold; }
+    .content { flex: 1; padding: 12px; overflow: hidden; display: flex; flex-direction: column; gap: 10px; }
+    .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+    .kpi { border-radius: 8px; padding: 10px; border-width: 1px; border-style: solid; }
+    .kpi-label { font-size: 9px; text-transform: uppercase; letter-spacing: 1px; opacity: 0.6; }
+    .kpi-value { font-size: 22px; font-weight: 700; margin-top: 2px; }
+    .table-wrap { border-radius: 8px; border-width: 1px; border-style: solid; overflow: hidden; flex: 1; }
+    .table-head { display: grid; grid-template-columns: 1fr 1fr 1.5fr 0.8fr 1fr; padding: 6px 10px; font-size: 9px; letter-spacing: 1px; text-transform: uppercase; opacity: 0.5; border-bottom-width: 1px; border-bottom-style: solid; }
+    .table-row { display: grid; grid-template-columns: 1fr 1fr 1.5fr 0.8fr 1fr; padding: 7px 10px; font-size: 10px; border-bottom-width: 1px; border-bottom-style: solid; align-items: center; }
+    .table-row:last-child { border-bottom: none; }
+    .badge { display: inline-flex; align-items: center; padding: 2px 7px; border-radius: 99px; font-size: 9px; font-weight: 600; letter-spacing: 0.5px; }
+    .col-bold { font-weight: 700; font-size: 11px; }
+    .col-muted { opacity: 0.5; font-size: 9px; }
+
+    /* Swatches */
+    .swatches { display: flex; height: 6px; }
+    .swatch { flex: 1; }
+
+    /* Current tag */
+    .tag-current { background: #F56E0F; color: #fff; font-size: 10px; padding: 2px 8px; border-radius: 99px; margin-left: auto; }
+  </style>
+</head>
+<body>
+
+<h1>DispatchTrack — Paletas de Color</h1>
+<p class="subtitle">Preview visual de cada opción — mini mockup del dashboard</p>
+
+<div class="grid">
+
+  <!-- ===== ACTUAL ===== -->
+  <div class="paleta">
+    <div class="paleta-label">
+      <strong>Actual — Dark Naranja</strong>
+      <span class="tag-current">ACTUAL</span>
+    </div>
+    <div class="swatches">
+      <div class="swatch" style="background:#1A1A2E"></div>
+      <div class="swatch" style="background:#16213E"></div>
+      <div class="swatch" style="background:#0F3460"></div>
+      <div class="swatch" style="background:#F56E0F"></div>
+      <div class="swatch" style="background:#E2E8F0"></div>
+    </div>
+    <div class="mockup" style="background:#1A1A2E;">
+      <div class="sidebar" style="background:#16213E; border-right:1px solid #0F3460;">
+        <div class="sidebar-icon active" style="background:#F56E0F; color:#fff;">🚛</div>
+        <div class="sidebar-icon muted" style="color:#E2E8F0;">📦</div>
+        <div class="sidebar-icon muted" style="color:#E2E8F0;">🏗️</div>
+        <div class="sidebar-icon muted" style="color:#E2E8F0;">📊</div>
+      </div>
+      <div class="main">
+        <div class="topbar" style="background:#16213E; border-bottom-color:#0F3460; color:#E2E8F0;">
+          <span class="topbar-title" style="color:#E2E8F0;">Dashboard</span>
+          <div class="topbar-user">
+            <span style="font-size:10px;color:#94A3B8;">Jefe de Despacho</span>
+            <div class="avatar" style="background:#F56E0F; color:#fff;">JS</div>
+          </div>
+        </div>
+        <div class="content" style="background:#1A1A2E;">
+          <div class="kpis">
+            <div class="kpi" style="background:#16213E; border-color:#0F3460;">
+              <div class="kpi-label" style="color:#94A3B8;">Camiones Hoy</div>
+              <div class="kpi-value" style="color:#F56E0F;">14</div>
+            </div>
+            <div class="kpi" style="background:#16213E; border-color:#0F3460;">
+              <div class="kpi-label" style="color:#94A3B8;">Despachados</div>
+              <div class="kpi-value" style="color:#22C55E;">8</div>
+            </div>
+            <div class="kpi" style="background:#16213E; border-color:#0F3460;">
+              <div class="kpi-label" style="color:#94A3B8;">Andenes</div>
+              <div class="kpi-value" style="color:#E2E8F0;">5/11</div>
+            </div>
+            <div class="kpi" style="background:#16213E; border-color:#0F3460;">
+              <div class="kpi-label" style="color:#94A3B8;">Activos</div>
+              <div class="kpi-value" style="color:#6896C8;">6</div>
+            </div>
+          </div>
+          <div class="table-wrap" style="background:#16213E; border-color:#0F3460;">
+            <div class="table-head" style="border-bottom-color:#0F3460; color:#94A3B8;">
+              <span>Patente</span><span>Tipo</span><span>Cliente</span><span>Andén</span><span>Estado</span>
+            </div>
+            <div class="table-row" style="border-bottom-color:#0F3460; color:#E2E8F0;">
+              <span class="col-bold">BCDF-34</span>
+              <span class="col-muted" style="color:#94A3B8;">Nacional</span>
+              <span>Walmart Chile</span>
+              <span>A3</span>
+              <span><span class="badge" style="background:#F56E0F22;color:#F56E0F;">EN CARGA</span></span>
+            </div>
+            <div class="table-row" style="border-bottom-color:#0F3460; color:#E2E8F0;">
+              <span class="col-bold">JKLM-12</span>
+              <span class="col-muted" style="color:#94A3B8;">Exportación</span>
+              <span>Falabella</span>
+              <span>C1</span>
+              <span><span class="badge" style="background:#22C55E22;color:#22C55E;">LISTO</span></span>
+            </div>
+            <div class="table-row" style="border-bottom-color:#0F3460; color:#E2E8F0;">
+              <span class="col-bold">RSTU-78</span>
+              <span class="col-muted" style="color:#94A3B8;">Nacional</span>
+              <span>Ripley</span>
+              <span>—</span>
+              <span><span class="badge" style="background:#6896C822;color:#6896C8;">ESPERADO</span></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== OPCIÓN 1: Industrial Light ===== -->
+  <div class="paleta">
+    <div class="paleta-label"><strong>Opción 1 — Industrial Light</strong></div>
+    <div class="swatches">
+      <div class="swatch" style="background:#F8FAFC"></div>
+      <div class="swatch" style="background:#FFFFFF"></div>
+      <div class="swatch" style="background:#E2E8F0"></div>
+      <div class="swatch" style="background:#F97316"></div>
+      <div class="swatch" style="background:#334155"></div>
+    </div>
+    <div class="mockup" style="background:#F8FAFC;">
+      <div class="sidebar" style="background:#334155; border-right:1px solid #475569;">
+        <div class="sidebar-icon active" style="background:#F97316; color:#fff;">🚛</div>
+        <div class="sidebar-icon muted" style="color:#CBD5E1;">📦</div>
+        <div class="sidebar-icon muted" style="color:#CBD5E1;">🏗️</div>
+        <div class="sidebar-icon muted" style="color:#CBD5E1;">📊</div>
+      </div>
+      <div class="main">
+        <div class="topbar" style="background:#FFFFFF; border-bottom-color:#E2E8F0; color:#334155;">
+          <span class="topbar-title" style="color:#334155;">Dashboard</span>
+          <div class="topbar-user">
+            <span style="font-size:10px;color:#64748B;">Jefe de Despacho</span>
+            <div class="avatar" style="background:#F97316; color:#fff;">JS</div>
+          </div>
+        </div>
+        <div class="content" style="background:#F8FAFC;">
+          <div class="kpis">
+            <div class="kpi" style="background:#FFFFFF; border-color:#E2E8F0;">
+              <div class="kpi-label" style="color:#64748B;">Camiones Hoy</div>
+              <div class="kpi-value" style="color:#F97316;">14</div>
+            </div>
+            <div class="kpi" style="background:#FFFFFF; border-color:#E2E8F0;">
+              <div class="kpi-label" style="color:#64748B;">Despachados</div>
+              <div class="kpi-value" style="color:#16A34A;">8</div>
+            </div>
+            <div class="kpi" style="background:#FFFFFF; border-color:#E2E8F0;">
+              <div class="kpi-label" style="color:#64748B;">Andenes</div>
+              <div class="kpi-value" style="color:#334155;">5/11</div>
+            </div>
+            <div class="kpi" style="background:#FFFFFF; border-color:#E2E8F0;">
+              <div class="kpi-label" style="color:#64748B;">Activos</div>
+              <div class="kpi-value" style="color:#2563EB;">6</div>
+            </div>
+          </div>
+          <div class="table-wrap" style="background:#FFFFFF; border-color:#E2E8F0;">
+            <div class="table-head" style="border-bottom-color:#E2E8F0; color:#64748B;">
+              <span>Patente</span><span>Tipo</span><span>Cliente</span><span>Andén</span><span>Estado</span>
+            </div>
+            <div class="table-row" style="border-bottom-color:#F1F5F9; color:#334155;">
+              <span class="col-bold">BCDF-34</span>
+              <span class="col-muted" style="color:#64748B;">Nacional</span>
+              <span>Walmart Chile</span>
+              <span>A3</span>
+              <span><span class="badge" style="background:#FFF7ED;color:#F97316;border:1px solid #FED7AA;">EN CARGA</span></span>
+            </div>
+            <div class="table-row" style="border-bottom-color:#F1F5F9; color:#334155;">
+              <span class="col-bold">JKLM-12</span>
+              <span class="col-muted" style="color:#64748B;">Exportación</span>
+              <span>Falabella</span>
+              <span>C1</span>
+              <span><span class="badge" style="background:#F0FDF4;color:#16A34A;border:1px solid #BBF7D0;">LISTO</span></span>
+            </div>
+            <div class="table-row" style="border-bottom-color:#F1F5F9; color:#334155;">
+              <span class="col-bold">RSTU-78</span>
+              <span class="col-muted" style="color:#64748B;">Nacional</span>
+              <span>Ripley</span>
+              <span>—</span>
+              <span><span class="badge" style="background:#EFF6FF;color:#2563EB;border:1px solid #BFDBFE;">ESPERADO</span></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== OPCIÓN 2: Logistics Blue ===== -->
+  <div class="paleta">
+    <div class="paleta-label"><strong>Opción 2 — Logistics Blue</strong></div>
+    <div class="swatches">
+      <div class="swatch" style="background:#EFF6FF"></div>
+      <div class="swatch" style="background:#FFFFFF"></div>
+      <div class="swatch" style="background:#BFDBFE"></div>
+      <div class="swatch" style="background:#2563EB"></div>
+      <div class="swatch" style="background:#1E40AF"></div>
+    </div>
+    <div class="mockup" style="background:#EFF6FF;">
+      <div class="sidebar" style="background:#1E40AF; border-right:1px solid #1D4ED8;">
+        <div class="sidebar-icon active" style="background:#F97316; color:#fff;">🚛</div>
+        <div class="sidebar-icon muted" style="color:#93C5FD;">📦</div>
+        <div class="sidebar-icon muted" style="color:#93C5FD;">🏗️</div>
+        <div class="sidebar-icon muted" style="color:#93C5FD;">📊</div>
+      </div>
+      <div class="main">
+        <div class="topbar" style="background:#FFFFFF; border-bottom-color:#BFDBFE; color:#1E40AF;">
+          <span class="topbar-title" style="color:#1E40AF;">Dashboard</span>
+          <div class="topbar-user">
+            <span style="font-size:10px;color:#3B82F6;">Jefe de Despacho</span>
+            <div class="avatar" style="background:#2563EB; color:#fff;">JS</div>
+          </div>
+        </div>
+        <div class="content" style="background:#EFF6FF;">
+          <div class="kpis">
+            <div class="kpi" style="background:#FFFFFF; border-color:#BFDBFE;">
+              <div class="kpi-label" style="color:#3B82F6;">Camiones Hoy</div>
+              <div class="kpi-value" style="color:#F97316;">14</div>
+            </div>
+            <div class="kpi" style="background:#FFFFFF; border-color:#BFDBFE;">
+              <div class="kpi-label" style="color:#3B82F6;">Despachados</div>
+              <div class="kpi-value" style="color:#16A34A;">8</div>
+            </div>
+            <div class="kpi" style="background:#FFFFFF; border-color:#BFDBFE;">
+              <div class="kpi-label" style="color:#3B82F6;">Andenes</div>
+              <div class="kpi-value" style="color:#1E40AF;">5/11</div>
+            </div>
+            <div class="kpi" style="background:#FFFFFF; border-color:#BFDBFE;">
+              <div class="kpi-label" style="color:#3B82F6;">Activos</div>
+              <div class="kpi-value" style="color:#2563EB;">6</div>
+            </div>
+          </div>
+          <div class="table-wrap" style="background:#FFFFFF; border-color:#BFDBFE;">
+            <div class="table-head" style="border-bottom-color:#BFDBFE; color:#3B82F6;">
+              <span>Patente</span><span>Tipo</span><span>Cliente</span><span>Andén</span><span>Estado</span>
+            </div>
+            <div class="table-row" style="border-bottom-color:#EFF6FF; color:#1E40AF;">
+              <span class="col-bold">BCDF-34</span>
+              <span class="col-muted" style="color:#3B82F6;">Nacional</span>
+              <span>Walmart Chile</span>
+              <span>A3</span>
+              <span><span class="badge" style="background:#FFF7ED;color:#F97316;border:1px solid #FED7AA;">EN CARGA</span></span>
+            </div>
+            <div class="table-row" style="border-bottom-color:#EFF6FF; color:#1E40AF;">
+              <span class="col-bold">JKLM-12</span>
+              <span class="col-muted" style="color:#3B82F6;">Exportación</span>
+              <span>Falabella</span>
+              <span>C1</span>
+              <span><span class="badge" style="background:#F0FDF4;color:#16A34A;border:1px solid #BBF7D0;">LISTO</span></span>
+            </div>
+            <div class="table-row" style="border-bottom-color:#EFF6FF; color:#1E40AF;">
+              <span class="col-bold">RSTU-78</span>
+              <span class="col-muted" style="color:#3B82F6;">Nacional</span>
+              <span>Ripley</span>
+              <span>—</span>
+              <span><span class="badge" style="background:#DBEAFE;color:#1D4ED8;border:1px solid #93C5FD;">ESPERADO</span></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== OPCIÓN 3: Ops Dark Green ===== -->
+  <div class="paleta">
+    <div class="paleta-label"><strong>Opción 3 — Ops Dark Green</strong></div>
+    <div class="swatches">
+      <div class="swatch" style="background:#020617"></div>
+      <div class="swatch" style="background:#0F172A"></div>
+      <div class="swatch" style="background:#334155"></div>
+      <div class="swatch" style="background:#22C55E"></div>
+      <div class="swatch" style="background:#EF4444"></div>
+    </div>
+    <div class="mockup" style="background:#020617;">
+      <div class="sidebar" style="background:#0F172A; border-right:1px solid #1E293B;">
+        <div class="sidebar-icon active" style="background:#22C55E; color:#000;">🚛</div>
+        <div class="sidebar-icon muted" style="color:#475569;">📦</div>
+        <div class="sidebar-icon muted" style="color:#475569;">🏗️</div>
+        <div class="sidebar-icon muted" style="color:#475569;">📊</div>
+      </div>
+      <div class="main">
+        <div class="topbar" style="background:#0F172A; border-bottom-color:#1E293B; color:#F8FAFC;">
+          <span class="topbar-title" style="color:#F8FAFC;">Dashboard</span>
+          <div class="topbar-user">
+            <span style="font-size:10px;color:#475569;">Jefe de Despacho</span>
+            <div class="avatar" style="background:#22C55E; color:#000;">JS</div>
+          </div>
+        </div>
+        <div class="content" style="background:#020617;">
+          <div class="kpis">
+            <div class="kpi" style="background:#0F172A; border-color:#1E293B;">
+              <div class="kpi-label" style="color:#475569;">Camiones Hoy</div>
+              <div class="kpi-value" style="color:#22C55E;">14</div>
+            </div>
+            <div class="kpi" style="background:#0F172A; border-color:#1E293B;">
+              <div class="kpi-label" style="color:#475569;">Despachados</div>
+              <div class="kpi-value" style="color:#22C55E;">8</div>
+            </div>
+            <div class="kpi" style="background:#0F172A; border-color:#1E293B;">
+              <div class="kpi-label" style="color:#475569;">Andenes</div>
+              <div class="kpi-value" style="color:#F8FAFC;">5/11</div>
+            </div>
+            <div class="kpi" style="background:#0F172A; border-color:#1E293B;">
+              <div class="kpi-label" style="color:#475569;">Activos</div>
+              <div class="kpi-value" style="color:#38BDF8;">6</div>
+            </div>
+          </div>
+          <div class="table-wrap" style="background:#0F172A; border-color:#1E293B;">
+            <div class="table-head" style="border-bottom-color:#1E293B; color:#475569;">
+              <span>Patente</span><span>Tipo</span><span>Cliente</span><span>Andén</span><span>Estado</span>
+            </div>
+            <div class="table-row" style="border-bottom-color:#1E293B; color:#F8FAFC;">
+              <span class="col-bold">BCDF-34</span>
+              <span class="col-muted" style="color:#475569;">Nacional</span>
+              <span>Walmart Chile</span>
+              <span>A3</span>
+              <span><span class="badge" style="background:#22C55E22;color:#22C55E;">EN CARGA</span></span>
+            </div>
+            <div class="table-row" style="border-bottom-color:#1E293B; color:#F8FAFC;">
+              <span class="col-bold">JKLM-12</span>
+              <span class="col-muted" style="color:#475569;">Exportación</span>
+              <span>Falabella</span>
+              <span>C1</span>
+              <span><span class="badge" style="background:#22C55E44;color:#4ADE80;">LISTO</span></span>
+            </div>
+            <div class="table-row" style="border-bottom-color:#1E293B; color:#F8FAFC;">
+              <span class="col-bold">RSTU-78</span>
+              <span class="col-muted" style="color:#475569;">Nacional</span>
+              <span>Ripley</span>
+              <span>—</span>
+              <span><span class="badge" style="background:#38BDF822;color:#38BDF8;">ESPERADO</span></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== OPCIÓN 4: Steel Navy ===== -->
+  <div class="paleta">
+    <div class="paleta-label"><strong>Opción 4 — Steel Navy + Gold</strong></div>
+    <div class="swatches">
+      <div class="swatch" style="background:#F8FAFC"></div>
+      <div class="swatch" style="background:#0F172A"></div>
+      <div class="swatch" style="background:#1E3A8A"></div>
+      <div class="swatch" style="background:#CA8A04"></div>
+      <div class="swatch" style="background:#E2E8F0"></div>
+    </div>
+    <div class="mockup" style="background:#F8FAFC;">
+      <div class="sidebar" style="background:#0F172A; border-right:1px solid #1E293B;">
+        <div class="sidebar-icon active" style="background:#CA8A04; color:#fff;">🚛</div>
+        <div class="sidebar-icon muted" style="color:#475569;">📦</div>
+        <div class="sidebar-icon muted" style="color:#475569;">🏗️</div>
+        <div class="sidebar-icon muted" style="color:#475569;">📊</div>
+      </div>
+      <div class="main">
+        <div class="topbar" style="background:#FFFFFF; border-bottom-color:#E2E8F0; color:#0F172A;">
+          <span class="topbar-title" style="color:#0F172A;">Dashboard</span>
+          <div class="topbar-user">
+            <span style="font-size:10px;color:#64748B;">Jefe de Despacho</span>
+            <div class="avatar" style="background:#CA8A04; color:#fff;">JS</div>
+          </div>
+        </div>
+        <div class="content" style="background:#F8FAFC;">
+          <div class="kpis">
+            <div class="kpi" style="background:#FFFFFF; border-color:#E2E8F0;">
+              <div class="kpi-label" style="color:#64748B;">Camiones Hoy</div>
+              <div class="kpi-value" style="color:#CA8A04;">14</div>
+            </div>
+            <div class="kpi" style="background:#FFFFFF; border-color:#E2E8F0;">
+              <div class="kpi-label" style="color:#64748B;">Despachados</div>
+              <div class="kpi-value" style="color:#16A34A;">8</div>
+            </div>
+            <div class="kpi" style="background:#FFFFFF; border-color:#E2E8F0;">
+              <div class="kpi-label" style="color:#64748B;">Andenes</div>
+              <div class="kpi-value" style="color:#0F172A;">5/11</div>
+            </div>
+            <div class="kpi" style="background:#FFFFFF; border-color:#E2E8F0;">
+              <div class="kpi-label" style="color:#64748B;">Activos</div>
+              <div class="kpi-value" style="color:#1E3A8A;">6</div>
+            </div>
+          </div>
+          <div class="table-wrap" style="background:#FFFFFF; border-color:#E2E8F0;">
+            <div class="table-head" style="border-bottom-color:#E2E8F0; color:#64748B;">
+              <span>Patente</span><span>Tipo</span><span>Cliente</span><span>Andén</span><span>Estado</span>
+            </div>
+            <div class="table-row" style="border-bottom-color:#F1F5F9; color:#0F172A;">
+              <span class="col-bold">BCDF-34</span>
+              <span class="col-muted" style="color:#64748B;">Nacional</span>
+              <span>Walmart Chile</span>
+              <span>A3</span>
+              <span><span class="badge" style="background:#FEF9C3;color:#CA8A04;border:1px solid #FDE68A;">EN CARGA</span></span>
+            </div>
+            <div class="table-row" style="border-bottom-color:#F1F5F9; color:#0F172A;">
+              <span class="col-bold">JKLM-12</span>
+              <span class="col-muted" style="color:#64748B;">Exportación</span>
+              <span>Falabella</span>
+              <span>C1</span>
+              <span><span class="badge" style="background:#F0FDF4;color:#16A34A;border:1px solid #BBF7D0;">LISTO</span></span>
+            </div>
+            <div class="table-row" style="border-bottom-color:#F1F5F9; color:#0F172A;">
+              <span class="col-bold">RSTU-78</span>
+              <span class="col-muted" style="color:#64748B;">Nacional</span>
+              <span>Ripley</span>
+              <span>—</span>
+              <span><span class="badge" style="background:#EFF6FF;color:#1E3A8A;border:1px solid #BFDBFE;">ESPERADO</span></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== OPCIÓN 5: Fresh Teal ===== -->
+  <div class="paleta">
+    <div class="paleta-label"><strong>Opción 5 — Fresh Teal</strong></div>
+    <div class="swatches">
+      <div class="swatch" style="background:#F0FDFA"></div>
+      <div class="swatch" style="background:#FFFFFF"></div>
+      <div class="swatch" style="background:#99F6E4"></div>
+      <div class="swatch" style="background:#0D9488"></div>
+      <div class="swatch" style="background:#134E4A"></div>
+    </div>
+    <div class="mockup" style="background:#F0FDFA;">
+      <div class="sidebar" style="background:#134E4A; border-right:1px solid #0F766E;">
+        <div class="sidebar-icon active" style="background:#0D9488; color:#fff;">🚛</div>
+        <div class="sidebar-icon muted" style="color:#5EEAD4;">📦</div>
+        <div class="sidebar-icon muted" style="color:#5EEAD4;">🏗️</div>
+        <div class="sidebar-icon muted" style="color:#5EEAD4;">📊</div>
+      </div>
+      <div class="main">
+        <div class="topbar" style="background:#FFFFFF; border-bottom-color:#CCFBF1; color:#134E4A;">
+          <span class="topbar-title" style="color:#134E4A;">Dashboard</span>
+          <div class="topbar-user">
+            <span style="font-size:10px;color:#0F766E;">Jefe de Despacho</span>
+            <div class="avatar" style="background:#0D9488; color:#fff;">JS</div>
+          </div>
+        </div>
+        <div class="content" style="background:#F0FDFA;">
+          <div class="kpis">
+            <div class="kpi" style="background:#FFFFFF; border-color:#CCFBF1;">
+              <div class="kpi-label" style="color:#0F766E;">Camiones Hoy</div>
+              <div class="kpi-value" style="color:#0D9488;">14</div>
+            </div>
+            <div class="kpi" style="background:#FFFFFF; border-color:#CCFBF1;">
+              <div class="kpi-label" style="color:#0F766E;">Despachados</div>
+              <div class="kpi-value" style="color:#16A34A;">8</div>
+            </div>
+            <div class="kpi" style="background:#FFFFFF; border-color:#CCFBF1;">
+              <div class="kpi-label" style="color:#0F766E;">Andenes</div>
+              <div class="kpi-value" style="color:#134E4A;">5/11</div>
+            </div>
+            <div class="kpi" style="background:#FFFFFF; border-color:#CCFBF1;">
+              <div class="kpi-label" style="color:#0F766E;">Activos</div>
+              <div class="kpi-value" style="color:#F97316;">6</div>
+            </div>
+          </div>
+          <div class="table-wrap" style="background:#FFFFFF; border-color:#CCFBF1;">
+            <div class="table-head" style="border-bottom-color:#CCFBF1; color:#0F766E;">
+              <span>Patente</span><span>Tipo</span><span>Cliente</span><span>Andén</span><span>Estado</span>
+            </div>
+            <div class="table-row" style="border-bottom-color:#F0FDFA; color:#134E4A;">
+              <span class="col-bold">BCDF-34</span>
+              <span class="col-muted" style="color:#0F766E;">Nacional</span>
+              <span>Walmart Chile</span>
+              <span>A3</span>
+              <span><span class="badge" style="background:#FFF7ED;color:#F97316;border:1px solid #FED7AA;">EN CARGA</span></span>
+            </div>
+            <div class="table-row" style="border-bottom-color:#F0FDFA; color:#134E4A;">
+              <span class="col-bold">JKLM-12</span>
+              <span class="col-muted" style="color:#0F766E;">Exportación</span>
+              <span>Falabella</span>
+              <span>C1</span>
+              <span><span class="badge" style="background:#F0FDF4;color:#16A34A;border:1px solid #BBF7D0;">LISTO</span></span>
+            </div>
+            <div class="table-row" style="border-bottom-color:#F0FDFA; color:#134E4A;">
+              <span class="col-bold">RSTU-78</span>
+              <span class="col-muted" style="color:#0F766E;">Nacional</span>
+              <span>Ripley</span>
+              <span>—</span>
+              <span><span class="badge" style="background:#CCFBF1;color:#0F766E;border:1px solid #99F6E4;">ESPERADO</span></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== OPCIÓN 6: Analytics Amber ===== -->
+  <div class="paleta">
+    <div class="paleta-label"><strong>Opción 6 — Analytics Amber</strong></div>
+    <div class="swatches">
+      <div class="swatch" style="background:#F8FAFC"></div>
+      <div class="swatch" style="background:#FFFFFF"></div>
+      <div class="swatch" style="background:#DBEAFE"></div>
+      <div class="swatch" style="background:#1E40AF"></div>
+      <div class="swatch" style="background:#F59E0B"></div>
+    </div>
+    <div class="mockup" style="background:#F8FAFC;">
+      <div class="sidebar" style="background:#1E3A8A; border-right:1px solid #1E40AF;">
+        <div class="sidebar-icon active" style="background:#F59E0B; color:#fff;">🚛</div>
+        <div class="sidebar-icon muted" style="color:#93C5FD;">📦</div>
+        <div class="sidebar-icon muted" style="color:#93C5FD;">🏗️</div>
+        <div class="sidebar-icon muted" style="color:#93C5FD;">📊</div>
+      </div>
+      <div class="main">
+        <div class="topbar" style="background:#FFFFFF; border-bottom-color:#DBEAFE; color:#1E3A8A;">
+          <span class="topbar-title" style="color:#1E3A8A;">Dashboard</span>
+          <div class="topbar-user">
+            <span style="font-size:10px;color:#3B82F6;">Jefe de Despacho</span>
+            <div class="avatar" style="background:#F59E0B; color:#fff;">JS</div>
+          </div>
+        </div>
+        <div class="content" style="background:#F8FAFC;">
+          <div class="kpis">
+            <div class="kpi" style="background:#FFFFFF; border-color:#DBEAFE;">
+              <div class="kpi-label" style="color:#3B82F6;">Camiones Hoy</div>
+              <div class="kpi-value" style="color:#F59E0B;">14</div>
+            </div>
+            <div class="kpi" style="background:#FFFFFF; border-color:#DBEAFE;">
+              <div class="kpi-label" style="color:#3B82F6;">Despachados</div>
+              <div class="kpi-value" style="color:#16A34A;">8</div>
+            </div>
+            <div class="kpi" style="background:#FFFFFF; border-color:#DBEAFE;">
+              <div class="kpi-label" style="color:#3B82F6;">Andenes</div>
+              <div class="kpi-value" style="color:#1E40AF;">5/11</div>
+            </div>
+            <div class="kpi" style="background:#FFFFFF; border-color:#DBEAFE;">
+              <div class="kpi-label" style="color:#3B82F6;">Activos</div>
+              <div class="kpi-value" style="color:#F59E0B;">6</div>
+            </div>
+          </div>
+          <div class="table-wrap" style="background:#FFFFFF; border-color:#DBEAFE;">
+            <div class="table-head" style="border-bottom-color:#DBEAFE; color:#3B82F6;">
+              <span>Patente</span><span>Tipo</span><span>Cliente</span><span>Andén</span><span>Estado</span>
+            </div>
+            <div class="table-row" style="border-bottom-color:#EFF6FF; color:#1E3A8A;">
+              <span class="col-bold">BCDF-34</span>
+              <span class="col-muted" style="color:#3B82F6;">Nacional</span>
+              <span>Walmart Chile</span>
+              <span>A3</span>
+              <span><span class="badge" style="background:#FFFBEB;color:#D97706;border:1px solid #FDE68A;">EN CARGA</span></span>
+            </div>
+            <div class="table-row" style="border-bottom-color:#EFF6FF; color:#1E3A8A;">
+              <span class="col-bold">JKLM-12</span>
+              <span class="col-muted" style="color:#3B82F6;">Exportación</span>
+              <span>Falabella</span>
+              <span>C1</span>
+              <span><span class="badge" style="background:#F0FDF4;color:#16A34A;border:1px solid #BBF7D0;">LISTO</span></span>
+            </div>
+            <div class="table-row" style="border-bottom-color:#EFF6FF; color:#1E3A8A;">
+              <span class="col-bold">RSTU-78</span>
+              <span class="col-muted" style="color:#3B82F6;">Nacional</span>
+              <span>Ripley</span>
+              <span>—</span>
+              <span><span class="badge" style="background:#DBEAFE;color:#1E40AF;border:1px solid #93C5FD;">ESPERADO</span></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<p style="text-align:center;color:#555;margin-top:36px;font-size:12px;">Dile a Claude cuál te gusta y la implementamos en el proyecto ✌️</p>
+
+</body>
+</html>

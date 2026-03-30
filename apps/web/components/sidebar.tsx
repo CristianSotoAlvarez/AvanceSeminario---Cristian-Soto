@@ -40,7 +40,7 @@ export function Sidebar({ currentPath = "/dashboard" }: SidebarProps) {
       {/* Logo */}
       <div className="flex items-center gap-2.5 px-4 py-4 border-b border-bg-elevated">
         <div className="w-[34px] h-[34px] bg-accent rounded-md flex items-center justify-center shrink-0">
-          <Truck size={20} className="text-text-primary" />
+          <Truck size={20} className="text-white" />
         </div>
         {!colapsado && (
           <motion.span

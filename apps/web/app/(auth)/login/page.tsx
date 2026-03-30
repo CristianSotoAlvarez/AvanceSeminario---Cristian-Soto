@@ -36,13 +36,15 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-bg-primary relative overflow-hidden">
-      <div className="absolute inset-0 bg-gradient-to-br from-bg-primary via-bg-surface to-bg-elevated opacity-80" />
+    <div className="min-h-screen flex items-center justify-center relative overflow-hidden" style={{ background: "linear-gradient(135deg, #1E3A8A 0%, #1E40AF 40%, #2563EB 70%, #3B82F6 100%)" }}>
+      {/* Círculos decorativos de fondo */}
+      <div className="absolute top-[-80px] right-[-80px] w-[320px] h-[320px] rounded-full opacity-20" style={{ background: "#F59E0B" }} />
+      <div className="absolute bottom-[-60px] left-[-60px] w-[240px] h-[240px] rounded-full opacity-15" style={{ background: "#DBEAFE" }} />
 
-      <div className="relative z-10 w-full max-w-sm bg-bg-surface/90 backdrop-blur-lg border border-bg-elevated rounded-lg p-8">
+      <div className="relative z-10 w-full max-w-sm bg-white/95 backdrop-blur-lg border border-blue-100 rounded-xl shadow-2xl p-8">
         <div className="flex flex-col items-center mb-8">
-          <div className="w-14 h-14 bg-accent rounded-xl flex items-center justify-center mb-4">
-            <Truck size={32} className="text-text-primary" />
+          <div className="w-14 h-14 bg-accent rounded-xl flex items-center justify-center mb-4 shadow-lg">
+            <Truck size={32} className="text-white" />
           </div>
           <h1 className="font-display text-h2 uppercase text-text-primary tracking-wider">
             DispatchTrack
@@ -88,7 +90,7 @@ export default function LoginPage() {
           </Button>
         </form>
 
-        <div className="mt-6 pt-4 border-t border-bg-elevated">
+        <div className="mt-6 pt-4 border-t border-blue-100">
           <p className="text-text-muted text-xs text-center">
             Demo: <span className="text-text-primary">jefe@dispatch.cl</span> / <span className="text-text-primary">clave123</span>
           </p>

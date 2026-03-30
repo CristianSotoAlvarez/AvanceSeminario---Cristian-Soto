@@ -36,10 +36,10 @@ export default function DashboardPage() {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-4 gap-4">
-        <KpiCard label="Camiones Hoy" value={cargando ? "—" : totalCamiones} valueColor="#F56E0F" />
-        <KpiCard label="Despachados" value={cargando ? "—" : despachados} valueColor="#7AB87A" />
-        <KpiCard label="Andenes Ocupados" value={cargando ? "—" : `${andenesOcupados}/11`} />
-        <KpiCard label="Activos" value={cargando ? "—" : camionesActivos.length} valueColor="#6896C8" />
+        <KpiCard label="Camiones Hoy" value={cargando ? "—" : totalCamiones} valueColor="#F59E0B" />
+        <KpiCard label="Despachados" value={cargando ? "—" : despachados} valueColor="#16A34A" />
+        <KpiCard label="Andenes Ocupados" value={cargando ? "—" : `${andenesOcupados}/11`} valueColor="#1E40AF" />
+        <KpiCard label="Activos" value={cargando ? "—" : camionesActivos.length} valueColor="#2563EB" />
       </div>
 
       <div>
