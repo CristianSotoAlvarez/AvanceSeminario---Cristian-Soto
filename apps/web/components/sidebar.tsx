@@ -14,14 +14,15 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { SidebarItem } from "./sidebar-item";
+import { useAuth } from "@/hooks/use-auth";
 
-const elementosPlataforma = [
-  { icon: LayoutDashboard, label: "Dashboard", href: "/dashboard" },
-  { icon: Truck, label: "Camiones", href: "/camiones" },
-  { icon: Warehouse, label: "Andenes", href: "/andenes" },
-  { icon: Package, label: "Pallets", href: "/pallets" },
-  { icon: FileText, label: "Reportes", href: "/reportes" },
-  { icon: Shield, label: "SAG", href: "/sag" },
+const TODOS_LOS_ELEMENTOS = [
+  { icon: LayoutDashboard, label: "Dashboard",  href: "/dashboard", roles: ["JEFE_DESPACHO", "COORDINADOR_TRANSPORTE", "COORDINADOR", "SUPERVISOR"] },
+  { icon: Truck,           label: "Camiones",   href: "/camiones",  roles: ["JEFE_DESPACHO", "COORDINADOR_TRANSPORTE", "COORDINADOR"] },
+  { icon: Warehouse,       label: "Andenes",    href: "/andenes",   roles: ["JEFE_DESPACHO", "COORDINADOR_TRANSPORTE", "COORDINADOR", "SUPERVISOR", "OPERADOR_TUNEL", "CARGADOR", "PICKINERO"] },
+  { icon: Package,         label: "Pallets",    href: "/pallets",   roles: ["JEFE_DESPACHO", "COORDINADOR_TRANSPORTE", "COORDINADOR", "CARGADOR", "PICKINERO"] },
+  { icon: Shield,          label: "SAG",        href: "/sag",       roles: ["JEFE_DESPACHO", "SAG"] },
+  { icon: FileText,        label: "Reportes",   href: "/reportes",  roles: ["JEFE_DESPACHO", "COORDINADOR_TRANSPORTE", "COORDINADOR", "SUPERVISOR"] },
 ];
 
 interface SidebarProps {
@@ -30,6 +31,12 @@ interface SidebarProps {
 
 export function Sidebar({ currentPath = "/dashboard" }: SidebarProps) {
   const [colapsado, setColapsado] = useState(false);
+  const { usuario } = useAuth();
+  const rol = usuario?.rol ?? "";
+
+  const elementosPlataforma = TODOS_LOS_ELEMENTOS.filter((e) =>
+    e.roles.includes(rol)
+  );
 
   return (
     <motion.aside

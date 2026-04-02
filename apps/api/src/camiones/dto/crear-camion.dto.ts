@@ -1,12 +1,18 @@
-import { IsString, IsEnum, IsDateString, IsOptional, IsNotEmpty } from 'class-validator';
+import { IsString, IsEnum, IsDateString, IsOptional, IsNotEmpty, IsArray } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { TipoCamion } from '@prisma/client';
+import { TipoCamion, TipoEdificio } from '@prisma/client';
 
 export class CrearCamionDto {
-  @ApiProperty({ example: 'BXRK-42', description: 'Patente del camión' })
+  @ApiPropertyOptional({ example: 'TRP-00123', description: 'Número de transporte único del camión' })
   @IsString()
-  @IsNotEmpty({ message: 'La patente es obligatoria' })
-  patente: string;
+  @IsNotEmpty()
+  @IsOptional()
+  numeroTransporte?: string;
+
+  @ApiPropertyOptional({ example: 'BXRK-42', description: 'Patente del camión' })
+  @IsString()
+  @IsOptional()
+  patente?: string;
 
   @ApiProperty({ enum: TipoCamion, example: 'NACIONAL' })
   @IsEnum(TipoCamion, { message: 'Tipo de camión inválido' })
@@ -30,4 +36,15 @@ export class CrearCamionDto {
   @IsString()
   @IsOptional()
   cargaPreviaDescripcion?: string;
+
+  @ApiPropertyOptional({
+    description: 'Puntos de expedición a visitar en orden (Frigorifico siempre último si aplica)',
+    enum: TipoEdificio,
+    isArray: true,
+    example: ['CERDO', 'FRIGORIFICO'],
+  })
+  @IsArray()
+  @IsEnum(TipoEdificio, { each: true })
+  @IsOptional()
+  edificios?: TipoEdificio[];
 }

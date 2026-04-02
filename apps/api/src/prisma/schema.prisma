@@ -60,6 +60,22 @@ enum EstadoPallet {
   VERIFICADO
 }
 
+enum EstadoParada {
+  PENDIENTE
+  EN_PROCESO
+  COMPLETADO
+}
+
+enum CausaJustificacion {
+  FALLA_ANDEN
+  FALLA_MECANICA
+  FALTA_PERSONAL
+  FALTA_PRODUCTO
+  VOLUMEN_EXCESIVO
+  PROBLEMA_CALIDAD
+  OTRO
+}
+
 // =====================
 // MODELOS
 // =====================
@@ -84,6 +100,7 @@ model Usuario {
   inspecciones    InspeccionSAG[]
   eventosTunel    EventoTunel[]
   atrasos         Atraso[]
+  justificaciones JustificacionAtraso[]
   auditorias      AuditLog[]
 
   @@map("usuarios")
@@ -107,6 +124,7 @@ model Anden {
   edificio    Edificio  @relation(fields: [edificioId], references: [id])
   ocupado     Boolean   @default(false)
   camiones    Camion[]
+  paradas     ParadaExpedicion[]
 
   @@index([edificioId])
   @@map("andenes")
@@ -139,6 +157,7 @@ model Pedido {
 model Camion {
   id                      String        @id @default(cuid())
   patente                 String
+  numeroTransporte        String?       @unique
   tipo                    TipoCamion
   estado                  EstadoCamion  @default(ESPERADO)
   pedidoId                String?
@@ -155,10 +174,11 @@ model Camion {
 
   // Relaciones
   eventos       EventoCamion[]
-  pallets       Pallet[]
+  entregas      Entrega[]
   inspecciones  InspeccionSAG[]
   eventosTunel  EventoTunel[]
   atrasos       Atraso[]
+  paradas       ParadaExpedicion[]
 
   @@index([estado])
   @@index([tipo])
@@ -183,25 +203,75 @@ model EventoCamion {
   @@map("eventos_camion")
 }
 
-model Pallet {
-  id                  String        @id @default(cuid())
-  codigoUnico         String        @unique
-  camionId            String?
-  camion              Camion?       @relation(fields: [camionId], references: [id])
-  pedidoId            String?
-  pedido              Pedido?       @relation(fields: [pedidoId], references: [id])
-  pickineroId         String?
-  pickinero           Usuario?      @relation("PalletPickinero", fields: [pickineroId], references: [id])
-  cargadorId          String?
-  cargador            Usuario?      @relation("PalletCargador", fields: [cargadorId], references: [id])
-  edificioId          String?
-  estado              EstadoPallet  @default(EN_ARMADO)
-  timestampInicio     DateTime      @default(now())
-  timestampFin        DateTime?
-  tiempoArmadoSegundos Int?
-  productos           ProductoPallet[]
+/// Cada parada que debe realizar un camión en un punto de expedición
+model ParadaExpedicion {
+  id           String       @id @default(cuid())
+  camionId     String
+  camion       Camion       @relation(fields: [camionId], references: [id])
+  andenId      String?
+  anden        Anden?       @relation(fields: [andenId], references: [id])
+  edificioTipo TipoEdificio
+  orden        Int
+  estado       EstadoParada @default(PENDIENTE)
+  horaInicio   DateTime?
+  horaFin      DateTime?
+  justificacion JustificacionAtraso?
+  entrega       Entrega?
 
   @@index([camionId])
+  @@map("paradas_expedicion")
+}
+
+/// Una entrega agrupa todos los pallets que se cargan en un punto de expedición específico
+model Entrega {
+  id         String            @id @default(cuid())
+  numero     Int               @unique @default(autoincrement())
+  camionId   String
+  camion     Camion            @relation(fields: [camionId], references: [id])
+  paradaId   String?           @unique
+  parada     ParadaExpedicion? @relation(fields: [paradaId], references: [id])
+  pallets    Pallet[]
+  creadoEn   DateTime          @default(now())
+
+  @@index([camionId])
+  @@map("entregas")
+}
+
+/// Justificación de atraso atribuida a una parada específica
+model JustificacionAtraso {
+  id                String             @id @default(cuid())
+  paradaId          String             @unique
+  parada            ParadaExpedicion   @relation(fields: [paradaId], references: [id])
+  causa             CausaJustificacion
+  descripcion       String?
+  excluirDelCalculo Boolean            @default(true)
+  registradoPorId   String
+  registradoPor     Usuario            @relation(fields: [registradoPorId], references: [id])
+  creadoEn          DateTime           @default(now())
+
+  @@index([paradaId])
+  @@map("justificaciones_atraso")
+}
+
+model Pallet {
+  id                   String        @id @default(cuid())
+  codigoUnico          String        @unique
+  entregaId            String?
+  entrega              Entrega?      @relation(fields: [entregaId], references: [id])
+  pedidoId             String?
+  pedido               Pedido?       @relation(fields: [pedidoId], references: [id])
+  pickineroId          String?
+  pickinero            Usuario?      @relation("PalletPickinero", fields: [pickineroId], references: [id])
+  cargadorId           String?
+  cargador             Usuario?      @relation("PalletCargador", fields: [cargadorId], references: [id])
+  edificioId           String?
+  estado               EstadoPallet  @default(EN_ARMADO)
+  timestampInicio      DateTime      @default(now())
+  timestampFin         DateTime?
+  tiempoArmadoSegundos Int?
+  productos            ProductoPallet[]
+
+  @@index([entregaId])
   @@index([pedidoId])
   @@map("pallets")
 }

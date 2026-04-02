@@ -7,6 +7,11 @@ import { AuthModule } from './auth/auth.module';
 import { UsuariosModule } from './usuarios/usuarios.module';
 import { CamionesModule } from './camiones/camiones.module';
 import { AndenesModule } from './andenes/andenes.module';
+import { EventosModule } from './eventos/eventos.module';
+import { ReportesModule } from './reportes/reportes.module';
+import { JustificacionesModule } from './justificaciones/justificaciones.module';
+import { PalletsModule } from './pallets/pallets.module';
+import { EntregasModule } from './entregas/entregas.module';
 
 @Module({
   imports: [
@@ -36,6 +41,21 @@ import { AndenesModule } from './andenes/andenes.module';
 
     // Gestión de andenes
     AndenesModule,
+
+    // WebSocket — eventos en tiempo real
+    EventosModule,
+
+    // KPIs y reportes operacionales
+    ReportesModule,
+
+    // Justificaciones de atraso por parada
+    JustificacionesModule,
+
+    // Gestión de pallets
+    PalletsModule,
+
+    // Entregas: agrupación de pallets por punto de expedición
+    EntregasModule,
   ],
   providers: [
     // Aplicar ThrottlerGuard globalmente

@@ -1,12 +1,16 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
+import { IoAdapter } from '@nestjs/platform-socket.io';
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+
+  // Adaptador WebSocket con Socket.io
+  app.useWebSocketAdapter(new IoAdapter(app));
 
   // Seguridad
   app.use(helmet());
@@ -49,3 +53,4 @@ async function bootstrap() {
 }
 
 bootstrap();
+

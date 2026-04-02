@@ -1,5 +1,6 @@
-import { IsOptional, IsEnum, IsString } from 'class-validator';
+import { IsOptional, IsEnum, IsString, IsDateString, IsInt, Min, Max } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
 import { EstadoCamion, TipoCamion } from '@prisma/client';
 
 export class FiltrosCamionDto {
@@ -17,4 +18,24 @@ export class FiltrosCamionDto {
   @IsString()
   @IsOptional()
   edificioId?: string;
+
+  @ApiPropertyOptional({ description: 'Fecha en formato YYYY-MM-DD. Por defecto: hoy' })
+  @IsDateString()
+  @IsOptional()
+  fecha?: string;
+
+  @ApiPropertyOptional({ description: 'Página (base 1)', default: 1 })
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @IsOptional()
+  pagina?: number;
+
+  @ApiPropertyOptional({ description: 'Registros por página', default: 30 })
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  @IsOptional()
+  porPagina?: number;
 }

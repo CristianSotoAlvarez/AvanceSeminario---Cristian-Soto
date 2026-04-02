@@ -1,10 +1,21 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { listarCamionesApi, type Camion } from "@/lib/api";
+import { listarCamionesApi, type Camion, type PaginaMeta } from "@/lib/api";
 
-export function useCamiones(filtros?: { estado?: string; tipo?: string }) {
+function hoy(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+export function useCamiones(filtros?: {
+  estado?: string;
+  tipo?: string;
+  fecha?: string;
+  pagina?: number;
+  porPagina?: number;
+}) {
   const [camiones, setCamiones] = useState<Camion[]>([]);
+  const [meta, setMeta] = useState<PaginaMeta>({ total: 0, pagina: 1, porPagina: 30, totalPaginas: 1 });
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -12,18 +23,22 @@ export function useCamiones(filtros?: { estado?: string; tipo?: string }) {
     setCargando(true);
     setError(null);
     try {
-      const datos = await listarCamionesApi(filtros);
-      setCamiones(datos);
+      const resp = await listarCamionesApi({
+        ...filtros,
+        fecha: filtros?.fecha ?? hoy(),
+      });
+      setCamiones(resp.datos);
+      setMeta(resp.meta);
     } catch (err: any) {
       setError(err.message || "Error al cargar camiones");
     } finally {
       setCargando(false);
     }
-  }, [filtros?.estado, filtros?.tipo]);
+  }, [filtros?.estado, filtros?.tipo, filtros?.fecha, filtros?.pagina]);
 
   useEffect(() => {
     cargar();
   }, [cargar]);
 
-  return { camiones, cargando, error, recargar: cargar };
+  return { camiones, meta, cargando, error, recargar: cargar };
 }
