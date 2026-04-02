@@ -2,9 +2,11 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
+import { Toaster } from "sonner";
 import { Sidebar } from "@/components/sidebar";
 import { Header } from "@/components/header";
 import { useAuth } from "@/hooks/use-auth";
+import { AuthContext } from "@/lib/auth-context";
 
 const titulosRuta: Record<string, string> = {
   "/dashboard": "Dashboard",
@@ -43,6 +45,7 @@ export default function PlatformLayout({
   if (!usuario) return null;
 
   return (
+    <AuthContext.Provider value={{ usuario }}>
     <div className="flex h-screen overflow-hidden">
       <Sidebar currentPath={pathname} />
       <div className="flex-1 flex flex-col overflow-hidden">
@@ -51,6 +54,15 @@ export default function PlatformLayout({
           {children}
         </main>
       </div>
+      <Toaster
+        position="bottom-right"
+        toastOptions={{
+          style: { fontFamily: "var(--font-display, sans-serif)", fontSize: "13px" },
+          duration: 4000,
+        }}
+        richColors
+      />
     </div>
+    </AuthContext.Provider>
   );
 }
