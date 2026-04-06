@@ -5,17 +5,19 @@ import { useEffect } from "react";
 import { Toaster } from "sonner";
 import { Sidebar } from "@/components/sidebar";
 import { Header } from "@/components/header";
+import { BannerConexion } from "@/components/banner-conexion";
 import { useAuth } from "@/hooks/use-auth";
 import { AuthContext } from "@/lib/auth-context";
 
 const titulosRuta: Record<string, string> = {
-  "/dashboard": "Dashboard",
-  "/camiones": "Camiones",
-  "/andenes": "Andenes",
-  "/pallets": "Pallets",
-  "/reportes": "Reportes",
-  "/sag": "SAG",
-  "/configuracion": "Configuración",
+  "/dashboard":               "Tablero",
+  "/camiones":                "Camiones",
+  "/andenes":                 "Andenes",
+  "/pallets":                 "Entregas",
+  "/reportes":                "Reportes",
+  "/sag":                     "SAG",
+  "/configuracion/clientes":  "Clientes",
+  "/configuracion":           "Configuración",
 };
 
 export default function PlatformLayout({
@@ -26,7 +28,11 @@ export default function PlatformLayout({
   const pathname = usePathname();
   const router = useRouter();
   const { usuario, cargando } = useAuth();
-  const titulo = titulosRuta[pathname] || "DispatchTrack";
+  const tituloExacto = titulosRuta[pathname];
+  const tituloParcial = !tituloExacto
+    ? Object.entries(titulosRuta).find(([ruta]) => pathname.startsWith(ruta))?.[1]
+    : undefined;
+  const titulo = tituloExacto ?? tituloParcial ?? "Justo A Tiempo";
 
   useEffect(() => {
     if (!cargando && !usuario) {
@@ -50,6 +56,7 @@ export default function PlatformLayout({
       <Sidebar currentPath={pathname} />
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header title={titulo} />
+        <BannerConexion />
         <main className="flex-1 overflow-y-auto p-6 bg-bg-primary">
           {children}
         </main>

@@ -4,5 +4,15 @@ dist/
 .turbo/
 .env
 .env.local
+.env.prod
 .superpowers/
 *.log
+
+# Claude Code — no commitear
+.claude/
+.mcp.json
+.aidesigner/
+
+# Archivos de prueba locales
+productos_test.csv
+*.tsbuildinfo

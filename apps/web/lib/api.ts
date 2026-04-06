@@ -30,7 +30,8 @@ export async function fetchApi<T>(endpoint: string, opciones: RequestInit = {}):
     credentials: 'include',
   });
 
-  if (respuesta.status === 401 && accessToken) {
+  if (respuesta.status === 401) {
+    // Intentar renovar con la cookie de refresh, independiente de si hay token en memoria
     const refreshExitoso = await intentarRefresh();
     if (refreshExitoso) {
       headers['Authorization'] = `Bearer ${accessToken}`;
@@ -133,11 +134,25 @@ export interface ParadaExpedicion {
   edificioTipo: string;   // 'AVES' | 'CERDO' | 'FRIGORIFICO'
   orden: number;
   estado: string;         // 'PENDIENTE' | 'EN_PROCESO' | 'COMPLETADO'
+  cantidadPalletsSolicitados: number | null;
   andenId: string | null;
   anden: { id: string; codigo: string; edificio: { nombre: string; tipo: string } } | null;
   horaInicio: string | null;
   horaFin: string | null;
   justificacion: JustificacionAtraso | null;
+  entrega: { pallets: { id: string; estado: string }[] } | null;
+}
+
+export interface Cliente {
+  id: string;
+  nombre: string;
+  rut: string | null;
+  codigo: string | null;
+  tipoDestino: string;  // 'NACIONAL' | 'EXPORTACION' | 'INTERPLANTA'
+  pais: string | null;
+  activo: boolean;
+  creadoEn: string;
+  _count?: { camiones: number };
 }
 
 export interface Camion {
@@ -146,6 +161,8 @@ export interface Camion {
   numeroTransporte: string | null;
   tipo: string;
   estado: string;
+  clienteId: string | null;
+  cliente: Cliente | null;
   andenId: string | null;
   anden: { id: string; codigo: string } | null;
   pedido: { id: string; numero: string; cliente: { nombre: string } } | null;
@@ -229,13 +246,19 @@ export async function cambiarEstadoCamionApi(id: string, endpoint: string, body?
   });
 }
 
+export interface ParadaDatos {
+  edificio: string;
+  pallets?: number;
+}
+
 export interface CrearCamionDatos {
-  patente: string;
+  patente?: string;
   numeroTransporte?: string;
   tipo: string;
+  clienteId?: string;
   horaLlegadaPlanificada: string;
   horaSalidaPlanificada?: string;
-  edificios?: string[];  // ['CERDO', 'AVES', 'FRIGORIFICO'] — orden de paradas
+  paradas?: ParadaDatos[];
 }
 
 export async function crearCamionApi(datos: CrearCamionDatos): Promise<Camion> {
@@ -327,12 +350,35 @@ export async function obtenerResumenReportesApi(params?: {
 // Pallets
 // =====================
 
+// ─── Productos ───────────────────────────────────────────────────────────────
+
+export interface Producto {
+  id: string;
+  sku: string;
+  nombre: string;
+  unidadMedida: string;
+  pesoKgUnitario: number | null;
+  activo: boolean;
+  creadoEn: string;
+}
+
+export interface EntregaItem {
+  id: string;
+  entregaId: string;
+  productoId: string;
+  producto: Producto;
+  cantidadSolicitada: number;
+  cantidadCargada: number;
+}
+
 export interface ProductoPallet {
   id: string;
-  codigoBarras: string;
+  productoId: string | null;
+  producto: Producto | null;
+  codigoBarras: string | null;
   descripcion: string;
   cantidad: number;
-  pesoKg: number;
+  pesoKg: number | null;
   temperatura: number | null;
 }
 
@@ -340,10 +386,11 @@ export interface Entrega {
   id: string;
   numero: number;
   camionId: string;
-  camion: { id: string; patente: string; numeroTransporte: string | null } | null;
+  camion: { id: string; patente: string; numeroTransporte: string | null; cliente: Cliente | null } | null;
   paradaId: string | null;
-  parada: { id: string; edificioTipo: string; orden: number; estado: string } | null;
+  parada: { edificioTipo: string } | null;
   pallets: Pallet[];
+  items: EntregaItem[];
   creadoEn: string;
 }
 
@@ -352,7 +399,13 @@ export interface Pallet {
   codigoUnico: string;
   estado: string;
   entregaId: string | null;
-  entrega: { id: string; camion: { id: string; patente: string; numeroTransporte: string | null } } | null;
+  entrega: {
+    id: string;
+    numero: number;
+    items: EntregaItem[];
+    camion: { id: string; patente: string; numeroTransporte: string | null; cliente: Cliente | null } | null;
+    parada: { edificioTipo: string } | null;
+  } | null;
   pedidoId: string | null;
   pedido: { id: string; numero: string } | null;
   pickineroId: string | null;
@@ -420,6 +473,13 @@ export async function eliminarEntregaApi(id: string): Promise<void> {
   return fetchApi<void>(`/entregas/${id}`, { method: 'DELETE' });
 }
 
+export async function reordenarParadasApi(camionId: string, paradaIds: string[]): Promise<CamionDetalle> {
+  return fetchApi<CamionDetalle>(`/camiones/${camionId}/paradas/reordenar`, {
+    method: 'PATCH',
+    body: JSON.stringify({ paradaIds }),
+  });
+}
+
 export async function agregarProductoPalletApi(
   palletId: string,
   datos: { codigoBarras: string; descripcion: string; cantidad: number; pesoKg: number; temperatura?: number },
@@ -435,4 +495,148 @@ export async function cambiarEstadoPalletApi(palletId: string, estado: string): 
     method: 'PATCH',
     body: JSON.stringify({ estado }),
   });
+}
+
+export async function setItemPalletApi(palletId: string, productoId: string, cantidad: number): Promise<Pallet> {
+  return fetchApi<Pallet>(`/pallets/${palletId}/items/${productoId}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ cantidad }),
+  });
+}
+
+export async function cerrarYCrearNuevoPalletApi(palletId: string): Promise<Pallet> {
+  return fetchApi<Pallet>(`/pallets/${palletId}/cerrar-y-crear-nuevo`, { method: 'POST' });
+}
+
+// ─── Productos ────────────────────────────────────────────────────────────────
+
+export async function listarProductosApi(): Promise<Producto[]> {
+  return fetchApi<Producto[]>('/productos');
+}
+
+export async function crearProductoApi(datos: { sku: string; nombre: string; unidadMedida?: string; pesoKgUnitario?: number }): Promise<Producto> {
+  return fetchApi<Producto>('/productos', { method: 'POST', body: JSON.stringify(datos) });
+}
+
+export async function actualizarProductoApi(id: string, datos: { nombre?: string; unidadMedida?: string; pesoKgUnitario?: number; activo?: boolean }): Promise<Producto> {
+  return fetchApi<Producto>(`/productos/${id}`, { method: 'PATCH', body: JSON.stringify(datos) });
+}
+
+export async function importarProductosCsvApi(filas: { sku: string; nombre: string; unidadMedida?: string; pesoKgUnitario?: string }[]): Promise<{ creados: number; actualizados: number; errores: string[] }> {
+  return fetchApi('/productos/importar-csv', { method: 'POST', body: JSON.stringify({ filas }) });
+}
+
+export async function obtenerItemsEntregaApi(entregaId: string): Promise<EntregaItem[]> {
+  return fetchApi<EntregaItem[]>(`/productos/entrega/${entregaId}`);
+}
+
+export async function setItemsEntregaApi(entregaId: string, items: { productoId: string; cantidadSolicitada: number }[]): Promise<EntregaItem[]> {
+  return fetchApi<EntregaItem[]>(`/productos/entrega/${entregaId}`, {
+    method: 'POST',
+    body: JSON.stringify({ items }),
+  });
+}
+
+// ─── Clientes ─────────────────────────────────────────────────────────────────
+
+export interface ClienteConCamiones extends Cliente {
+  camiones: { id: string; patente: string; numeroTransporte: string | null; estado: string; horaLlegadaPlanificada: string }[];
+}
+
+export async function listarClientesApi(tipo?: string): Promise<Cliente[]> {
+  const qs = tipo ? `?tipo=${tipo}` : '';
+  return fetchApi<Cliente[]>(`/clientes${qs}`);
+}
+
+export async function obtenerClienteApi(id: string): Promise<ClienteConCamiones> {
+  return fetchApi<ClienteConCamiones>(`/clientes/${id}`);
+}
+
+export async function crearClienteApi(datos: {
+  nombre: string;
+  rut?: string;
+  codigo?: string;
+  tipoDestino: string;
+  pais?: string;
+}): Promise<Cliente> {
+  return fetchApi<Cliente>('/clientes', { method: 'POST', body: JSON.stringify(datos) });
+}
+
+export async function actualizarClienteApi(id: string, datos: Partial<{
+  nombre: string;
+  rut: string;
+  codigo: string;
+  tipoDestino: string;
+  pais: string;
+  activo: boolean;
+}>): Promise<Cliente> {
+  return fetchApi<Cliente>(`/clientes/${id}`, { method: 'PATCH', body: JSON.stringify(datos) });
+}
+
+export async function eliminarClienteApi(id: string): Promise<void> {
+  return fetchApi<void>(`/clientes/${id}`, { method: 'DELETE' });
+}
+
+// ─── QR ───────────────────────────────────────────────────────────────────────
+
+export async function generarQrCamionApi(id: string): Promise<{ token: string; tipo: string; entidadId: string }> {
+  return fetchApi(`/qr/camion/${id}`);
+}
+
+export async function validarQrApi(token: string): Promise<{ tipo: string; entidadId: string; timestamp: number }> {
+  return fetchApi(`/qr/validar/${token}`);
+}
+
+// ─── Búsqueda global ──────────────────────────────────────────────────────────
+
+export interface ResultadoBusqueda {
+  camiones: { id: string; patente: string; numeroTransporte: string | null; tipo: string; estado: string; cliente: { nombre: string; codigo: string | null } | null }[];
+  clientes: { id: string; nombre: string; codigo: string | null; tipoDestino: string; pais: string | null; _count: { camiones: number } }[];
+  pallets: { id: string; codigoUnico: string; estado: string; entrega: { camion: { numeroTransporte: string | null; patente: string } } | null }[];
+}
+
+export async function buscarApi(q: string): Promise<ResultadoBusqueda> {
+  return fetchApi<ResultadoBusqueda>(`/busqueda?q=${encodeURIComponent(q)}`);
+}
+
+// ─── Usuarios ─────────────────────────────────────────────────────────────────
+
+export interface UsuarioAdmin {
+  id: string;
+  nombre: string;
+  rut: string;
+  email: string;
+  rol: string;
+  activo: boolean;
+  edificioId: string | null;
+  edificio: { nombre: string; tipo: string } | null;
+}
+
+export async function listarUsuariosApi(): Promise<UsuarioAdmin[]> {
+  return fetchApi<UsuarioAdmin[]>('/usuarios');
+}
+
+export async function crearUsuarioApi(datos: {
+  nombre: string;
+  rut: string;
+  email: string;
+  password: string;
+  rol: string;
+  edificioId?: string;
+}): Promise<UsuarioAdmin> {
+  return fetchApi<UsuarioAdmin>('/usuarios', { method: 'POST', body: JSON.stringify(datos) });
+}
+
+export async function actualizarUsuarioApi(id: string, datos: {
+  nombre?: string;
+  email?: string;
+  rol?: string;
+  edificioId?: string;
+  password?: string;
+}): Promise<UsuarioAdmin> {
+  return fetchApi<UsuarioAdmin>(`/usuarios/${id}`, { method: 'PATCH', body: JSON.stringify(datos) });
+}
+
+export async function desactivarUsuarioApi(id: string): Promise<void> {
+  return fetchApi<void>(`/usuarios/${id}`, { method: 'DELETE' });
 }

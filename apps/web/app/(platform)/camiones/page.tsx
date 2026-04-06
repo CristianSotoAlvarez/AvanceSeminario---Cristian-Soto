@@ -21,7 +21,7 @@ import { useRef, useEffect } from "react";
 import { BotonActualizar } from "@/components/boton-actualizar";
 import { useCamiones } from "@/hooks/use-camiones";
 import { useSocketCamiones } from "@/hooks/use-socket";
-import { crearCamionApi } from "@/lib/api";
+import { crearCamionApi, listarClientesApi, listarProductosApi, setItemsEntregaApi, Cliente, ParadaDatos, Producto, CamionDetalle } from "@/lib/api";
 import { etiquetasEstado, etiquetasTipo } from "@/lib/camion-config";
 import { formatearHora, minutosAtraso, formatearAtraso } from "@/lib/formato";
 
@@ -33,42 +33,102 @@ const EDIFICIOS_CONFIG = [
   { tipo: "FRIGORIFICO", label: "Frigorífico",  color: "#0E7490", bg: "#CFFAFE", border: "#A5F3FC" },
 ];
 
-function ModalCrearCamion({ onCerrar, onCreado }: { onCerrar: () => void; onCreado: () => void }) {
-  const [patente, setPatente] = useState("");
-  const [tipo, setTipo] = useState("NACIONAL");
-  const [horaLlegada, setHoraLlegada] = useState("");
-  const [horaSalida, setHoraSalida] = useState("");
-  const [edificiosSeleccionados, setEdificiosSeleccionados] = useState<string[]>([]);
-  const [enviando, setEnviando] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+// Ítem de producto por parada en el formulario
+interface ItemProductoForm { productoId: string; cantidadSolicitada: number }
 
-  function toggleEdificio(tipo: string) {
-    setEdificiosSeleccionados((prev) => {
-      if (prev.includes(tipo)) return prev.filter((e) => e !== tipo);
-      // Frigorifico siempre al final
-      const sinFrio = [...prev.filter((e) => e !== "FRIGORIFICO"), ...(tipo !== "FRIGORIFICO" ? [tipo] : [])];
-      return tipo === "FRIGORIFICO" ? [...sinFrio, "FRIGORIFICO"] : sinFrio;
+function ModalCrearCamion({ onCerrar, onCreado }: { onCerrar: () => void; onCreado: () => void }) {
+  const [patente, setPatente]     = useState("");
+  const [tipo, setTipo]           = useState("NACIONAL");
+  const [clienteId, setClienteId] = useState("");
+  const [clientes, setClientes]   = useState<Cliente[]>([]);
+  const [productos, setProductos] = useState<Producto[]>([]);
+  const [horaLlegada, setHoraLlegada] = useState("");
+  const [horaSalida, setHoraSalida]   = useState("");
+  const [paradas, setParadas]     = useState<ParadaDatos[]>([]);
+  // productosPorParada: edificio → lista de items
+  const [productosPorParada, setProductosPorParada] = useState<Record<string, ItemProductoForm[]>>({});
+  const [enviando, setEnviando]   = useState(false);
+  const [error, setError]         = useState<string | null>(null);
+
+  useEffect(() => {
+    listarClientesApi().then(setClientes).catch(() => {});
+    listarProductosApi().then(setProductos).catch(() => {});
+  }, []);
+
+  function agregarItemParada(edificio: string) {
+    setProductosPorParada(prev => ({
+      ...prev,
+      [edificio]: [...(prev[edificio] ?? []), { productoId: "", cantidadSolicitada: 1 }],
+    }));
+  }
+
+  function actualizarItemParada(edificio: string, idx: number, campo: keyof ItemProductoForm, valor: string | number) {
+    setProductosPorParada(prev => ({
+      ...prev,
+      [edificio]: (prev[edificio] ?? []).map((item, i) => i === idx ? { ...item, [campo]: valor } : item),
+    }));
+  }
+
+  function quitarItemParada(edificio: string, idx: number) {
+    setProductosPorParada(prev => ({
+      ...prev,
+      [edificio]: (prev[edificio] ?? []).filter((_, i) => i !== idx),
+    }));
+  }
+
+  function toggleEdificio(edificio: string) {
+    setParadas((prev) => {
+      const existe = prev.find(p => p.edificio === edificio);
+      if (existe) return prev.filter(p => p.edificio !== edificio);
+      const sinFrio = prev.filter(p => p.edificio !== "FRIGORIFICO");
+      const nueva: ParadaDatos = { edificio, pallets: undefined };
+      return edificio === "FRIGORIFICO"
+        ? [...sinFrio, nueva]
+        : [...sinFrio, nueva, ...prev.filter(p => p.edificio === "FRIGORIFICO")];
     });
   }
 
-  // Ruta calculada para preview (frigorifico siempre al final)
-  const rutaPreview = [
-    ...edificiosSeleccionados.filter((e) => e !== "FRIGORIFICO"),
-    ...(edificiosSeleccionados.includes("FRIGORIFICO") ? ["FRIGORIFICO"] : []),
+  function setPallets(edificio: string, valor: string) {
+    const n = parseInt(valor);
+    setParadas(prev => prev.map(p =>
+      p.edificio === edificio ? { ...p, pallets: isNaN(n) || n < 0 ? undefined : n } : p
+    ));
+  }
+
+  // Ruta ordenada (frigorífico siempre al final)
+  const rutaOrdenada = [
+    ...paradas.filter(p => p.edificio !== "FRIGORIFICO"),
+    ...paradas.filter(p => p.edificio === "FRIGORIFICO"),
   ];
+
+  const totalPallets = paradas.reduce((s, p) => s + (p.pallets ?? 0), 0);
 
   async function manejarSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
     setEnviando(true);
     try {
-      await crearCamionApi({
-        patente: patente.toUpperCase() || undefined,
+      const camion = await crearCamionApi({
+        patente:               patente.toUpperCase() || undefined,
         tipo,
+        clienteId:             clienteId || undefined,
         horaLlegadaPlanificada: new Date(horaLlegada).toISOString(),
-        horaSalidaPlanificada: horaSalida ? new Date(horaSalida).toISOString() : undefined,
-        edificios: rutaPreview.length > 0 ? rutaPreview : undefined,
-      });
+        horaSalidaPlanificada:  horaSalida ? new Date(horaSalida).toISOString() : undefined,
+        paradas:               rutaOrdenada.length > 0 ? rutaOrdenada : undefined,
+      }) as CamionDetalle & { entregas?: { id: string; parada?: { edificioTipo: string } | null }[] };
+
+      // Asignar productos a cada entrega según el edificio
+      if (camion.entregas) {
+        for (const entrega of camion.entregas) {
+          const edificio = entrega.parada?.edificioTipo;
+          if (!edificio) continue;
+          const items = (productosPorParada[edificio] ?? []).filter(i => i.productoId && i.cantidadSolicitada > 0);
+          if (items.length > 0) {
+            await setItemsEntregaApi(entrega.id, items);
+          }
+        }
+      }
+
       onCreado();
       onCerrar();
     } catch (err: any) {
@@ -85,19 +145,23 @@ function ModalCrearCamion({ onCerrar, onCreado }: { onCerrar: () => void; onCrea
       initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}
     >
       <motion.div
-        className="bg-bg-surface border border-bg-elevated rounded-xl shadow-2xl w-full max-w-md p-6 overflow-y-auto max-h-[90vh]"
+        className="bg-bg-surface rounded-xl shadow-2xl w-full max-w-lg overflow-hidden max-h-[92vh] flex flex-col"
+        style={{ border: "1px solid rgba(30,58,95,0.15)" }}
         initial={{ scale: 0.95, y: 8 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.95, y: 8 }} transition={{ duration: 0.18, ease: "easeOut" }}
       >
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="font-display text-h3 uppercase text-text-primary tracking-wide">Nuevo Camión</h2>
-          <button onClick={onCerrar} className="text-text-muted hover:text-text-primary transition-colors cursor-pointer" aria-label="Cerrar">
-            <X size={20} />
+        {/* Header navy */}
+        <div className="flex items-center justify-between px-6 py-4 flex-shrink-0" style={{ background: "#1E3A5F" }}>
+          <h2 className="font-display text-sm font-bold uppercase tracking-widest text-white">Nuevo Camión</h2>
+          <button onClick={onCerrar} className="transition-colors cursor-pointer" style={{ color: "rgba(255,255,255,0.5)" }} aria-label="Cerrar">
+            <X size={18} />
           </button>
         </div>
 
-        <form onSubmit={manejarSubmit} className="space-y-4">
+        <form onSubmit={manejarSubmit} className="space-y-4 p-6 overflow-y-auto">
+          {/* Patente */}
           <Input label="Patente (opcional)" placeholder="BXRK-42" value={patente} onChange={(e) => setPatente(e.target.value)} />
 
+          {/* Tipo */}
           <div className="flex flex-col gap-1.5">
             <label className="font-display text-label uppercase text-text-muted tracking-wide">Tipo</label>
             <select
@@ -111,14 +175,45 @@ function ModalCrearCamion({ onCerrar, onCreado }: { onCerrar: () => void; onCrea
             </select>
           </div>
 
-          {/* Selector de paradas / puntos de expedición */}
+          {/* Cliente */}
+          <div className="flex flex-col gap-1.5">
+            <label className="font-display text-label uppercase text-text-muted tracking-wide">Cliente</label>
+            <select
+              value={clienteId}
+              onChange={(e) => setClienteId(e.target.value)}
+              className="h-10 px-3 rounded-sm border border-bg-elevated bg-bg-surface text-text-primary font-display text-sm focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent cursor-pointer"
+            >
+              <option value="">— Sin cliente —</option>
+              {(["NACIONAL", "INTERPLANTA", "EXPORTACION"] as const).map(t => {
+                const grupo = clientes.filter(c => c.tipoDestino === t);
+                if (grupo.length === 0) return null;
+                const label = t === "NACIONAL" ? "Nacional" : t === "INTERPLANTA" ? "Interplanta" : "Exportación";
+                return (
+                  <optgroup key={t} label={label}>
+                    {grupo.map(c => (
+                      <option key={c.id} value={c.id}>
+                        {c.codigo ? `[${c.codigo}] ` : ""}{c.nombre}{c.pais ? ` · ${c.pais}` : ""}
+                      </option>
+                    ))}
+                  </optgroup>
+                );
+              })}
+            </select>
+          </div>
+
+          {/* Puntos de expedición + pallets */}
           <div className="flex flex-col gap-2">
             <label className="font-display text-label uppercase text-text-muted tracking-wide">
-              Puntos de expedición <span className="normal-case text-[10px]">(opcional)</span>
+              Puntos de expedición
+              {totalPallets > 0 && (
+                <span className="ml-2 normal-case text-accent font-semibold">{totalPallets} pallets total</span>
+              )}
             </label>
+
+            {/* Botones de selección */}
             <div className="flex gap-2">
               {EDIFICIOS_CONFIG.map((edif) => {
-                const sel = edificiosSeleccionados.includes(edif.tipo);
+                const sel = paradas.some(p => p.edificio === edif.tipo);
                 return (
                   <button
                     key={edif.tipo}
@@ -127,31 +222,86 @@ function ModalCrearCamion({ onCerrar, onCreado }: { onCerrar: () => void; onCrea
                     className="flex-1 py-2 rounded-lg border-2 font-display text-xs uppercase tracking-wide transition-all duration-150 cursor-pointer"
                     style={{
                       borderColor: sel ? edif.color : "#E2E8F0",
-                      background: sel ? edif.bg : "#F8FAFC",
-                      color: sel ? edif.color : "#94A3B8",
-                      fontWeight: sel ? 700 : 400,
+                      background:  sel ? edif.bg    : "#F8FAFC",
+                      color:       sel ? edif.color : "#94A3B8",
+                      fontWeight:  sel ? 700 : 400,
                     }}
                   >
+                    {sel && <Check size={10} className="inline mr-1" />}
                     {edif.label}
                   </button>
                 );
               })}
             </div>
-            {/* Preview de ruta */}
-            {rutaPreview.length > 0 && (
-              <div className="flex items-center gap-1.5 mt-1">
-                <span className="font-display text-[10px] text-text-muted uppercase tracking-wide">Ruta:</span>
-                {rutaPreview.map((e, i) => {
-                  const cfg = EDIFICIOS_CONFIG.find((x) => x.tipo === e)!;
+
+            {/* Detalle de pallets + productos por parada */}
+            {rutaOrdenada.length > 0 && (
+              <div className="rounded-lg border border-bg-elevated overflow-hidden">
+                <div className="bg-bg-elevated/50 px-3 py-1.5">
+                  <span className="font-display text-[10px] text-text-muted uppercase tracking-wide">Ruta, pallets y productos por parada</span>
+                </div>
+                {rutaOrdenada.map((p, i) => {
+                  const cfg = EDIFICIOS_CONFIG.find(x => x.tipo === p.edificio)!;
+                  const itemsParada = productosPorParada[p.edificio] ?? [];
                   return (
-                    <span key={e} className="flex items-center gap-1">
-                      {i > 0 && <ArrowRight size={10} className="text-text-muted" />}
-                      <span className="font-display text-[10px] uppercase font-bold px-1.5 py-0.5 rounded" style={{ background: cfg.bg, color: cfg.color, border: `1px solid ${cfg.border}` }}>
-                        {cfg.label}
-                      </span>
-                    </span>
+                    <div key={p.edificio} className="border-t border-bg-elevated first:border-t-0">
+                      {/* Fila pallets */}
+                      <div className="flex items-center gap-3 px-3 py-2.5">
+                        <span className="font-data text-[10px] text-text-muted w-4 text-center">{i + 1}</span>
+                        <span className="font-display text-xs font-bold uppercase px-2 py-0.5 rounded flex-1"
+                          style={{ background: cfg.bg, color: cfg.color, border: `1px solid ${cfg.border}` }}>
+                          {cfg.label}
+                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <input type="number" min={0} placeholder="0" value={p.pallets ?? ""}
+                            onChange={e => setPallets(p.edificio, e.target.value)}
+                            className="w-20 h-8 px-2 text-right rounded border border-bg-elevated bg-bg-surface font-data text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-accent/30" />
+                          <span className="font-display text-[10px] text-text-muted">pallets</span>
+                        </div>
+                        <button type="button" onClick={() => toggleEdificio(p.edificio)}
+                          className="text-text-muted hover:text-semantic-error transition-colors cursor-pointer">
+                          <X size={14} />
+                        </button>
+                      </div>
+
+                      {/* Productos de la parada */}
+                      {productos.length > 0 && (
+                        <div className="px-3 pb-2.5 space-y-1.5" style={{ background: `${cfg.bg}80` }}>
+                          {itemsParada.map((item, idx) => (
+                            <div key={idx} className="flex items-center gap-2">
+                              <select value={item.productoId}
+                                onChange={e => actualizarItemParada(p.edificio, idx, "productoId", e.target.value)}
+                                className="flex-1 h-8 px-2 rounded border border-bg-elevated bg-bg-surface font-display text-xs text-text-primary focus:outline-none focus:ring-2 focus:ring-accent/30 cursor-pointer">
+                                <option value="">— Producto —</option>
+                                {productos.map(prod => (
+                                  <option key={prod.id} value={prod.id}>{prod.nombre} ({prod.unidadMedida})</option>
+                                ))}
+                              </select>
+                              <input type="number" min={1} value={item.cantidadSolicitada}
+                                onChange={e => actualizarItemParada(p.edificio, idx, "cantidadSolicitada", parseInt(e.target.value) || 1)}
+                                className="w-20 h-8 px-2 text-right rounded border border-bg-elevated bg-bg-surface font-data text-sm focus:outline-none focus:ring-2 focus:ring-accent/30" />
+                              <button type="button" onClick={() => quitarItemParada(p.edificio, idx)}
+                                className="text-text-muted hover:text-semantic-error transition-colors cursor-pointer">
+                                <X size={12} />
+                              </button>
+                            </div>
+                          ))}
+                          <button type="button" onClick={() => agregarItemParada(p.edificio)}
+                            className="flex items-center gap-1 font-display text-[10px] uppercase tracking-wide transition-colors cursor-pointer"
+                            style={{ color: cfg.color }}>
+                            <Plus size={10} /> Agregar producto
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   );
                 })}
+                {totalPallets > 0 && (
+                  <div className="px-3 py-2 bg-accent/5 border-t border-bg-elevated flex justify-between items-center">
+                    <span className="font-display text-xs text-text-muted">Total solicitado</span>
+                    <span className="font-data text-sm font-bold text-accent">{totalPallets} pallets</span>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -163,9 +313,14 @@ function ModalCrearCamion({ onCerrar, onCreado }: { onCerrar: () => void; onCrea
 
           <div className="flex gap-3 pt-2">
             <Button type="button" variant="secondary" className="flex-1" onClick={onCerrar}>Cancelar</Button>
-            <Button type="submit" className="flex-1" disabled={enviando || !horaLlegada}>
+            <button
+              type="submit"
+              disabled={enviando || !horaLlegada}
+              className="flex-1 h-10 rounded-md font-display text-sm font-bold text-white uppercase tracking-wide transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{ background: "#EA580C" }}
+            >
               {enviando ? "Creando..." : "Crear Camión"}
-            </Button>
+            </button>
           </div>
         </form>
       </motion.div>
@@ -292,7 +447,8 @@ function DropdownFiltros({
 }
 
 function fechaHoy(): string {
-  return new Date().toISOString().slice(0, 10);
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
 function formatearFechaBonita(iso: string): string {
@@ -431,17 +587,23 @@ export default function CamionesPage() {
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ duration: 0.2, delay: i * 0.035, ease: "easeOut" }}
                   onClick={() => router.push(`/camiones/${camion.id}`)}
-                  className="border-b border-bg-elevated hover:bg-bg-elevated/60 transition-colors duration-150 cursor-pointer group"
+                  className="border-b border-bg-elevated transition-colors duration-150 cursor-pointer group hover:bg-[#FFF7F5]"
                   style={atrasado ? { background: "#FFF1F2" } : {}}
                 >
                   <TableCell className="font-semibold">
-                    <span className="flex items-center gap-1.5">
+                    <span className="flex items-center gap-2">
+                      <span className="w-0.5 h-8 rounded-full opacity-0 group-hover:opacity-100 transition-opacity" style={{ background: "#EA580C" }} />
                       {atrasado && <AlertTriangle size={12} className="text-semantic-error flex-shrink-0" />}
                       {camion.numeroTransporte ?? camion.patente}
                     </span>
                   </TableCell>
                   <TableCell className="font-display text-text-muted">{etiquetasTipo[camion.tipo] || camion.tipo}</TableCell>
-                  <TableCell className="font-display">{camion.pedido?.cliente?.nombre || "—"}</TableCell>
+                  <TableCell className="font-display">
+                    {camion.cliente?.nombre || camion.pedido?.cliente?.nombre || "—"}
+                    {camion.cliente?.pais && (
+                      <span className="ml-1 text-xs text-slate-400">({camion.cliente.pais})</span>
+                    )}
+                  </TableCell>
                   <TableCell>{camion.anden?.codigo || "—"}</TableCell>
                   <TableCell className="font-data">{formatearHora(camion.horaLlegadaPlanificada)}</TableCell>
                   <TableCell className="font-data">

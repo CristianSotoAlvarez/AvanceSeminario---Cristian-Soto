@@ -6,6 +6,7 @@ import { CrearCamionDto } from './dto/crear-camion.dto';
 import { AsignarAndenDto } from './dto/asignar-anden.dto';
 import { FiltrosCamionDto } from './dto/filtros-camion.dto';
 import { InspeccionSagDto } from './dto/inspeccion-sag.dto';
+import { ReordenarParadasDto } from './dto/reordenar-paradas.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decoradores/roles.decorator';
@@ -19,8 +20,8 @@ export class CamionesController {
   constructor(private readonly camionesService: CamionesService) {}
 
   @Post()
-  @Roles('COORDINADOR_TRANSPORTE', 'JEFE_DESPACHO')
-  @ApiOperation({ summary: 'Crear camión programado (Coordinador Transporte o Jefe de Despacho)' })
+  @Roles('COORDINADOR_TRANSPORTE')
+  @ApiOperation({ summary: 'Crear camión programado (solo Coordinador Transporte)' })
   crear(@Body() dto: CrearCamionDto) {
     return this.camionesService.crear(dto);
   }
@@ -40,7 +41,7 @@ export class CamionesController {
   // ——— Transiciones de estado ———
 
   @Patch(':id/en-porteria')
-  @Roles('COORDINADOR_TRANSPORTE', 'COORDINADOR', 'JEFE_DESPACHO', 'SUPERVISOR')
+  @Roles('COORDINADOR', 'JEFE_DESPACHO', 'SUPERVISOR')
   @ApiOperation({ summary: 'Registrar llegada a portería (ESPERADO → EN_PORTERIA)' })
   enPorteria(
     @Param('id') id: string,
@@ -50,7 +51,7 @@ export class CamionesController {
   }
 
   @Patch(':id/asignar')
-  @Roles('COORDINADOR', 'JEFE_DESPACHO')
+  @Roles('COORDINADOR', 'JEFE_DESPACHO', 'SUPERVISOR')
   @ApiOperation({ summary: 'Asignar andén a camión (EN_PORTERIA → ASIGNADO)' })
   asignarAnden(
     @Param('id') id: string,
@@ -81,7 +82,7 @@ export class CamionesController {
   }
 
   @Patch(':id/temperatura-ok')
-  @Roles('OPERADOR_TUNEL', 'JEFE_DESPACHO')
+  @Roles('OPERADOR_TUNEL', 'JEFE_DESPACHO', 'SUPERVISOR')
   @ApiOperation({ summary: 'Validar temperatura -18°C alcanzada (EN_TUNEL_FRIO → ESPERANDO_SAG)' })
   temperaturaOk(
     @Param('id') id: string,
@@ -133,12 +134,22 @@ export class CamionesController {
   }
 
   @Patch(':id/despachar')
-  @Roles('COORDINADOR', 'JEFE_DESPACHO')
+  @Roles('COORDINADOR', 'JEFE_DESPACHO', 'SUPERVISOR')
   @ApiOperation({ summary: 'Despachar camión (LISTO → DESPACHADO)' })
   despachar(
     @Param('id') id: string,
     @UsuarioActual('id') usuarioId: string,
   ) {
     return this.camionesService.cambiarEstado(id, EstadoCamion.DESPACHADO, usuarioId);
+  }
+
+  @Patch(':id/paradas/reordenar')
+  @Roles('JEFE_DESPACHO', 'COORDINADOR', 'SUPERVISOR')
+  @ApiOperation({ summary: 'Reordenar paradas PENDIENTES del camión' })
+  reordenarParadas(
+    @Param('id') id: string,
+    @Body() dto: ReordenarParadasDto,
+  ) {
+    return this.camionesService.reordenarParadas(id, dto.paradaIds);
   }
 }

@@ -12,6 +12,7 @@
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
+    "prisma:deploy": "prisma migrate deploy",
     "prisma:seed": "ts-node prisma/seed.ts"
   },
   "dependencies": {
@@ -36,7 +37,9 @@
     "passport-jwt": "^4",
     "reflect-metadata": "^0.2",
     "rxjs": "^7",
-    "socket.io": "^4.8.3"
+    "socket.io": "^4.8.3",
+    "@socket.io/redis-adapter": "^8.3.0",
+    "redis": "^4.7.0"
   },
   "devDependencies": {
     "@nestjs/cli": "^10",

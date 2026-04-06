@@ -8,8 +8,12 @@ import { esTransicionValida, obtenerEstadosSiguientes } from './maquina-estados'
 
 const INCLUDE_CAMION = {
   anden: true,
+  cliente: true,
   pedido: { include: { cliente: true } },
-  paradas: { orderBy: { orden: 'asc' as const } },
+  paradas: {
+    orderBy: { orden: 'asc' as const },
+    include: { entrega: { include: { pallets: { select: { id: true, estado: true } } } } },
+  },
 };
 
 @Injectable()
@@ -42,21 +46,38 @@ export class CamionesService {
           tipo: dto.tipo,
           horaLlegadaPlanificada: new Date(dto.horaLlegadaPlanificada),
           horaSalidaPlanificada: dto.horaSalidaPlanificada ? new Date(dto.horaSalidaPlanificada) : null,
+          clienteId: dto.clienteId,
           pedidoId: dto.pedidoId,
           cargaPreviaDescripcion: dto.cargaPreviaDescripcion,
         },
         include: INCLUDE_CAMION,
       });
 
-      if (dto.edificios && dto.edificios.length > 0) {
-        const ordenados = this.ordenarEdificios(dto.edificios);
-        await tx.paradaExpedicion.createMany({
-          data: ordenados.map((edificioTipo, index) => ({
-            camionId: camion.id,
-            edificioTipo,
-            orden: index + 1,
-          })),
-        });
+      // Normalizar: `paradas` tiene prioridad sobre `edificios` (legacy)
+      const paradasInput: { edificio: string; pallets?: number }[] =
+        dto.paradas && dto.paradas.length > 0
+          ? dto.paradas.map(p => ({ edificio: p.edificio, pallets: p.pallets }))
+          : (dto.edificios ?? []).map(e => ({ edificio: e, pallets: undefined }));
+
+      if (paradasInput.length > 0) {
+        const edificiosSolo = paradasInput.map(p => p.edificio as any);
+        const ordenados = this.ordenarEdificios(edificiosSolo);
+        // Reordenar paradasInput con el mismo criterio (frigorífico siempre al final)
+        const paradasOrdenadas = ordenados.map(e => paradasInput.find(p => p.edificio === e)!);
+
+        for (let index = 0; index < paradasOrdenadas.length; index++) {
+          const { edificio, pallets } = paradasOrdenadas[index];
+          const parada = await tx.paradaExpedicion.create({
+            data: {
+              camionId: camion.id,
+              edificioTipo: edificio as any,
+              orden: index + 1,
+              ...(pallets !== undefined && pallets > 0 ? { cantidadPalletsSolicitados: pallets } : {}),
+            },
+          });
+          // Entrega creada de inmediato para que picking pueda arrancar
+          await tx.entrega.create({ data: { camionId: camion.id, paradaId: parada.id } });
+        }
       }
 
       return camion;
@@ -69,8 +90,10 @@ export class CamionesService {
     if (filtros.tipo) where.tipo = filtros.tipo;
     if (filtros.edificioId) where.anden = { edificioId: filtros.edificioId };
 
-    // Filtro por fecha — default: hoy
-    const fechaStr = filtros.fecha ?? new Date().toISOString().slice(0, 10);
+    // Filtro por fecha — el cliente siempre envía fecha local explícita; fallback a UTC del servidor
+    const ahora = new Date();
+    const fechaHoyUtc = `${ahora.getUTCFullYear()}-${String(ahora.getUTCMonth() + 1).padStart(2, '0')}-${String(ahora.getUTCDate()).padStart(2, '0')}`;
+    const fechaStr = filtros.fecha ?? fechaHoyUtc;
     const inicioDia = new Date(`${fechaStr}T00:00:00.000Z`);
     const finDia    = new Date(`${fechaStr}T23:59:59.999Z`);
     where.horaLlegadaPlanificada = { gte: inicioDia, lte: finDia };
@@ -106,12 +129,14 @@ export class CamionesService {
       where: { id },
       include: {
         anden: true,
+        cliente: true,
         pedido: { include: { cliente: true } },
         paradas: {
           orderBy: { orden: 'asc' },
           include: {
             anden: { include: { edificio: true } },
             justificacion: { include: { registradoPor: { select: { nombre: true, rol: true } } } },
+            entrega: { include: { pallets: { select: { id: true, estado: true } } } },
           },
         },
         eventos: {
@@ -348,6 +373,56 @@ export class CamionesService {
       this.eventosGateway.emitirCamionActualizado(camionActualizado as any);
       return camionActualizado;
     });
+  }
+
+  async reordenarParadas(camionId: string, paradaIds: string[]) {
+    // Verificar que el camión existe
+    await this.obtenerCamionOError(camionId);
+
+    // Cargar todas las paradas PENDIENTES del camión
+    const paradasPendientes = await this.prisma.paradaExpedicion.findMany({
+      where: { camionId, estado: 'PENDIENTE' },
+      select: { id: true },
+    });
+
+    const idsPendientes = new Set(paradasPendientes.map(p => p.id));
+
+    // Validar que todos los IDs enviados corresponden a paradas PENDIENTES de este camión
+    for (const id of paradaIds) {
+      if (!idsPendientes.has(id)) {
+        throw new BadRequestException(
+          `La parada ${id} no pertenece a este camión o no está en estado PENDIENTE`,
+        );
+      }
+    }
+
+    if (paradaIds.length !== paradasPendientes.length) {
+      throw new BadRequestException(
+        'Debes incluir todas las paradas PENDIENTES del camión en el nuevo orden',
+      );
+    }
+
+    // Calcular el orden base (las paradas ya completadas/en proceso ocupan los primeros órdenes)
+    const paradasNoEditables = await this.prisma.paradaExpedicion.findMany({
+      where: { camionId, estado: { not: 'PENDIENTE' } },
+      orderBy: { orden: 'asc' },
+      select: { id: true },
+    });
+    const baseOrden = paradasNoEditables.length + 1;
+
+    // Actualizar el orden de cada parada PENDIENTE según el nuevo array
+    await this.prisma.$transaction(
+      paradaIds.map((id, index) =>
+        this.prisma.paradaExpedicion.update({
+          where: { id },
+          data: { orden: baseOrden + index },
+        }),
+      ),
+    );
+
+    const resultado = await this.obtenerPorId(camionId);
+    this.eventosGateway.emitirCamionActualizado(resultado as any);
+    return resultado;
   }
 
   // --- Helpers privados ---

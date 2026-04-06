@@ -131,12 +131,18 @@ model Anden {
 }
 
 model Cliente {
-  id          String    @id @default(cuid())
+  id          String     @id @default(cuid())
   nombre      String
-  rut         String    @unique
+  rut         String?    @unique   // Opcional: clientes extranjeros no tienen RUT chileno
+  codigo      String?    @unique   // Código interno alternativo
   tipoDestino TipoCamion
+  pais        String?              // Solo para EXPORTACION (ej: "China", "Japón")
+  activo      Boolean    @default(true)
+  creadoEn    DateTime   @default(now())
   pedidos     Pedido[]
+  camiones    Camion[]
 
+  @@index([tipoDestino])
   @@map("clientes")
 }
 
@@ -160,6 +166,8 @@ model Camion {
   numeroTransporte        String?       @unique
   tipo                    TipoCamion
   estado                  EstadoCamion  @default(ESPERADO)
+  clienteId               String?
+  cliente                 Cliente?      @relation(fields: [clienteId], references: [id])
   pedidoId                String?
   pedido                  Pedido?       @relation(fields: [pedidoId], references: [id])
   andenId                 String?
@@ -205,18 +213,19 @@ model EventoCamion {
 
 /// Cada parada que debe realizar un camión en un punto de expedición
 model ParadaExpedicion {
-  id           String       @id @default(cuid())
-  camionId     String
-  camion       Camion       @relation(fields: [camionId], references: [id])
-  andenId      String?
-  anden        Anden?       @relation(fields: [andenId], references: [id])
-  edificioTipo TipoEdificio
-  orden        Int
-  estado       EstadoParada @default(PENDIENTE)
-  horaInicio   DateTime?
-  horaFin      DateTime?
-  justificacion JustificacionAtraso?
-  entrega       Entrega?
+  id                       String       @id @default(cuid())
+  camionId                 String
+  camion                   Camion       @relation(fields: [camionId], references: [id])
+  andenId                  String?
+  anden                    Anden?       @relation(fields: [andenId], references: [id])
+  edificioTipo             TipoEdificio
+  orden                    Int
+  estado                   EstadoParada @default(PENDIENTE)
+  cantidadPalletsSolicitados Int?       // Pallets pedidos por el cliente en esta parada
+  horaInicio               DateTime?
+  horaFin                  DateTime?
+  justificacion            JustificacionAtraso?
+  entrega                  Entrega?
 
   @@index([camionId])
   @@map("paradas_expedicion")
@@ -231,10 +240,41 @@ model Entrega {
   paradaId   String?           @unique
   parada     ParadaExpedicion? @relation(fields: [paradaId], references: [id])
   pallets    Pallet[]
+  items      EntregaItem[]
   creadoEn   DateTime          @default(now())
 
   @@index([camionId])
   @@map("entregas")
+}
+
+/// Producto del catálogo interno
+model Producto {
+  id             String        @id @default(cuid())
+  sku            String        @unique
+  nombre         String
+  unidadMedida   String        @default("caja")
+  pesoKgUnitario Float?
+  activo         Boolean       @default(true)
+  creadoEn       DateTime      @default(now())
+
+  entregaItems   EntregaItem[]
+  palletItems    ProductoPallet[]
+
+  @@map("productos")
+}
+
+/// Ítem de una entrega: qué producto se solicita y en qué cantidad
+model EntregaItem {
+  id                 String   @id @default(cuid())
+  entregaId          String
+  entrega            Entrega  @relation(fields: [entregaId], references: [id], onDelete: Cascade)
+  productoId         String
+  producto           Producto @relation(fields: [productoId], references: [id])
+  cantidadSolicitada Int
+
+  @@unique([entregaId, productoId])
+  @@index([entregaId])
+  @@map("entrega_items")
 }
 
 /// Justificación de atraso atribuida a una parada específica
@@ -277,15 +317,18 @@ model Pallet {
 }
 
 model ProductoPallet {
-  id            String  @id @default(cuid())
+  id            String    @id @default(cuid())
   palletId      String
-  pallet        Pallet  @relation(fields: [palletId], references: [id], onDelete: Cascade)
-  codigoBarras  String
+  pallet        Pallet    @relation(fields: [palletId], references: [id], onDelete: Cascade)
+  productoId    String?
+  producto      Producto? @relation(fields: [productoId], references: [id])
+  codigoBarras  String?
   descripcion   String
   cantidad      Int
-  pesoKg        Float
+  pesoKg        Float?
   temperatura   Float?
 
+  @@index([palletId])
   @@map("productos_pallet")
 }
 

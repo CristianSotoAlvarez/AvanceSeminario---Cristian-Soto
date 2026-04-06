@@ -8,13 +8,15 @@ import { TruckState, TRUCK_STATE_COLOR } from "@dispatch-track/types";
 import {
   ArrowLeft, Truck, Clock, CheckCircle2, XCircle, AlertTriangle,
   User, Calendar, Package, Shield, FileText, Trash2, X, Plus, Loader2, ExternalLink, Info,
+  ChevronUp, ChevronDown, Printer,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
   obtenerCamionApi, justificarParadaApi, eliminarJustificacionApi,
-  crearPalletApi, crearEntregaApi,
+  crearPalletApi, crearEntregaApi, reordenarParadasApi,
   type CamionDetalle, type ParadaExpedicion, type EntregaResumen,
 } from "@/lib/api";
+import { QrCamion } from "@/components/qr-camion";
 import { etiquetasEstado, etiquetasTipo } from "@/lib/camion-config";
 import { formatearFechaHora, formatearAtraso, minutosAtraso } from "@/lib/formato";
 import { AuthContext } from "@/lib/auth-context";
@@ -207,7 +209,7 @@ function ModalJustificar({ parada, onCerrar, onGuardado }: ModalJustificarProps)
             onClick={guardar}
             disabled={guardando || !causa}
             className="flex-1 px-4 py-2 rounded-lg font-display text-sm text-white transition-colors cursor-pointer disabled:opacity-50"
-            style={{ background: "#2563EB" }}
+            style={{ background: "#EA580C" }}
           >
             {guardando ? "Guardando..." : "Guardar"}
           </button>
@@ -299,16 +301,45 @@ function KpiTiempos({ camion }: { camion: CamionDetalle }) {
 function SeccionParadas({
   camion,
   puedeJustificar,
+  puedeReordenar,
   onParadaActualizada,
+  onCamionActualizado,
 }: {
   camion: CamionDetalle;
   puedeJustificar: boolean;
+  puedeReordenar: boolean;
   onParadaActualizada: (p: ParadaExpedicion) => void;
+  onCamionActualizado: (c: CamionDetalle) => void;
 }) {
   const [paradaJustificando, setParadaJustificando] = useState<ParadaExpedicion | null>(null);
   const [eliminando, setEliminando] = useState<string | null>(null);
+  const [reordenando, setReordenando] = useState(false);
 
   if (!camion.paradas?.length) return null;
+
+  const paradasPendientes = camion.paradas.filter(p => p.estado === "PENDIENTE");
+
+  async function moverParada(paradaId: string, direccion: "arriba" | "abajo") {
+    const idxEnPendientes = paradasPendientes.findIndex(p => p.id === paradaId);
+    if (idxEnPendientes === -1) return;
+    if (direccion === "arriba" && idxEnPendientes === 0) return;
+    if (direccion === "abajo" && idxEnPendientes === paradasPendientes.length - 1) return;
+
+    const nuevoOrden = [...paradasPendientes.map(p => p.id)];
+    const swapIdx = direccion === "arriba" ? idxEnPendientes - 1 : idxEnPendientes + 1;
+    [nuevoOrden[idxEnPendientes], nuevoOrden[swapIdx]] = [nuevoOrden[swapIdx], nuevoOrden[idxEnPendientes]];
+
+    setReordenando(true);
+    try {
+      const actualizado = await reordenarParadasApi(camion.id, nuevoOrden);
+      onCamionActualizado(actualizado);
+      toast.success("Orden de paradas actualizado");
+    } catch {
+      toast.error("Error al reordenar las paradas");
+    } finally {
+      setReordenando(false);
+    }
+  }
 
   async function eliminarJustificacion(parada: ParadaExpedicion) {
     setEliminando(parada.id);
@@ -369,7 +400,7 @@ function SeccionParadas({
 
                   {/* Info parada */}
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <span
                         className="font-display text-xs font-bold uppercase"
                         style={{ color: done ? "#94A3B8" : cfg?.color }}
@@ -387,6 +418,25 @@ function SeccionParadas({
                           En proceso
                         </span>
                       )}
+                      {/* Pallets: solicitados vs cargados */}
+                      {(() => {
+                        const solicitados = parada.cantidadPalletsSolicitados;
+                        const cargados    = parada.entrega?.pallets?.length ?? 0;
+                        if (!solicitados && cargados === 0) return null;
+                        const completo = solicitados ? cargados >= solicitados : false;
+                        return (
+                          <span
+                            className="font-data text-[10px] px-1.5 py-0.5 rounded border"
+                            style={{
+                              background: completo ? "#DCFCE7" : "#F1F5F9",
+                              color:      completo ? "#16A34A" : "#64748B",
+                              borderColor: completo ? "#BBF7D0" : "#E2E8F0",
+                            }}
+                          >
+                            {cargados}{solicitados ? `/${solicitados}` : ""} pallets
+                          </span>
+                        );
+                      })()}
                     </div>
                     <div className="flex items-center gap-3 mt-0.5 flex-wrap">
                       {parada.horaInicio && (
@@ -406,6 +456,28 @@ function SeccionParadas({
                     {/* Duración */}
                     {dur && (
                       <span className="font-data text-xs text-text-muted tabular-nums">{dur}</span>
+                    )}
+
+                    {/* Botones reordenar — solo PENDIENTE y rol autorizado */}
+                    {puedeReordenar && parada.estado === "PENDIENTE" && (
+                      <div className="flex flex-col gap-0.5">
+                        <button
+                          onClick={() => moverParada(parada.id, "arriba")}
+                          disabled={reordenando || paradasPendientes[0]?.id === parada.id}
+                          className="p-0.5 rounded text-text-muted hover:text-text-primary hover:bg-bg-elevated transition-colors cursor-pointer disabled:opacity-25 disabled:cursor-not-allowed"
+                          title="Mover antes"
+                        >
+                          <ChevronUp size={13} />
+                        </button>
+                        <button
+                          onClick={() => moverParada(parada.id, "abajo")}
+                          disabled={reordenando || paradasPendientes[paradasPendientes.length - 1]?.id === parada.id}
+                          className="p-0.5 rounded text-text-muted hover:text-text-primary hover:bg-bg-elevated transition-colors cursor-pointer disabled:opacity-25 disabled:cursor-not-allowed"
+                          title="Mover después"
+                        >
+                          <ChevronDown size={13} />
+                        </button>
+                      </div>
                     )}
 
                     {/* Botón justificar — solo para completadas y rol autorizado */}
@@ -676,7 +748,7 @@ function SeccionEntregas({ camion, onEntregaCreada }: { camion: CamionDetalle; o
             onClick={() => crearPalletEnEntrega(entrega)}
             disabled={creando === entrega.id}
             className="flex items-center gap-1 px-2 py-1 rounded font-display text-[10px] text-white cursor-pointer disabled:opacity-50"
-            style={{ background: "#2563EB" }}
+            style={{ background: "#EA580C" }}
           >
             {creando === entrega.id ? <Loader2 size={10} className="animate-spin" /> : <Plus size={10} />}
             Nuevo pallet
@@ -788,7 +860,8 @@ export default function DetalleCamionPage() {
   const [error, setError]       = useState<string | null>(null);
 
 
-  const puedeJustificar = !!usuario && ROLES_PUEDEN_JUSTIFICAR.includes(usuario.rol);
+  const puedeJustificar  = !!usuario && ROLES_PUEDEN_JUSTIFICAR.includes(usuario.rol);
+  const puedeReordenar   = !!usuario && ["JEFE_DESPACHO", "COORDINADOR", "SUPERVISOR"].includes(usuario.rol);
 
   useEffect(() => {
     obtenerCamionApi(id)
@@ -859,7 +932,11 @@ export default function DetalleCamionPage() {
               <p className="font-display text-xs text-text-muted uppercase tracking-wide">
                 {camion.numeroTransporte && <span className="mr-1">Patente: {camion.patente} ·</span>}
                 {etiquetasTipo[camion.tipo] ?? camion.tipo}
-                {camion.pedido?.cliente?.nombre && ` · ${camion.pedido.cliente.nombre}`}
+                {(camion.cliente?.nombre || camion.pedido?.cliente?.nombre) && (
+                  <> · {camion.cliente?.nombre ?? camion.pedido?.cliente?.nombre}
+                  {camion.cliente?.pais && <span className="text-text-muted"> ({camion.cliente.pais})</span>}
+                  </>
+                )}
               </p>
             </div>
           </div>
@@ -873,6 +950,15 @@ export default function DetalleCamionPage() {
                 Andén {camion.anden.codigo}
               </span>
             )}
+            <button
+              onClick={() => window.open(`/imprimir/camion/${camion.id}`, '_blank')}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 hover:border-[#1E3A5F] hover:text-[#1E3A5F] transition-colors text-xs font-medium"
+              title="Imprimir hoja de ruta"
+            >
+              <Printer size={14} />
+              Imprimir
+            </button>
+            <QrCamion camionId={camion.id} numeroTransporte={camion.numeroTransporte ?? camion.patente} />
           </div>
         </div>
       </motion.div>
@@ -884,7 +970,9 @@ export default function DetalleCamionPage() {
       <SeccionParadas
         camion={camion}
         puedeJustificar={puedeJustificar}
+        puedeReordenar={puedeReordenar}
         onParadaActualizada={actualizarParada}
+        onCamionActualizado={setCamion}
       />
 
       {/* Entregas y pallets */}

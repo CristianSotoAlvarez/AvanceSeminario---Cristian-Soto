@@ -1,4 +1,4 @@
-import { PrismaClient, RolUsuario, TipoEdificio } from '@prisma/client';
+import { PrismaClient, RolUsuario, TipoEdificio, TipoCamion } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient();
@@ -76,6 +76,55 @@ async function main() {
 
   console.log('✅ 8 usuarios de prueba creados (contraseña: clave123)');
 
+  // --- Clientes ---
+  type ClienteSeed = { nombre: string; rut?: string; codigo: string; tipoDestino: TipoCamion; pais?: string };
+  const clientesData: ClienteSeed[] = [
+    // Nacionales
+    { nombre: 'Walmart Chile (Líder / Acuenta)',  rut: '96.928.750-9', codigo: 'CLI-N001', tipoDestino: TipoCamion.NACIONAL },
+    { nombre: 'Cencosud (Jumbo / Santa Isabel)',  rut: '93.834.000-8', codigo: 'CLI-N002', tipoDestino: TipoCamion.NACIONAL },
+    { nombre: 'SMU (Unimarc)',                    rut: '96.613.830-7', codigo: 'CLI-N003', tipoDestino: TipoCamion.NACIONAL },
+    { nombre: 'Tottus Chile',                     rut: '76.001.234-5', codigo: 'CLI-N004', tipoDestino: TipoCamion.NACIONAL },
+    { nombre: 'Supermercados Mayorista 10',        rut: '78.432.100-2', codigo: 'CLI-N005', tipoDestino: TipoCamion.NACIONAL },
+    { nombre: 'Distribuidora Alimentos del Sur',  rut: '77.650.320-1', codigo: 'CLI-N006', tipoDestino: TipoCamion.NACIONAL },
+    // Interplanta
+    { nombre: 'Planta Rosario (Agrosuper)',        codigo: 'CLI-P001', tipoDestino: TipoCamion.INTERPLANTA },
+    { nombre: 'Planta El Maule (Agrosuper)',       codigo: 'CLI-P002', tipoDestino: TipoCamion.INTERPLANTA },
+    { nombre: 'Planta San Vicente (Agrosuper)',    codigo: 'CLI-P003', tipoDestino: TipoCamion.INTERPLANTA },
+    { nombre: 'Planta Frigorífico Rancagua',       codigo: 'CLI-P004', tipoDestino: TipoCamion.INTERPLANTA },
+    // Exportadores
+    { nombre: 'China National Cereals Oils',      codigo: 'CLI-E001', tipoDestino: TipoCamion.EXPORTACION, pais: 'China' },
+    { nombre: 'Shanghai Maling Aquarius Co.',     codigo: 'CLI-E002', tipoDestino: TipoCamion.EXPORTACION, pais: 'China' },
+    { nombre: 'Itoham Yonekyu Holdings',          codigo: 'CLI-E003', tipoDestino: TipoCamion.EXPORTACION, pais: 'Japón' },
+    { nombre: 'NH Foods Ltd.',                    codigo: 'CLI-E004', tipoDestino: TipoCamion.EXPORTACION, pais: 'Japón' },
+    { nombre: 'Hyundai Corporation (Foods Div)', codigo: 'CLI-E005', tipoDestino: TipoCamion.EXPORTACION, pais: 'Corea del Sur' },
+    { nombre: 'Lotte Chilsung Beverage',          codigo: 'CLI-E006', tipoDestino: TipoCamion.EXPORTACION, pais: 'Corea del Sur' },
+    { nombre: 'Vion Food Group',                  codigo: 'CLI-E007', tipoDestino: TipoCamion.EXPORTACION, pais: 'Países Bajos' },
+    { nombre: 'Tönnies Lebensmittel GmbH',        codigo: 'CLI-E008', tipoDestino: TipoCamion.EXPORTACION, pais: 'Alemania' },
+    { nombre: 'Luncheon Meats Ltd.',              codigo: 'CLI-E009', tipoDestino: TipoCamion.EXPORTACION, pais: 'Reino Unido' },
+    { nombre: 'Sigma Alimentos (OXXO / Sigma)',   codigo: 'CLI-E010', tipoDestino: TipoCamion.EXPORTACION, pais: 'México' },
+    { nombre: 'JBS S.A. — División Exportación',  codigo: 'CLI-E011', tipoDestino: TipoCamion.EXPORTACION, pais: 'Brasil' },
+    { nombre: 'Alimentos Polar C.A.',             codigo: 'CLI-E012', tipoDestino: TipoCamion.EXPORTACION, pais: 'Venezuela' },
+    { nombre: 'Hormel Foods International',       codigo: 'CLI-E013', tipoDestino: TipoCamion.EXPORTACION, pais: 'Estados Unidos' },
+  ];
+
+  const clientesCreados: Record<string, string> = {};
+  for (const c of clientesData) {
+    const upsertKey = c.codigo;
+    const cliente = await prisma.cliente.upsert({
+      where: { codigo: upsertKey },
+      update: {},
+      create: {
+        nombre:      c.nombre,
+        rut:         c.rut,
+        codigo:      c.codigo,
+        tipoDestino: c.tipoDestino,
+        pais:        c.pais,
+      },
+    });
+    clientesCreados[c.codigo] = cliente.id;
+  }
+  console.log(`✅ ${clientesData.length} clientes creados (nacionales, interplanta, exportadores)`);
+
   // --- Camiones de prueba (últimos 30 días) ---
   const jefe = await prisma.usuario.findFirst({ where: { rol: 'JEFE_DESPACHO' } });
 
@@ -89,25 +138,25 @@ async function main() {
 
   const camionesData = [
     // Hoy
-    { patente: 'ABCD10', tipo: 'NACIONAL',    estado: 'DESPACHADO',    llegadaPlan: diaOffset(0, 8, 0),  salidaPlan: diaOffset(0, 12, 0), llegadaReal: diaOffset(0, 8, 15), salidaReal: diaOffset(0, 12, 30), edificios: ['AVES'] },
-    { patente: 'EFGH20', tipo: 'EXPORTACION', estado: 'DESPACHADO',    llegadaPlan: diaOffset(0, 9, 0),  salidaPlan: diaOffset(0, 14, 0), llegadaReal: diaOffset(0, 9, 5),  salidaReal: diaOffset(0, 14, 10), edificios: ['CERDO', 'FRIGORIFICO'] },
-    { patente: 'IJKL30', tipo: 'INTERPLANTA', estado: 'EN_CARGA',      llegadaPlan: diaOffset(0, 10, 0), salidaPlan: diaOffset(0, 15, 0), llegadaReal: diaOffset(0, 10, 0), salidaReal: null, edificios: ['AVES'], andenCodigo: 'A1' },
-    { patente: 'MNOP40', tipo: 'NACIONAL',    estado: 'EN_PORTERIA',   llegadaPlan: diaOffset(0, 11, 0), salidaPlan: diaOffset(0, 16, 0), llegadaReal: null, salidaReal: null, edificios: ['CERDO'] },
-    { patente: 'QRST50', tipo: 'EXPORTACION', estado: 'ESPERADO',      llegadaPlan: diaOffset(0, 13, 0), salidaPlan: diaOffset(0, 18, 0), llegadaReal: null, salidaReal: null, edificios: ['AVES', 'FRIGORIFICO'] },
+    { patente: 'ABCD10', tipo: 'NACIONAL',    estado: 'DESPACHADO',    llegadaPlan: diaOffset(0, 8, 0),  salidaPlan: diaOffset(0, 12, 0), llegadaReal: diaOffset(0, 8, 15), salidaReal: diaOffset(0, 12, 30), edificios: ['AVES'],                clienteCodigo: 'CLI-N001' },
+    { patente: 'EFGH20', tipo: 'EXPORTACION', estado: 'DESPACHADO',    llegadaPlan: diaOffset(0, 9, 0),  salidaPlan: diaOffset(0, 14, 0), llegadaReal: diaOffset(0, 9, 5),  salidaReal: diaOffset(0, 14, 10), edificios: ['CERDO', 'FRIGORIFICO'], clienteCodigo: 'CLI-E001' },
+    { patente: 'IJKL30', tipo: 'INTERPLANTA', estado: 'EN_CARGA',      llegadaPlan: diaOffset(0, 10, 0), salidaPlan: diaOffset(0, 15, 0), llegadaReal: diaOffset(0, 10, 0), salidaReal: null, edificios: ['AVES'], andenCodigo: 'A1',              clienteCodigo: 'CLI-P001' },
+    { patente: 'MNOP40', tipo: 'NACIONAL',    estado: 'EN_PORTERIA',   llegadaPlan: diaOffset(0, 11, 0), salidaPlan: diaOffset(0, 16, 0), llegadaReal: null, salidaReal: null, edificios: ['CERDO'],                                               clienteCodigo: 'CLI-N002' },
+    { patente: 'QRST50', tipo: 'EXPORTACION', estado: 'ESPERADO',      llegadaPlan: diaOffset(0, 13, 0), salidaPlan: diaOffset(0, 18, 0), llegadaReal: null, salidaReal: null, edificios: ['AVES', 'FRIGORIFICO'],                                 clienteCodigo: 'CLI-E003' },
     // Ayer
-    { patente: 'UVWX60', tipo: 'NACIONAL',    estado: 'DESPACHADO',    llegadaPlan: diaOffset(1, 7, 0),  salidaPlan: diaOffset(1, 11, 0), llegadaReal: diaOffset(1, 7, 20), salidaReal: diaOffset(1, 11, 45), edificios: ['CERDO'] },
-    { patente: 'YZAB70', tipo: 'INTERPLANTA', estado: 'DESPACHADO',    llegadaPlan: diaOffset(1, 8, 30), salidaPlan: diaOffset(1, 13, 0), llegadaReal: diaOffset(1, 8, 35), salidaReal: diaOffset(1, 13, 20), edificios: ['AVES', 'CERDO', 'FRIGORIFICO'] },
-    { patente: 'CDEF80', tipo: 'EXPORTACION', estado: 'DESPACHADO',    llegadaPlan: diaOffset(1, 10, 0), salidaPlan: diaOffset(1, 15, 0), llegadaReal: diaOffset(1, 10, 0), salidaReal: diaOffset(1, 15, 5), edificios: ['FRIGORIFICO'] },
+    { patente: 'UVWX60', tipo: 'NACIONAL',    estado: 'DESPACHADO',    llegadaPlan: diaOffset(1, 7, 0),  salidaPlan: diaOffset(1, 11, 0), llegadaReal: diaOffset(1, 7, 20), salidaReal: diaOffset(1, 11, 45), edificios: ['CERDO'],               clienteCodigo: 'CLI-N003' },
+    { patente: 'YZAB70', tipo: 'INTERPLANTA', estado: 'DESPACHADO',    llegadaPlan: diaOffset(1, 8, 30), salidaPlan: diaOffset(1, 13, 0), llegadaReal: diaOffset(1, 8, 35), salidaReal: diaOffset(1, 13, 20), edificios: ['AVES', 'CERDO', 'FRIGORIFICO'], clienteCodigo: 'CLI-P002' },
+    { patente: 'CDEF80', tipo: 'EXPORTACION', estado: 'DESPACHADO',    llegadaPlan: diaOffset(1, 10, 0), salidaPlan: diaOffset(1, 15, 0), llegadaReal: diaOffset(1, 10, 0), salidaReal: diaOffset(1, 15, 5), edificios: ['FRIGORIFICO'],           clienteCodigo: 'CLI-E007' },
     // Hace 3 días
-    { patente: 'GHIJ90', tipo: 'NACIONAL',    estado: 'DESPACHADO',    llegadaPlan: diaOffset(3, 8, 0),  salidaPlan: diaOffset(3, 12, 0), llegadaReal: diaOffset(3, 8, 10), salidaReal: diaOffset(3, 12, 30), edificios: ['AVES'] },
-    { patente: 'KLMN01', tipo: 'EXPORTACION', estado: 'RECHAZADO_SAG', llegadaPlan: diaOffset(3, 9, 0),  salidaPlan: diaOffset(3, 14, 0), llegadaReal: diaOffset(3, 9, 0),  salidaReal: null, edificios: ['CERDO', 'FRIGORIFICO'] },
+    { patente: 'GHIJ90', tipo: 'NACIONAL',    estado: 'DESPACHADO',    llegadaPlan: diaOffset(3, 8, 0),  salidaPlan: diaOffset(3, 12, 0), llegadaReal: diaOffset(3, 8, 10), salidaReal: diaOffset(3, 12, 30), edificios: ['AVES'],               clienteCodigo: 'CLI-N004' },
+    { patente: 'KLMN01', tipo: 'EXPORTACION', estado: 'RECHAZADO_SAG', llegadaPlan: diaOffset(3, 9, 0),  salidaPlan: diaOffset(3, 14, 0), llegadaReal: diaOffset(3, 9, 0),  salidaReal: null, edificios: ['CERDO', 'FRIGORIFICO'],              clienteCodigo: 'CLI-E004' },
     // Hace 7 días
-    { patente: 'OPQR11', tipo: 'NACIONAL',    estado: 'DESPACHADO',    llegadaPlan: diaOffset(7, 7, 30), salidaPlan: diaOffset(7, 11, 0), llegadaReal: diaOffset(7, 7, 35), salidaReal: diaOffset(7, 11, 10), edificios: ['AVES'] },
-    { patente: 'STUV22', tipo: 'INTERPLANTA', estado: 'DESPACHADO',    llegadaPlan: diaOffset(7, 9, 0),  salidaPlan: diaOffset(7, 13, 0), llegadaReal: diaOffset(7, 9, 5),  salidaReal: diaOffset(7, 13, 30), edificios: ['CERDO'] },
-    { patente: 'WXYZ33', tipo: 'EXPORTACION', estado: 'DESPACHADO',    llegadaPlan: diaOffset(7, 10, 0), salidaPlan: diaOffset(7, 15, 0), llegadaReal: diaOffset(7, 10, 0), salidaReal: diaOffset(7, 15, 20), edificios: ['AVES', 'FRIGORIFICO'] },
+    { patente: 'OPQR11', tipo: 'NACIONAL',    estado: 'DESPACHADO',    llegadaPlan: diaOffset(7, 7, 30), salidaPlan: diaOffset(7, 11, 0), llegadaReal: diaOffset(7, 7, 35), salidaReal: diaOffset(7, 11, 10), edificios: ['AVES'],              clienteCodigo: 'CLI-N005' },
+    { patente: 'STUV22', tipo: 'INTERPLANTA', estado: 'DESPACHADO',    llegadaPlan: diaOffset(7, 9, 0),  salidaPlan: diaOffset(7, 13, 0), llegadaReal: diaOffset(7, 9, 5),  salidaReal: diaOffset(7, 13, 30), edificios: ['CERDO'],             clienteCodigo: 'CLI-P003' },
+    { patente: 'WXYZ33', tipo: 'EXPORTACION', estado: 'DESPACHADO',    llegadaPlan: diaOffset(7, 10, 0), salidaPlan: diaOffset(7, 15, 0), llegadaReal: diaOffset(7, 10, 0), salidaReal: diaOffset(7, 15, 20), edificios: ['AVES', 'FRIGORIFICO'], clienteCodigo: 'CLI-E005' },
     // Hace 15 días
-    { patente: 'ABCD44', tipo: 'NACIONAL',    estado: 'DESPACHADO',    llegadaPlan: diaOffset(15, 8, 0), salidaPlan: diaOffset(15, 12, 0), llegadaReal: diaOffset(15, 8, 0),  salidaReal: diaOffset(15, 12, 15), edificios: ['CERDO'] },
-    { patente: 'EFGH55', tipo: 'EXPORTACION', estado: 'DESPACHADO',    llegadaPlan: diaOffset(15, 9, 0), salidaPlan: diaOffset(15, 14, 0), llegadaReal: diaOffset(15, 9, 30), salidaReal: diaOffset(15, 14, 45), edificios: ['AVES', 'CERDO', 'FRIGORIFICO'] },
+    { patente: 'ABCD44', tipo: 'NACIONAL',    estado: 'DESPACHADO',    llegadaPlan: diaOffset(15, 8, 0), salidaPlan: diaOffset(15, 12, 0), llegadaReal: diaOffset(15, 8, 0),  salidaReal: diaOffset(15, 12, 15), edificios: ['CERDO'],          clienteCodigo: 'CLI-N006' },
+    { patente: 'EFGH55', tipo: 'EXPORTACION', estado: 'DESPACHADO',    llegadaPlan: diaOffset(15, 9, 0), salidaPlan: diaOffset(15, 14, 0), llegadaReal: diaOffset(15, 9, 30), salidaReal: diaOffset(15, 14, 45), edificios: ['AVES', 'CERDO', 'FRIGORIFICO'], clienteCodigo: 'CLI-E013' },
   ];
 
   for (const c of camionesData) {
@@ -124,6 +173,8 @@ async function main() {
       }
     }
 
+    const clienteId = (c as any).clienteCodigo ? clientesCreados[(c as any).clienteCodigo] : undefined;
+
     const camion = await prisma.camion.create({
       data: {
         patente:                c.patente,
@@ -133,7 +184,8 @@ async function main() {
         horaSalidaPlanificada:  c.salidaPlan,
         horaLlegadaReal:        c.llegadaReal,
         horaSalidaReal:         c.salidaReal,
-        ...(andenId ? { andenId } : {}),
+        ...(andenId   ? { andenId }   : {}),
+        ...(clienteId ? { clienteId } : {}),
       },
     });
 
@@ -187,6 +239,180 @@ async function main() {
   }
 
   console.log('✅ 15 camiones de prueba creados');
+
+  // --- Productos del catálogo ---
+  type ProductoSeed = { sku: string; nombre: string; unidadMedida: string; pesoKgUnitario?: number };
+  const productosData: ProductoSeed[] = [
+    // Aves
+    { sku: 'AVE-001', nombre: 'Pollo entero congelado',          unidadMedida: 'caja', pesoKgUnitario: 18.5 },
+    { sku: 'AVE-002', nombre: 'Pechuga de pollo sin hueso',      unidadMedida: 'caja', pesoKgUnitario: 15.0 },
+    { sku: 'AVE-003', nombre: 'Alitas de pollo',                 unidadMedida: 'caja', pesoKgUnitario: 12.0 },
+    { sku: 'AVE-004', nombre: 'Pierna y muslo congelado',        unidadMedida: 'caja', pesoKgUnitario: 20.0 },
+    { sku: 'AVE-005', nombre: 'Pollo trozado congelado',         unidadMedida: 'caja', pesoKgUnitario: 14.0 },
+    { sku: 'AVE-006', nombre: 'Hígado de pollo congelado',       unidadMedida: 'caja', pesoKgUnitario: 10.0 },
+    // Cerdo
+    { sku: 'CER-001', nombre: 'Costillas de cerdo',              unidadMedida: 'caja', pesoKgUnitario: 22.0 },
+    { sku: 'CER-002', nombre: 'Pernil de cerdo entero',          unidadMedida: 'caja', pesoKgUnitario: 25.0 },
+    { sku: 'CER-003', nombre: 'Lomo de cerdo congelado',         unidadMedida: 'caja', pesoKgUnitario: 18.0 },
+    { sku: 'CER-004', nombre: 'Panceta de cerdo',                unidadMedida: 'caja', pesoKgUnitario: 16.0 },
+    { sku: 'CER-005', nombre: 'Chuletas de cerdo',               unidadMedida: 'caja', pesoKgUnitario: 14.0 },
+    // Frigorífico / Procesados
+    { sku: 'FRI-001', nombre: 'Salchicha Frankfurt',             unidadMedida: 'caja', pesoKgUnitario:  8.0 },
+    { sku: 'FRI-002', nombre: 'Jamón cocido laminado',           unidadMedida: 'caja', pesoKgUnitario:  6.0 },
+    { sku: 'FRI-003', nombre: 'Mortadela',                       unidadMedida: 'caja', pesoKgUnitario: 10.0 },
+    { sku: 'FRI-004', nombre: 'Chorizo tradicional',             unidadMedida: 'caja', pesoKgUnitario:  7.5 },
+    { sku: 'FRI-005', nombre: 'Cecina de vacuno laminada',       unidadMedida: 'caja', pesoKgUnitario:  5.0 },
+  ];
+
+  const productosCreados: Record<string, string> = {};
+  for (const p of productosData) {
+    const prod = await prisma.producto.upsert({
+      where: { sku: p.sku },
+      update: {},
+      create: p,
+    });
+    productosCreados[p.sku] = prod.id;
+  }
+  console.log(`✅ ${productosData.length} productos del catálogo creados`);
+
+  // --- Entregas y picking simulado para camiones activos de hoy ---
+  const pickinero = await prisma.usuario.findFirst({ where: { rol: 'PICKINERO' } });
+
+  // Helper: obtener camión y sus paradas
+  async function getCamionConParadas(patente: string) {
+    return prisma.camion.findFirst({
+      where: { patente },
+      include: { paradas: { orderBy: { orden: 'asc' } } },
+    });
+  }
+
+  // ── IJKL30 (INTERPLANTA · EN_CARGA · A1) → parada AVES ──────────────────
+  const ijkl30 = await getCamionConParadas('IJKL30');
+  if (ijkl30) {
+    const paradaAves = ijkl30.paradas.find(p => p.edificioTipo === 'AVES');
+    if (paradaAves) {
+      // Crear entrega si no existe para esta parada
+      let entregaAves = await prisma.entrega.findUnique({ where: { paradaId: paradaAves.id } });
+      if (!entregaAves) {
+        entregaAves = await prisma.entrega.create({
+          data: { camionId: ijkl30.id, paradaId: paradaAves.id },
+        });
+      }
+
+      // Items de la entrega (lo que pidió el cliente)
+      const itemsAves = [
+        { sku: 'AVE-001', cantidad: 20 },
+        { sku: 'AVE-002', cantidad: 15 },
+        { sku: 'AVE-003', cantidad: 10 },
+        { sku: 'AVE-004', cantidad: 18 },
+      ];
+      for (const item of itemsAves) {
+        await prisma.entregaItem.upsert({
+          where: { entregaId_productoId: { entregaId: entregaAves.id, productoId: productosCreados[item.sku] } },
+          update: {},
+          create: { entregaId: entregaAves.id, productoId: productosCreados[item.sku], cantidadSolicitada: item.cantidad },
+        });
+      }
+
+      // Pallet EN_ARMADO (picking parcialmente completado)
+      const codigoPallet = `UMP-${Date.now().toString(36).toUpperCase()}-01`;
+      const palletExistente = await prisma.pallet.findFirst({ where: { entregaId: entregaAves.id } });
+      if (!palletExistente) {
+        const pallet = await prisma.pallet.create({
+          data: {
+            codigoUnico:    codigoPallet,
+            entregaId:      entregaAves.id,
+            pickineroId:    pickinero?.id,
+            estado:         'EN_ARMADO',
+            timestampInicio: new Date(),
+          },
+        });
+        // Items ya cargados en este pallet (parcial)
+        await prisma.productoPallet.createMany({
+          data: [
+            { palletId: pallet.id, productoId: productosCreados['AVE-001'], descripcion: 'Pollo entero congelado', cantidad: 8  },
+            { palletId: pallet.id, productoId: productosCreados['AVE-002'], descripcion: 'Pechuga de pollo sin hueso', cantidad: 5 },
+          ],
+        });
+      }
+    }
+  }
+
+  // ── MNOP40 (NACIONAL · EN_PORTERIA) → parada CERDO ──────────────────────
+  const mnop40 = await getCamionConParadas('MNOP40');
+  if (mnop40) {
+    const paradaCerdo = mnop40.paradas.find(p => p.edificioTipo === 'CERDO');
+    if (paradaCerdo) {
+      let entregaCerdo = await prisma.entrega.findUnique({ where: { paradaId: paradaCerdo.id } });
+      if (!entregaCerdo) {
+        entregaCerdo = await prisma.entrega.create({
+          data: { camionId: mnop40.id, paradaId: paradaCerdo.id },
+        });
+      }
+      const itemsCerdo = [
+        { sku: 'CER-001', cantidad: 12 },
+        { sku: 'CER-002', cantidad:  8 },
+        { sku: 'CER-003', cantidad: 15 },
+      ];
+      for (const item of itemsCerdo) {
+        await prisma.entregaItem.upsert({
+          where: { entregaId_productoId: { entregaId: entregaCerdo.id, productoId: productosCreados[item.sku] } },
+          update: {},
+          create: { entregaId: entregaCerdo.id, productoId: productosCreados[item.sku], cantidadSolicitada: item.cantidad },
+        });
+      }
+    }
+  }
+
+  // ── QRST50 (EXPORTACION · ESPERADO) → paradas AVES + FRIGORIFICO ─────────
+  const qrst50 = await getCamionConParadas('QRST50');
+  if (qrst50) {
+    const paradaAvesQ = qrst50.paradas.find(p => p.edificioTipo === 'AVES');
+    if (paradaAvesQ) {
+      let entregaAvesQ = await prisma.entrega.findUnique({ where: { paradaId: paradaAvesQ.id } });
+      if (!entregaAvesQ) {
+        entregaAvesQ = await prisma.entrega.create({
+          data: { camionId: qrst50.id, paradaId: paradaAvesQ.id },
+        });
+      }
+      const itemsAvesQ = [
+        { sku: 'AVE-001', cantidad: 25 },
+        { sku: 'AVE-005', cantidad: 20 },
+        { sku: 'AVE-006', cantidad: 12 },
+      ];
+      for (const item of itemsAvesQ) {
+        await prisma.entregaItem.upsert({
+          where: { entregaId_productoId: { entregaId: entregaAvesQ.id, productoId: productosCreados[item.sku] } },
+          update: {},
+          create: { entregaId: entregaAvesQ.id, productoId: productosCreados[item.sku], cantidadSolicitada: item.cantidad },
+        });
+      }
+    }
+
+    const paradaFriQ = qrst50.paradas.find(p => p.edificioTipo === 'FRIGORIFICO');
+    if (paradaFriQ) {
+      let entregaFriQ = await prisma.entrega.findUnique({ where: { paradaId: paradaFriQ.id } });
+      if (!entregaFriQ) {
+        entregaFriQ = await prisma.entrega.create({
+          data: { camionId: qrst50.id, paradaId: paradaFriQ.id },
+        });
+      }
+      const itemsFriQ = [
+        { sku: 'FRI-001', cantidad: 30 },
+        { sku: 'FRI-002', cantidad: 15 },
+        { sku: 'FRI-003', cantidad: 10 },
+      ];
+      for (const item of itemsFriQ) {
+        await prisma.entregaItem.upsert({
+          where: { entregaId_productoId: { entregaId: entregaFriQ.id, productoId: productosCreados[item.sku] } },
+          update: {},
+          create: { entregaId: entregaFriQ.id, productoId: productosCreados[item.sku], cantidadSolicitada: item.cantidad },
+        });
+      }
+    }
+  }
+
+  console.log('✅ Entregas, items y pallet de picking simulado creados');
   console.log('🎉 Seed completado');
 }
 

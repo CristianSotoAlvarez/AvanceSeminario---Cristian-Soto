@@ -10,6 +10,7 @@ import {
   FileText,
   Shield,
   Settings,
+  Users,
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
@@ -17,12 +18,22 @@ import { SidebarItem } from "./sidebar-item";
 import { useAuth } from "@/hooks/use-auth";
 
 const TODOS_LOS_ELEMENTOS = [
-  { icon: LayoutDashboard, label: "Dashboard",  href: "/dashboard", roles: ["JEFE_DESPACHO", "COORDINADOR_TRANSPORTE", "COORDINADOR", "SUPERVISOR"] },
-  { icon: Truck,           label: "Camiones",   href: "/camiones",  roles: ["JEFE_DESPACHO", "COORDINADOR_TRANSPORTE", "COORDINADOR"] },
-  { icon: Warehouse,       label: "Andenes",    href: "/andenes",   roles: ["JEFE_DESPACHO", "COORDINADOR_TRANSPORTE", "COORDINADOR", "SUPERVISOR", "OPERADOR_TUNEL", "CARGADOR", "PICKINERO"] },
-  { icon: Package,         label: "Pallets",    href: "/pallets",   roles: ["JEFE_DESPACHO", "COORDINADOR_TRANSPORTE", "COORDINADOR", "CARGADOR", "PICKINERO"] },
-  { icon: Shield,          label: "SAG",        href: "/sag",       roles: ["JEFE_DESPACHO", "SAG"] },
-  { icon: FileText,        label: "Reportes",   href: "/reportes",  roles: ["JEFE_DESPACHO", "COORDINADOR_TRANSPORTE", "COORDINADOR", "SUPERVISOR"] },
+  // Platform
+  { icon: LayoutDashboard, label: "Tablero",        href: "/dashboard",     roles: ["JEFE_DESPACHO", "COORDINADOR_TRANSPORTE", "COORDINADOR", "SUPERVISOR"] },
+  { icon: Truck,           label: "Camiones",       href: "/camiones",      roles: ["JEFE_DESPACHO", "COORDINADOR_TRANSPORTE", "COORDINADOR", "SUPERVISOR"] },
+  { icon: Warehouse,       label: "Andenes",        href: "/andenes",       roles: ["JEFE_DESPACHO", "COORDINADOR_TRANSPORTE", "COORDINADOR", "SUPERVISOR"] },
+  { icon: Package,         label: "Entregas",       href: "/pallets",       roles: ["JEFE_DESPACHO", "COORDINADOR", "SUPERVISOR"] },
+  { icon: Shield,          label: "SAG",            href: "/sag",           roles: ["JEFE_DESPACHO", "SUPERVISOR"] },
+  { icon: FileText,        label: "Reportes",       href: "/reportes",               roles: ["JEFE_DESPACHO", "COORDINADOR", "SUPERVISOR"] },
+  { icon: Users,           label: "Clientes",       href: "/configuracion/clientes",  roles: ["JEFE_DESPACHO", "COORDINADOR_TRANSPORTE"] },
+  { icon: Package,         label: "Productos",      href: "/configuracion/productos", roles: ["JEFE_DESPACHO", "COORDINADOR_TRANSPORTE", "COORDINADOR"] },
+  { icon: Settings,        label: "Configuración",  href: "/configuracion",           roles: ["JEFE_DESPACHO"] },
+  // Operativo
+  { icon: Package,         label: "Picking",        href: "/picking",       roles: ["PICKINERO", "SUPERVISOR"] },
+  { icon: Truck,           label: "Carga",          href: "/carga",         roles: ["CARGADOR", "SUPERVISOR"] },
+  { icon: Warehouse,       label: "Túnel Frío",     href: "/tunel",         roles: ["OPERADOR_TUNEL", "SUPERVISOR"] },
+  // SAG portal
+  { icon: Shield,          label: "Exportaciones",  href: "/exportaciones", roles: ["SAG"] },
 ];
 
 interface SidebarProps {
@@ -41,23 +52,26 @@ export function Sidebar({ currentPath = "/dashboard" }: SidebarProps) {
   return (
     <motion.aside
       className="h-screen bg-bg-surface border-r border-bg-elevated flex flex-col z-sidebar"
-      animate={{ width: colapsado ? 56 : 230 }}
+      animate={{ width: colapsado ? 72 : 300 }}
       transition={{ duration: 0.2, ease: "easeInOut" }}
     >
       {/* Logo */}
-      <div className="flex items-center gap-2.5 px-4 py-4 border-b border-bg-elevated">
-        <div className="w-[34px] h-[34px] bg-accent rounded-md flex items-center justify-center shrink-0">
-          <Truck size={20} className="text-white" />
-        </div>
-        {!colapsado && (
-          <motion.span
-            className="font-display text-[15px] font-semibold text-text-primary uppercase tracking-[0.5px]"
+      <div className={`flex items-center py-3 border-b border-bg-elevated ${colapsado ? "justify-center px-1" : "px-4"}`}>
+        {colapsado ? (
+          <img
+            src="/logo-icon.png"
+            alt="JAT"
+            className="w-[58px] h-[58px] object-contain"
+          />
+        ) : (
+          <motion.img
+            src="/logo-full.png"
+            alt="Justo A Tiempo"
+            className="h-[60px] w-full object-contain object-left"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.1 }}
-          >
-            DispatchTrack
-          </motion.span>
+          />
         )}
       </div>
 
@@ -72,15 +86,9 @@ export function Sidebar({ currentPath = "/dashboard" }: SidebarProps) {
           />
         ))}
 
-        <div className="mx-4 my-2 border-t border-bg-elevated" />
-
-        <SidebarItem
-          icon={Settings}
-          label="Configuración"
-          href="/configuracion"
-          active={currentPath === "/configuracion"}
-          collapsed={colapsado}
-        />
+        {elementosPlataforma.some(e => e.href === "/configuracion") && (
+          <div className="mx-4 my-2 border-t border-bg-elevated" />
+        )}
       </nav>
 
       {/* Botón de colapsar/expandir */}
