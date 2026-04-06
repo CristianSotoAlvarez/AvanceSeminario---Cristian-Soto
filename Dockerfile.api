@@ -26,10 +26,11 @@ WORKDIR /app
 ENV NODE_ENV=production
 
 # Binarios y cliente Prisma generado
-COPY --from=builder /repo/node_modules          ./node_modules
-COPY --from=builder /repo/packages/types        ./packages/types
-COPY --from=builder /repo/apps/api/dist         ./dist
-COPY --from=builder /repo/apps/api/src/prisma   ./src/prisma
+COPY --from=builder /repo/node_modules                    ./node_modules
+COPY --from=builder /repo/packages/types                  ./packages/types
+COPY --from=builder /repo/apps/api/dist                   ./dist
+COPY --from=builder /repo/apps/api/src/prisma             ./src/prisma
+COPY --from=builder /repo/apps/api/package.json           ./package.json
 
 EXPOSE 3001
 
