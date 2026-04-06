@@ -16,6 +16,7 @@ export class AndenesService {
             },
           },
           include: {
+            cliente: true,
             pedido: { include: { cliente: true } },
           },
           orderBy: { horaLlegadaPlanificada: 'asc' },

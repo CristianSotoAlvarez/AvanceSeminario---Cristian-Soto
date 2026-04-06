@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Patch, Body, Param, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Body, Param, Query, UseGuards, ForbiddenException } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { PalletsService } from './pallets.service';
 import { CrearPalletDto } from './dto/crear-pallet.dto';
@@ -45,13 +45,37 @@ export class PalletsController {
     return this.palletsService.agregarProducto(palletId, dto);
   }
 
+  @Patch(':id/items/:productoId')
+  @Roles('PICKINERO', 'JEFE_DESPACHO', 'SUPERVISOR', 'COORDINADOR')
+  setItemPallet(
+    @Param('id') palletId: string,
+    @Param('productoId') productoId: string,
+    @Body() body: { cantidad: number },
+  ) {
+    return this.palletsService.setItemPallet(palletId, productoId, body.cantidad);
+  }
+
+  @Post(':id/cerrar-y-crear-nuevo')
+  @Roles('PICKINERO', 'JEFE_DESPACHO', 'SUPERVISOR', 'COORDINADOR')
+  cerrarYCrearNuevo(
+    @Param('id') palletId: string,
+    @UsuarioActual('id') usuarioId: string,
+  ) {
+    return this.palletsService.cerrarYCrearNuevo(palletId, usuarioId);
+  }
+
   @Patch(':id/estado')
   @Roles('PICKINERO', 'CARGADOR', 'JEFE_DESPACHO', 'SUPERVISOR', 'COORDINADOR')
   cambiarEstado(
     @Param('id') id: string,
     @Body() dto: CambiarEstadoPalletDto,
     @UsuarioActual('id') usuarioId: string,
+    @UsuarioActual('rol') rol: string,
   ) {
+    // VERIFICADO solo para JEFE_DESPACHO, SUPERVISOR y COORDINADOR
+    if (dto.estado === 'VERIFICADO' && !['JEFE_DESPACHO', 'SUPERVISOR', 'COORDINADOR'].includes(rol)) {
+      throw new ForbiddenException('Solo Jefe de Despacho, Supervisor o Coordinador pueden verificar pallets');
+    }
     return this.palletsService.cambiarEstado(id, dto.estado, usuarioId);
   }
 }

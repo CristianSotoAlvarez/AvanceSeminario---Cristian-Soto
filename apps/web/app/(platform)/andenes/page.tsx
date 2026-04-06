@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useContext } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Truck, Loader2, X, Clock, Package, User, ChevronRight, MapPin, ArrowRight, CheckCircle2 } from "lucide-react";
 import { Button, Badge, Skeleton } from "@dispatch-track/ui";
@@ -14,6 +14,7 @@ import { cambiarEstadoCamionApi } from "@/lib/api";
 import { etiquetasEstado, etiquetasTipo, obtenerAcciones } from "@/lib/camion-config";
 import { formatearHora } from "@/lib/formato";
 import type { Anden, Camion, ParadaExpedicion } from "@/lib/api";
+import { AuthContext } from "@/lib/auth-context";
 
 const CONFIG_EDIFICIO: Record<string, { label: string; color: string; colorLight: string; bg: string; bgOcupado: string; border: string }> = {
   AVES:       { label: "Aves",       color: "#B45309", colorLight: "#F59E0B", bg: "#FFFBEB", bgOcupado: "#FEF3C7", border: "#FDE68A" },
@@ -176,11 +177,13 @@ function TarjetaEspera({
   procesando,
   onAccion,
   onAsignar,
+  soloVista = false,
 }: {
   camion: Camion;
   procesando: string | null;
   onAccion: (camionId: string, endpoint: string) => void;
   onAsignar: (camion: Camion) => void;
+  soloVista?: boolean;
 }) {
   const proxima   = proximaParadaPendiente(camion);
   const edifProx  = proxima ? CONFIG_EDIFICIO[proxima.edificioTipo] : null;
@@ -198,11 +201,11 @@ function TarjetaEspera({
       {/* Fila superior: patente + tipo */}
       <div className="flex items-start justify-between gap-2">
         <div>
-          <p className="font-data font-bold text-sm text-text-primary tracking-widest leading-tight">{camion.patente}</p>
+          <p className="font-data font-bold text-sm text-text-primary tracking-widest leading-tight">{camion.numeroTransporte ?? camion.patente}</p>
           <p className="font-display text-[10px] uppercase text-text-muted tracking-wide mt-0.5">
             {etiquetasTipo[camion.tipo] || camion.tipo}
-            {camion.pedido?.cliente?.nombre && (
-              <span className="ml-1 text-text-muted/60">· {camion.pedido.cliente.nombre}</span>
+            {(camion.cliente?.nombre ?? camion.pedido?.cliente?.nombre) && (
+              <span className="ml-1 text-text-muted/60">· {camion.cliente?.nombre ?? camion.pedido?.cliente?.nombre}</span>
             )}
           </p>
         </div>
@@ -241,8 +244,8 @@ function TarjetaEspera({
         </div>
       )}
 
-      {/* Botón de acción principal */}
-      {camion.estado === "ESPERADO" && (
+      {/* Botones de acción — ocultos para roles de solo lectura */}
+      {!soloVista && camion.estado === "ESPERADO" && (
         <button
           disabled={ocupado}
           onClick={() => onAccion(camion.id, "en-porteria")}
@@ -253,7 +256,7 @@ function TarjetaEspera({
           Marcar Llegada
         </button>
       )}
-      {camion.estado === "EN_PORTERIA" && (
+      {!soloVista && camion.estado === "EN_PORTERIA" && (
         <button
           disabled={ocupado}
           onClick={() => onAsignar(camion)}
@@ -264,7 +267,7 @@ function TarjetaEspera({
           Asignar{edifProx ? ` → ${edifProx.label}` : " Andén"}
         </button>
       )}
-      {camion.estado === "LISTO" && (
+      {!soloVista && camion.estado === "LISTO" && (
         <button
           disabled={ocupado}
           onClick={() => onAccion(camion.id, "despachar")}
@@ -314,12 +317,14 @@ function SeccionEnEspera({
   onAccion,
   procesando,
   estadosOptimistas,
+  soloVista = false,
 }: {
   camiones: Camion[];
   andenes: Anden[];
   onAccion: (camionId: string, endpoint: string, camion?: Camion) => Promise<void>;
   procesando: string | null;
   estadosOptimistas: Map<string, string>;
+  soloVista?: boolean;
 }) {
   const [camionParaAsignar, setCamionParaAsignar] = useState<Camion | null>(null);
 
@@ -412,6 +417,7 @@ function SeccionEnEspera({
                         procesando={procesando}
                         onAccion={onAccion}
                         onAsignar={(c) => setCamionParaAsignar(c)}
+                        soloVista={soloVista}
                       />
                     ))}
                   </AnimatePresence>
@@ -442,12 +448,14 @@ function PanelDetalle({
   onCerrar,
   onAccion,
   procesando,
+  soloVista = false,
 }: {
   anden: Anden;
   andenes: Anden[];
   onCerrar: () => void;
   onAccion: (camionId: string, endpoint: string, camion?: Camion) => Promise<void>;
   procesando: boolean;
+  soloVista?: boolean;
 }) {
   const camion = anden.camiones[0] ?? null;
   const edif = CONFIG_EDIFICIO[anden.edificio.tipo] ?? CONFIG_EDIFICIO["AVES"];
@@ -513,7 +521,17 @@ function PanelDetalle({
                   </div>
                   <div>
                     <p className="font-data text-xl font-bold text-text-primary tracking-widest">{camion.patente}</p>
-                    <p className="font-display text-xs text-text-muted uppercase">{etiquetasTipo[camion.tipo] || camion.tipo}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="font-display text-xs text-text-muted uppercase">{etiquetasTipo[camion.tipo] || camion.tipo}</p>
+                      {camion.numeroTransporte && (
+                        <p className="font-data text-xs text-text-muted">· {camion.numeroTransporte}</p>
+                      )}
+                    </div>
+                    {(camion.cliente?.nombre ?? camion.pedido?.cliente?.nombre) && (
+                      <p className="font-display text-sm font-semibold text-text-primary mt-1">
+                        {camion.cliente?.nombre ?? camion.pedido?.cliente?.nombre}
+                      </p>
+                    )}
                   </div>
                 </div>
                 <Badge color={TRUCK_STATE_COLOR[camion.estado as TruckState] || "neutral"}>
@@ -525,9 +543,8 @@ function PanelDetalle({
 
               {camion.pedido && (
                 <div className="space-y-1">
-                  <p className="font-display text-label uppercase text-text-muted tracking-wide flex items-center gap-1.5"><User size={11} /> Cliente</p>
-                  <p className="font-display text-sm text-text-primary font-semibold">{camion.pedido.cliente?.nombre ?? "—"}</p>
-                  <p className="font-data text-xs text-text-muted">Pedido #{camion.pedido.numero}</p>
+                  <p className="font-display text-label uppercase text-text-muted tracking-wide flex items-center gap-1.5"><User size={11} /> Pedido</p>
+                  <p className="font-data text-xs text-text-muted">#{camion.pedido.numero}</p>
                 </div>
               )}
 
@@ -551,7 +568,7 @@ function PanelDetalle({
                 </div>
               </div>
 
-              {acciones.length > 0 && (
+              {acciones.length > 0 && !soloVista && (
                 <div className="space-y-2">
                   <p className="font-display text-label uppercase text-text-muted tracking-wide flex items-center gap-1.5"><Package size={11} /> Acciones disponibles</p>
                   {acciones.map((accion) => {
@@ -630,7 +647,9 @@ function FiguraAnden({ anden, seleccionado, onSeleccionar, index }: {
             <div className="w-full flex items-center justify-center rounded-md py-2" style={{ background: `${edif.color}18`, border: `1px dashed ${edif.border}` }}>
               <Truck size={22} style={{ color: edif.color }} />
             </div>
-            <span className="font-data text-[11px] font-bold tracking-widest text-text-primary">{camion!.patente}</span>
+            <span className="font-data text-[11px] font-bold tracking-widest text-text-primary whitespace-nowrap">
+              {camion!.numeroTransporte ?? camion!.patente}
+            </span>
           </div>
         ) : (
           <div className="flex flex-col items-center gap-1 opacity-30">
@@ -688,6 +707,10 @@ function GrupoEdificio({ tipo, andenes, seleccionadoId, onSeleccionar, groupInde
 // ─── Página principal ────────────────────────────────────────────────────────
 
 export default function AndenesPage() {
+  const { usuario } = useContext(AuthContext);
+  // COORDINADOR_TRANSPORTE solo puede visualizar — no ejecutar acciones
+  const soloVista = usuario?.rol === "COORDINADOR_TRANSPORTE";
+
   const { andenes, cargando, recargar: recargarAndenes } = useAndenes();
   const { camiones, recargar: recargarCamiones } = useCamiones();
   const [andenSeleccionadoId, setAndenSeleccionadoId] = useState<string | null>(null);
@@ -773,6 +796,7 @@ export default function AndenesPage() {
             onCerrar={() => setAndenSeleccionadoId(null)}
             onAccion={manejarAccion}
             procesando={!!procesando}
+            soloVista={soloVista}
           />
         )}
       </AnimatePresence>
@@ -817,6 +841,7 @@ export default function AndenesPage() {
         onAccion={manejarAccion}
         procesando={procesando}
         estadosOptimistas={estadosOptimistas}
+        soloVista={soloVista}
       />
 
       {/* Grupos por edificio */}

@@ -4,7 +4,13 @@ dist/
 .turbo/
 .env
 .env.local
+.env.prod
 *.log
+
+
+# Archivos de prueba locales
+productos_test.csv
+*.tsbuildinfo
 
 # Figuras regeneradas por el entrenamiento de los modelos
 docs/informe/modelo-prediccion/*.png

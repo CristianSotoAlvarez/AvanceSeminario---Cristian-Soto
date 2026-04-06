@@ -1,0 +1,37 @@
+# ── Etapa 1: instalar dependencias ───────────────────────────────────────────
+FROM node:20-alpine AS deps
+WORKDIR /repo
+
+# Copiar manifiestos para aprovechar la caché de capas
+COPY package.json package-lock.json ./
+COPY packages/types/package.json ./packages/types/package.json
+COPY apps/api/package.json         ./apps/api/package.json
+
+RUN npm ci
+
+# ── Etapa 2: build ────────────────────────────────────────────────────────────
+FROM deps AS builder
+WORKDIR /repo
+
+COPY packages/types ./packages/types
+COPY apps/api       ./apps/api
+
+# Generar cliente Prisma y compilar TypeScript
+RUN cd apps/api && npx prisma generate --schema=src/prisma/schema.prisma
+RUN npm run build --workspace=@dispatch-track/api
+
+# ── Etapa 3: imagen de producción ────────────────────────────────────────────
+FROM node:20-alpine AS runner
+WORKDIR /app
+ENV NODE_ENV=production
+
+# Binarios y cliente Prisma generado
+COPY --from=builder /repo/node_modules          ./node_modules
+COPY --from=builder /repo/packages/types        ./packages/types
+COPY --from=builder /repo/apps/api/dist         ./dist
+COPY --from=builder /repo/apps/api/src/prisma   ./src/prisma
+
+EXPOSE 3001
+
+# Aplicar migraciones pendientes y luego arrancar
+CMD ["sh", "-c", "npx prisma migrate deploy --schema=src/prisma/schema.prisma && node dist/main"]

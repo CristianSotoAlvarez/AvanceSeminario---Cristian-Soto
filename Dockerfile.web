@@ -1,0 +1,38 @@
+# ── Etapa 1: instalar dependencias ───────────────────────────────────────────
+FROM node:20-alpine AS deps
+WORKDIR /repo
+
+COPY package.json package-lock.json ./
+COPY packages/types/package.json  ./packages/types/package.json
+COPY packages/ui/package.json     ./packages/ui/package.json
+COPY packages/utils/package.json  ./packages/utils/package.json
+COPY apps/web/package.json        ./apps/web/package.json
+
+RUN npm ci
+
+# ── Etapa 2: build ────────────────────────────────────────────────────────────
+FROM deps AS builder
+WORKDIR /repo
+
+COPY packages ./packages
+COPY apps/web ./apps/web
+
+# NEXT_PUBLIC_API_URL debe pasarse como --build-arg en producción
+ARG NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+ENV DOCKER_BUILD=1
+
+RUN npm run build --workspace=@dispatch-track/web
+
+# ── Etapa 3: imagen de producción ────────────────────────────────────────────
+FROM node:20-alpine AS runner
+WORKDIR /app
+ENV NODE_ENV=production
+
+# El output standalone incluye server.js y node_modules mínimos
+COPY --from=builder /repo/apps/web/.next/standalone  ./
+COPY --from=builder /repo/apps/web/.next/static       ./apps/web/.next/static
+COPY --from=builder /repo/apps/web/public             ./apps/web/public
+
+EXPOSE 3000
+CMD ["node", "apps/web/server.js"]

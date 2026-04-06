@@ -14,8 +14,11 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "DispatchTrack",
+  title: "Justo A Tiempo",
   description: "Sistema de Trazabilidad, Monitoreo y Rendimiento del Área de Despacho",
+  icons: {
+    icon: "/favicon.svg",
+  },
 };
 
 export default function RootLayout({

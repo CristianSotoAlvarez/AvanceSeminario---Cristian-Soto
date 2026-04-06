@@ -5,15 +5,15 @@
   /* Fondo */
   --color-bg-primary: #F8FAFC;
   --color-bg-surface: #FFFFFF;
-  --color-bg-elevated: #DBEAFE;
+  --color-bg-elevated: #F1F5F9;
 
   /* Texto */
-  --color-text-primary: #1E3A8A;
+  --color-text-primary: #1E3A5F;
   --color-text-muted: #64748B;
 
-  /* Acento */
-  --color-accent: #1E40AF;
-  --color-accent-hover: #1D4ED8;
+  /* Acento — naranja JAT */
+  --color-accent: #EA580C;
+  --color-accent-hover: #D04A08;
 
   /* Semántico */
   --color-semantic-success: #16A34A;
@@ -62,9 +62,27 @@ body {
   background: var(--color-bg-primary);
 }
 ::-webkit-scrollbar-thumb {
-  background: #BFDBFE;
+  background: #CBD5E1;
   border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #93C5FD;
+  background: #94A3B8;
+}
+
+/* ── Estilos de impresión (Ctrl+P / botón PDF) ───────────────────────── */
+@media print {
+  /* Ocultar navegación */
+  nav, aside, header, [data-no-print], .no-print { display: none !important; }
+  /* Fondo blanco */
+  body, main { background: white !important; }
+  /* Mostrar todo el contenido sin scroll */
+  main { overflow: visible !important; height: auto !important; }
+  /* Quitar sombras */
+  * { box-shadow: none !important; }
+  /* Ajustar colores para impresión */
+  .bg-bg-surface { background: white !important; }
+  /* Saltos de página limpios */
+  section, .page-break { page-break-inside: avoid; }
+  /* Título del documento */
+  @page { margin: 1.5cm; }
 }

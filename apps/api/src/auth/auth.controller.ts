@@ -1,5 +1,6 @@
 import { Controller, Post, Body, Get, Req, Res, UseGuards, HttpCode, HttpStatus, UnauthorizedException } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import { Request, Response } from 'express';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
@@ -12,6 +13,7 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Post('login')
+  @Throttle({ default: { ttl: 60000, limit: 5 } })
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Iniciar sesión con RUT/email y contraseña' })
   async login(
@@ -26,7 +28,7 @@ export class AuthController {
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 días
-      path: '/api/v1/auth',
+      path: '/',
     });
 
     return {
@@ -56,7 +58,7 @@ export class AuthController {
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       maxAge: 7 * 24 * 60 * 60 * 1000,
-      path: '/api/v1/auth',
+      path: '/',
     });
 
     return {
@@ -71,7 +73,7 @@ export class AuthController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Cerrar sesión (limpia cookie de refresh)' })
   async logout(@Res({ passthrough: true }) res: Response) {
-    res.clearCookie('refresh_token', { path: '/api/v1/auth' });
+    res.clearCookie('refresh_token', { path: '/' });
     return { mensaje: 'Sesión cerrada correctamente' };
   }
 

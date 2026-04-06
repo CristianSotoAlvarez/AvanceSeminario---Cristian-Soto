@@ -12,6 +12,10 @@ import { ReportesModule } from './reportes/reportes.module';
 import { JustificacionesModule } from './justificaciones/justificaciones.module';
 import { PalletsModule } from './pallets/pallets.module';
 import { EntregasModule } from './entregas/entregas.module';
+import { ClientesModule } from './clientes/clientes.module';
+import { QrModule } from './qr/qr.module';
+import { BusquedaModule } from './busqueda/busqueda.module';
+import { ProductosModule } from './productos/productos.module';
 
 @Module({
   imports: [
@@ -56,6 +60,18 @@ import { EntregasModule } from './entregas/entregas.module';
 
     // Entregas: agrupación de pallets por punto de expedición
     EntregasModule,
+
+    // Clientes nacionales, interplanta y exportadores
+    ClientesModule,
+
+    // Códigos QR firmados con HMAC
+    QrModule,
+
+    // Búsqueda global
+    BusquedaModule,
+
+    // Catálogo de productos e ítems de entrega
+    ProductosModule,
   ],
   providers: [
     // Aplicar ThrottlerGuard globalmente

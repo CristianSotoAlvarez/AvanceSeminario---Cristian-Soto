@@ -1,6 +1,22 @@
-import { IsString, IsEnum, IsDateString, IsOptional, IsNotEmpty, IsArray } from 'class-validator';
+import {
+  IsString, IsEnum, IsDateString, IsOptional, IsNotEmpty,
+  IsArray, ValidateNested, IsInt, Min,
+} from 'class-validator';
+import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { TipoCamion, TipoEdificio } from '@prisma/client';
+
+export class ParadaDto {
+  @ApiProperty({ enum: TipoEdificio, example: 'AVES' })
+  @IsEnum(TipoEdificio, { message: 'Tipo de edificio inválido' })
+  edificio: TipoEdificio;
+
+  @ApiPropertyOptional({ example: 24, description: 'Cantidad de pallets solicitados en este punto' })
+  @IsInt()
+  @Min(0)
+  @IsOptional()
+  pallets?: number;
+}
 
 export class CrearCamionDto {
   @ApiPropertyOptional({ example: 'TRP-00123', description: 'Número de transporte único del camión' })
@@ -27,6 +43,11 @@ export class CrearCamionDto {
   @IsOptional()
   horaSalidaPlanificada?: string;
 
+  @ApiPropertyOptional({ description: 'ID del cliente asociado al camión' })
+  @IsString()
+  @IsOptional()
+  clienteId?: string;
+
   @ApiPropertyOptional()
   @IsString()
   @IsOptional()
@@ -38,10 +59,20 @@ export class CrearCamionDto {
   cargaPreviaDescripcion?: string;
 
   @ApiPropertyOptional({
-    description: 'Puntos de expedición a visitar en orden (Frigorifico siempre último si aplica)',
+    description: 'Puntos de expedición con cantidad de pallets por parada',
+    type: [ParadaDto],
+  })
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ParadaDto)
+  @IsOptional()
+  paradas?: ParadaDto[];
+
+  /** @deprecated Usar `paradas` en su lugar */
+  @ApiPropertyOptional({
+    description: '[Deprecado] Usar paradas[]. Lista simple de edificios sin cantidad de pallets',
     enum: TipoEdificio,
     isArray: true,
-    example: ['CERDO', 'FRIGORIFICO'],
   })
   @IsArray()
   @IsEnum(TipoEdificio, { each: true })

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { io, Socket } from "socket.io-client";
 
 const SOCKET_URL =
@@ -16,6 +16,9 @@ function obtenerSocket(): Socket {
     socketSingleton = io(`${SOCKET_URL}/eventos`, {
       withCredentials: true,
       autoConnect: true,
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 10000,
+      reconnectionAttempts: Infinity,
     });
   }
   return socketSingleton;
@@ -43,4 +46,36 @@ export function useSocketAndenes(onActualizado: () => void) {
       socket.off("camion:actualizado", onActualizado);
     };
   }, [onActualizado]);
+}
+
+export type EstadoConexion = "conectado" | "desconectado" | "reconectando";
+
+/** Expone el estado de conexión del socket en tiempo real */
+export function useEstadoSocket(): EstadoConexion {
+  const [estado, setEstado] = useState<EstadoConexion>("conectado");
+
+  useEffect(() => {
+    const socket = obtenerSocket();
+
+    function alConectar()      { setEstado("conectado"); }
+    function alDesconectar()   { setEstado("desconectado"); }
+    function alReconectar()    { setEstado("reconectando"); }
+
+    // Estado inicial
+    setEstado(socket.connected ? "conectado" : "desconectado");
+
+    socket.on("connect",            alConectar);
+    socket.on("disconnect",         alDesconectar);
+    socket.on("reconnect_attempt",  alReconectar);
+    socket.on("reconnect",          alConectar);
+
+    return () => {
+      socket.off("connect",           alConectar);
+      socket.off("disconnect",        alDesconectar);
+      socket.off("reconnect_attempt", alReconectar);
+      socket.off("reconnect",         alConectar);
+    };
+  }, []);
+
+  return estado;
 }
