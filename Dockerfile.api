@@ -1,35 +1,32 @@
-# ── Etapa 1: instalar dependencias ───────────────────────────────────────────
-FROM node:20-alpine AS deps
-WORKDIR /repo
+# ── Etapa 1: build ────────────────────────────────────────────────────────────
+FROM node:20-alpine AS builder
+WORKDIR /app
 
+# Instalar todas las dependencias del workspace
 COPY package.json package-lock.json ./
 COPY packages/types/package.json ./packages/types/package.json
-COPY apps/api/package.json         ./apps/api/package.json
-
+COPY apps/api/package.json       ./apps/api/package.json
 RUN npm ci
 
-# ── Etapa 2: build ────────────────────────────────────────────────────────────
-FROM deps AS builder
-WORKDIR /repo
-
+# Copiar código fuente
 COPY packages/types ./packages/types
 COPY apps/api       ./apps/api
 
-# Generar cliente Prisma y compilar TypeScript
+# Generar cliente Prisma y compilar
 RUN cd apps/api && npx prisma generate --schema=src/prisma/schema.prisma
 ARG CACHEBUST=1
-RUN cd apps/api && /repo/node_modules/.bin/nest build && ls -la dist/
+RUN cd apps/api && npx @nestjs/cli build && ls -la dist/
 
-# ── Etapa 3: imagen de producción ────────────────────────────────────────────
+# ── Etapa 2: imagen de producción ────────────────────────────────────────────
 FROM node:20-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 
-COPY --from=builder /repo/node_modules          ./node_modules
-COPY --from=builder /repo/packages/types        ./packages/types
-COPY --from=builder /repo/apps/api/dist         ./dist
-COPY --from=builder /repo/apps/api/src/prisma   ./src/prisma
-COPY --from=builder /repo/apps/api/package.json ./package.json
+COPY --from=builder /app/node_modules          ./node_modules
+COPY --from=builder /app/packages/types        ./packages/types
+COPY --from=builder /app/apps/api/dist         ./dist
+COPY --from=builder /app/apps/api/src/prisma   ./src/prisma
+COPY --from=builder /app/apps/api/package.json ./package.json
 
 EXPOSE 3001
 
