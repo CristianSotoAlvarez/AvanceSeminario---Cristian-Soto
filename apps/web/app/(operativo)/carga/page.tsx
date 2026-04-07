@@ -36,7 +36,7 @@ function TarjetaPalletCarga({
     pallet.entrega?.camion?.patente ??
     "—";
 
-  const pesoTotal = pallet.productos.reduce((acc, p) => acc + p.pesoKg * p.cantidad, 0);
+  const pesoTotal = pallet.productos.reduce((acc, p) => acc + (p.pesoKg ?? 0) * p.cantidad, 0);
 
   async function marcarCargado() {
     setCargando(true);
