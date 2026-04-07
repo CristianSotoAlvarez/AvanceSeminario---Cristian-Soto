@@ -17,7 +17,8 @@ COPY apps/api       ./apps/api
 
 # Generar cliente Prisma y compilar TypeScript
 RUN cd apps/api && npx prisma generate --schema=src/prisma/schema.prisma
-RUN cd apps/api && /repo/node_modules/.bin/nest build
+ARG CACHEBUST=1
+RUN cd apps/api && /repo/node_modules/.bin/nest build && ls -la dist/
 
 # ── Etapa 3: imagen de producción ────────────────────────────────────────────
 FROM node:20-alpine AS runner
