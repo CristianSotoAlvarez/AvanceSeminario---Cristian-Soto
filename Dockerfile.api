@@ -31,4 +31,4 @@ COPY --from=builder /app/apps/api/package.json ./package.json
 
 EXPOSE 3001
 
-CMD ["sh", "-c", "npx prisma migrate deploy --schema=src/prisma/schema.prisma && node dist/main"]
+CMD ["sh", "-c", "npx prisma migrate deploy --schema=src/prisma/schema.prisma && node dist/src/main"]
