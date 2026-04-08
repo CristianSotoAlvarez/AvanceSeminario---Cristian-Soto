@@ -10,14 +10,15 @@ import { useAuth } from "@/hooks/use-auth";
 import { AuthContext } from "@/lib/auth-context";
 
 const titulosRuta: Record<string, string> = {
-  "/dashboard":               "Tablero",
-  "/camiones":                "Camiones",
-  "/andenes":                 "Andenes",
-  "/pallets":                 "Entregas",
-  "/reportes":                "Reportes",
-  "/sag":                     "SAG",
-  "/configuracion/clientes":  "Clientes",
-  "/configuracion":           "Configuración",
+  "/dashboard":                "Tablero",
+  "/camiones":                 "Camiones",
+  "/andenes":                  "Andenes",
+  "/pallets":                  "Entregas",
+  "/reportes":                 "Reportes",
+  "/sag":                      "SAG",
+  "/configuracion/clientes":   "Clientes",
+  "/configuracion/productos":  "Productos",
+  "/configuracion":            "Configuración",
 };
 
 export default function PlatformLayout({
