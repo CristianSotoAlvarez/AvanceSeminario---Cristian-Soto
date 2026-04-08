@@ -181,7 +181,7 @@ export default function DashboardPage() {
     <div className="space-y-6">
 
       {/* KPIs */}
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.22, delay: 0 }}>
           <KpiAccent
             label="Camiones Hoy"
@@ -234,7 +234,7 @@ export default function DashboardPage() {
               Atrasados ({atrasados.length})
             </h2>
           </div>
-          <div className="rounded-lg border-2 border-red-200 overflow-hidden bg-bg-surface">
+          <div className="rounded-lg border-2 border-red-200 overflow-hidden bg-bg-surface overflow-x-auto">
             <TablaFilas camiones={atrasados} baseDelay={0.28} />
           </div>
         </motion.div>
@@ -255,7 +255,7 @@ export default function DashboardPage() {
             No hay camiones activos
           </div>
         ) : (
-          <div className="bg-bg-surface border border-bg-elevated rounded-lg overflow-hidden">
+          <div className="bg-bg-surface border border-bg-elevated rounded-lg overflow-x-auto">
             <TablaFilas camiones={camionesActivos} baseDelay={0.32} />
           </div>
         )}
