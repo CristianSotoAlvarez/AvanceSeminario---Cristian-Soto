@@ -17,7 +17,7 @@ WORKDIR /repo
 COPY packages ./packages
 COPY apps/web ./apps/web
 
-ENV NEXT_PUBLIC_API_URL=https://avanceseminario-cristian-soto-production.up.railway.app/api/v1
+ENV NEXT_PUBLIC_API_URL=https://jat-api.up.railway.app/api/v1
 ENV DOCKER_BUILD=1
 
 RUN npm run build --workspace=@dispatch-track/web
