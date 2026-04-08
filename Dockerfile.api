@@ -8,14 +8,15 @@ COPY packages/types/package.json ./packages/types/package.json
 COPY apps/api/package.json       ./apps/api/package.json
 RUN npm ci && npm install -g @nestjs/cli
 
+ARG CACHEBUST=1
+
 # Copiar código fuente
 COPY packages/types ./packages/types
 COPY apps/api       ./apps/api
 
 # Generar cliente Prisma y compilar
 RUN cd apps/api && npx prisma generate --schema=src/prisma/schema.prisma
-ARG CACHEBUST=1
-RUN cd apps/api && nest build 2>&1; echo "=== EXIT: $? ===" && ls -la dist/ && ls -la dist/src/ 2>/dev/null || echo "no dist/src"
+RUN cd apps/api && nest build && ls -la dist/
 
 # ── Etapa 2: imagen de producción ────────────────────────────────────────────
 FROM node:20-alpine AS runner
