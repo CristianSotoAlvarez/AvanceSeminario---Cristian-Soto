@@ -561,6 +561,7 @@ export default function CamionesPage() {
           No hay camiones con los filtros seleccionados
         </div>
       ) : (
+        <div className="overflow-x-auto">
         <Table>
           <TableHeader>
             <tr>
@@ -631,6 +632,7 @@ export default function CamionesPage() {
             })}
           </TableBody>
         </Table>
+        </div>
       )}
 
       {/* Paginación */}
