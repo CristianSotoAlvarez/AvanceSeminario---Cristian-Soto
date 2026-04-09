@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { Toaster } from "sonner";
 import { motion } from "motion/react";
-import { Package, Truck, Thermometer } from "lucide-react";
+import { Package, Truck, Thermometer, LayoutDashboard } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { SidebarItem } from "@/components/sidebar-item";
 import { Header } from "@/components/header";
@@ -16,6 +16,12 @@ const ROLES_OPERATIVO = ["PICKINERO", "CARGADOR", "OPERADOR_TUNEL", "SUPERVISOR"
 // ─── Ítems de navegación según rol ────────────────────────────────────────────
 
 const ITEMS_NAV = [
+  {
+    icon: LayoutDashboard,
+    label: "Tablero",
+    href: "/dashboard",
+    roles: ["PICKINERO", "CARGADOR", "OPERADOR_TUNEL", "SUPERVISOR"],
+  },
   {
     icon: Package,
     label: "Picking",
@@ -37,6 +43,7 @@ const ITEMS_NAV = [
 ];
 
 const TITULOS_RUTA: Record<string, string> = {
+  "/dashboard": "Tablero",
   "/picking": "Picking",
   "/carga": "Carga",
   "/tunel": "Túnel Frío",
