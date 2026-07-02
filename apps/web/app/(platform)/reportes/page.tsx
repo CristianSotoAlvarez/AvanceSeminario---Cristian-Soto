@@ -234,20 +234,25 @@ function GraficoTiempoEdificio({ datos }: { datos: ResumenReportes["tiempoPorEdi
     };
   });
 
+  const alturaTotal = items.length * 52 + 16;
+
   return (
-    <ResponsiveContainer width="100%" height={160}>
-      <BarChart data={items} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
+    <ResponsiveContainer width="100%" height={alturaTotal}>
+      <BarChart data={items} layout="vertical" margin={{ top: 4, right: 12, left: 4, bottom: 0 }} barGap={2} barCategoryGap="20%">
         <XAxis
-          dataKey="name"
-          tick={{ fontSize: 10, fill: "#64748B", fontFamily: "var(--font-display, sans-serif)" }}
-          tickLine={false}
-          axisLine={false}
-        />
-        <YAxis
+          type="number"
           tick={{ fontSize: 9, fill: "#94A3B8", fontFamily: "var(--font-data, monospace)" }}
           tickLine={false}
           axisLine={false}
           tickFormatter={(v: number) => `${v}m`}
+        />
+        <YAxis
+          type="category"
+          dataKey="name"
+          tick={{ fontSize: 11, fill: "#64748B", fontFamily: "var(--font-display, sans-serif)" }}
+          tickLine={false}
+          axisLine={false}
+          width={72}
         />
         <Tooltip
           cursor={{ fill: "#F8FAFC", radius: 4 }}
@@ -257,8 +262,8 @@ function GraficoTiempoEdificio({ datos }: { datos: ResumenReportes["tiempoPorEdi
             name === "promedio" ? "Promedio real" : "Presupuesto",
           ]}
         />
-        <Bar dataKey="presupuesto" fill="#0EA5E9" radius={[3, 3, 0, 0]} maxBarSize={32} opacity={0.35} name="presupuesto" />
-        <Bar dataKey="promedio" radius={[3, 3, 0, 0]} maxBarSize={32} name="promedio">
+        <Bar dataKey="presupuesto" fill="#0EA5E9" radius={[0, 3, 3, 0]} barSize={14} opacity={0.35} name="presupuesto" />
+        <Bar dataKey="promedio" radius={[0, 3, 3, 0]} barSize={14} name="promedio">
           {items.map((entry, i) => (
             <Cell key={i} fill={entry.sobrePresupuesto ? "#DC2626" : entry.color} />
           ))}
