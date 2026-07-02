@@ -8,12 +8,13 @@ import { TruckState, TRUCK_STATE_COLOR } from "@dispatch-track/types";
 import {
   ArrowLeft, Truck, Clock, CheckCircle2, XCircle, AlertTriangle,
   User, Calendar, Package, Shield, FileText, Trash2, X, Plus, Loader2, ExternalLink, Info,
-  ChevronUp, ChevronDown, Printer,
+  ChevronUp, ChevronDown, Printer, Wrench, AlertOctagon, ArrowRightLeft,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
   obtenerCamionApi, justificarParadaApi, eliminarJustificacionApi,
   crearPalletApi, crearEntregaApi, reordenarParadasApi,
+  registrarIncidenteApi, marcarReparadoApi,
   type CamionDetalle, type ParadaExpedicion, type EntregaResumen,
 } from "@/lib/api";
 import { QrCamion } from "@/components/qr-camion";
@@ -851,6 +852,280 @@ function SeccionEntregas({ camion, onEntregaCreada }: { camion: CamionDetalle; o
 
 // ─── Página principal ─────────────────────────────────────────────────────────
 
+// ─── Modal Reportar Avería ───────────────────────────────────────────────────
+
+const ESTADOS_BLOQUEADOS_INCIDENTE = ["DESPACHADO", "AVERIADO"];
+const ESTADOS_SAG_APROBADO = ["APROBADO_SAG", "LISTO"];
+
+interface ModalReportarAveriaProps {
+  camion: CamionDetalle;
+  onCerrar: () => void;
+  onIncidenteRegistrado: (camion: CamionDetalle) => void;
+}
+
+function ModalReportarAveria({ camion, onCerrar, onIncidenteRegistrado }: ModalReportarAveriaProps) {
+  const [accion, setAccion] = useState<"ESPERAR_REPARACION" | "SUSTITUIR">("ESPERAR_REPARACION");
+  const [descripcion, setDescripcion] = useState("");
+  const [patenteNueva, setPatenteNueva] = useState("");
+  const [numeroTransporteNuevo, setNumeroTransporteNuevo] = useState("");
+  const [enviando, setEnviando] = useState(false);
+
+  const esExportacionConSag =
+    camion.tipo === "EXPORTACION" && ESTADOS_SAG_APROBADO.includes(camion.estado);
+
+  async function enviar() {
+    if (descripcion.trim().length < 10) {
+      toast.error("La descripción debe tener al menos 10 caracteres");
+      return;
+    }
+    if (accion === "SUSTITUIR" && !patenteNueva.trim()) {
+      toast.error("Ingresa la patente del camión sustituto");
+      return;
+    }
+    setEnviando(true);
+    try {
+      const actualizado = await registrarIncidenteApi(camion.id, {
+        tipo: "AVERIA",
+        accion,
+        descripcion: descripcion.trim(),
+        patenteNueva: accion === "SUSTITUIR" ? patenteNueva.trim() : undefined,
+        numeroTransporteNuevo: accion === "SUSTITUIR" && numeroTransporteNuevo
+          ? numeroTransporteNuevo.trim()
+          : undefined,
+      });
+      toast.success(accion === "SUSTITUIR" ? "Camión sustituido" : "Reparación iniciada");
+      onIncidenteRegistrado(actualizado);
+      onCerrar();
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Error al registrar incidente");
+    } finally {
+      setEnviando(false);
+    }
+  }
+
+  return (
+    <AnimatePresence>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4"
+        onClick={onCerrar}
+      >
+        <motion.div
+          initial={{ opacity: 0, y: 20, scale: 0.96 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0, y: 10, scale: 0.96 }}
+          transition={{ duration: 0.18 }}
+          className="bg-bg-surface border border-bg-elevated rounded-xl shadow-xl max-w-md w-full p-5"
+          onClick={e => e.stopPropagation()}
+        >
+          <div className="flex items-center gap-2 mb-4">
+            <AlertOctagon size={18} className="text-semantic-error" />
+            <h3 className="font-display text-base font-semibold text-text-primary">Reportar avería</h3>
+            <button onClick={onCerrar} className="ml-auto text-text-muted hover:text-text-primary cursor-pointer">
+              <X size={16} />
+            </button>
+          </div>
+
+          <div className="space-y-4">
+            <div>
+              <label className="font-display text-xs uppercase tracking-widest text-text-muted">Descripción del problema</label>
+              <textarea
+                value={descripcion}
+                onChange={e => setDescripcion(e.target.value)}
+                placeholder="Ej: Falla de motor en el remolque, requiere asistencia mecánica..."
+                rows={3}
+                className="mt-1 w-full bg-bg-elevated/50 border border-bg-elevated rounded-md px-3 py-2 text-sm font-display text-text-primary outline-none focus:border-accent/40"
+              />
+              <p className="font-display text-[10px] text-text-muted mt-1">Mínimo 10 caracteres</p>
+            </div>
+
+            <div>
+              <label className="font-display text-xs uppercase tracking-widest text-text-muted">Acción a tomar</label>
+              <div className="mt-2 space-y-2">
+                <label className={`flex items-start gap-2 p-3 rounded-md border cursor-pointer transition-colors ${accion === "ESPERAR_REPARACION" ? "border-accent bg-accent/5" : "border-bg-elevated hover:border-accent/30"}`}>
+                  <input
+                    type="radio"
+                    name="accion"
+                    value="ESPERAR_REPARACION"
+                    checked={accion === "ESPERAR_REPARACION"}
+                    onChange={() => setAccion("ESPERAR_REPARACION")}
+                    className="mt-0.5"
+                  />
+                  <div>
+                    <p className="font-display text-sm font-medium text-text-primary">Esperar reparación in situ</p>
+                    <p className="font-display text-xs text-text-muted">El camión queda pausado hasta marcarlo como reparado.</p>
+                  </div>
+                </label>
+                <label className={`flex items-start gap-2 p-3 rounded-md border cursor-pointer transition-colors ${accion === "SUSTITUIR" ? "border-accent bg-accent/5" : "border-bg-elevated hover:border-accent/30"}`}>
+                  <input
+                    type="radio"
+                    name="accion"
+                    value="SUSTITUIR"
+                    checked={accion === "SUSTITUIR"}
+                    onChange={() => setAccion("SUSTITUIR")}
+                    className="mt-0.5"
+                  />
+                  <div>
+                    <p className="font-display text-sm font-medium text-text-primary">Sustituir por otro camión</p>
+                    <p className="font-display text-xs text-text-muted">Se crea un camión nuevo y se le traspasan las entregas.</p>
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            {accion === "SUSTITUIR" && (
+              <>
+                <div>
+                  <label className="font-display text-xs uppercase tracking-widest text-text-muted">Patente del camión nuevo</label>
+                  <input
+                    type="text"
+                    value={patenteNueva}
+                    onChange={e => setPatenteNueva(e.target.value.toUpperCase())}
+                    placeholder="AB CD 12"
+                    className="mt-1 w-full bg-bg-elevated/50 border border-bg-elevated rounded-md px-3 py-2 text-sm font-data text-text-primary outline-none focus:border-accent/40"
+                  />
+                </div>
+                <div>
+                  <label className="font-display text-xs uppercase tracking-widest text-text-muted">N° de transporte (opcional)</label>
+                  <input
+                    type="text"
+                    value={numeroTransporteNuevo}
+                    onChange={e => setNumeroTransporteNuevo(e.target.value)}
+                    placeholder="Se genera automáticamente si lo dejas vacío"
+                    className="mt-1 w-full bg-bg-elevated/50 border border-bg-elevated rounded-md px-3 py-2 text-sm font-data text-text-primary outline-none focus:border-accent/40"
+                  />
+                </div>
+
+                {esExportacionConSag && (
+                  <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 text-amber-800 rounded-md px-3 py-2 text-xs font-display">
+                    <AlertTriangle size={14} className="shrink-0 mt-0.5" />
+                    <p>
+                      <strong>Camión de exportación que ya pasó SAG.</strong> El camión sustituto deberá pasar inspección SAG nuevamente. La aprobación previa no se hereda.
+                    </p>
+                  </div>
+                )}
+              </>
+            )}
+
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                onClick={onCerrar}
+                disabled={enviando}
+                className="px-3 py-1.5 rounded-md border border-bg-elevated text-text-muted hover:text-text-primary text-xs font-display cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={enviar}
+                disabled={enviando}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-semantic-error text-white text-xs font-display font-medium hover:opacity-90 cursor-pointer disabled:opacity-50"
+              >
+                {enviando ? <Loader2 size={13} className="animate-spin" /> : <AlertOctagon size={13} />}
+                {accion === "SUSTITUIR" ? "Confirmar sustitución" : "Iniciar reparación"}
+              </button>
+            </div>
+          </div>
+        </motion.div>
+      </motion.div>
+    </AnimatePresence>
+  );
+}
+
+// ─── Banners de incidente ────────────────────────────────────────────────────
+
+function tiempoDesde(iso: string): string {
+  const mins = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
+  if (mins < 60) return `${mins} min`;
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return m > 0 ? `${h}h ${m}m` : `${h}h`;
+}
+
+function BannerEnReparacion({ camion, onMarcarReparado }: { camion: CamionDetalle; onMarcarReparado: (c: CamionDetalle) => void }) {
+  const [marcando, setMarcando] = useState(false);
+  if (!camion.enReparacion || !camion.reparacionDesde) return null;
+
+  async function marcar() {
+    setMarcando(true);
+    try {
+      const actualizado = await marcarReparadoApi(camion.id);
+      toast.success("Reparación finalizada");
+      onMarcarReparado(actualizado);
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Error al marcar reparado");
+    } finally {
+      setMarcando(false);
+    }
+  }
+
+  return (
+    <div className="flex items-center gap-3 bg-amber-50 border border-amber-200 text-amber-800 rounded-lg px-4 py-2.5">
+      <Wrench size={15} className="shrink-0" />
+      <div className="flex-1 min-w-0">
+        <p className="font-display text-xs font-semibold">En reparación in situ</p>
+        <p className="font-display text-[11px] text-amber-700">
+          Iniciada hace {tiempoDesde(camion.reparacionDesde!)} · {formatearFechaHora(camion.reparacionDesde!)}
+        </p>
+      </div>
+      <button
+        onClick={marcar}
+        disabled={marcando}
+        className="flex items-center gap-1.5 px-3 py-1 rounded-md bg-amber-700 text-white text-xs font-display font-medium hover:bg-amber-800 cursor-pointer disabled:opacity-50"
+      >
+        {marcando ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle2 size={12} />}
+        Marcar reparado
+      </button>
+    </div>
+  );
+}
+
+function BannerAveriado({ camion }: { camion: CamionDetalle }) {
+  if (camion.estado !== "AVERIADO") return null;
+  return (
+    <div className="flex items-center gap-3 bg-red-50 border border-red-200 text-red-800 rounded-lg px-4 py-2.5">
+      <AlertOctagon size={15} className="shrink-0" />
+      <div className="flex-1 min-w-0">
+        <p className="font-display text-xs font-semibold">Camión averiado</p>
+        <p className="font-display text-[11px] text-red-700">
+          {camion.reemplazadoPorId
+            ? "Sustituido por otro camión (ver enlace abajo)."
+            : "Sin camión sustituto registrado."}
+        </p>
+      </div>
+      {camion.reemplazadoPorId && (
+        <a
+          href={`/camiones/${camion.reemplazadoPorId}`}
+          className="flex items-center gap-1 px-2 py-1 rounded-md bg-red-700 text-white text-xs font-display font-medium hover:bg-red-800"
+        >
+          <ArrowRightLeft size={12} />
+          Ver sustituto
+        </a>
+      )}
+    </div>
+  );
+}
+
+function BannerSustitutoDe({ camion }: { camion: CamionDetalle }) {
+  // Buscar en eventos uno con la nota "Camión sustituye a"
+  const evt = camion.eventos?.find(e => e.nota?.startsWith("Camión sustituye a"));
+  if (!evt) return null;
+  // Extraer patente original del texto (heurística)
+  const matchPatente = evt.nota?.match(/sustituye a (\S+)/);
+  return (
+    <div className="flex items-center gap-3 bg-blue-50 border border-blue-200 text-blue-800 rounded-lg px-4 py-2.5">
+      <ArrowRightLeft size={15} className="shrink-0" />
+      <div className="flex-1 min-w-0">
+        <p className="font-display text-xs font-semibold">Camión sustituto</p>
+        <p className="font-display text-[11px] text-blue-700">
+          Reemplazó a {matchPatente?.[1] ?? "otro camión"} por avería · {formatearFechaHora(evt.timestamp)}
+        </p>
+      </div>
+    </div>
+  );
+}
+
 export default function DetalleCamionPage() {
   const { id } = useParams<{ id: string }>();
   const router  = useRouter();
@@ -858,10 +1133,11 @@ export default function DetalleCamionPage() {
   const [camion, setCamion]     = useState<CamionDetalle | null>(null);
   const [cargando, setCargando] = useState(true);
   const [error, setError]       = useState<string | null>(null);
-
+  const [modalAveriaAbierto, setModalAveriaAbierto] = useState(false);
 
   const puedeJustificar  = !!usuario && ROLES_PUEDEN_JUSTIFICAR.includes(usuario.rol);
   const puedeReordenar   = !!usuario && ["JEFE_DESPACHO", "COORDINADOR", "SUPERVISOR"].includes(usuario.rol);
+  const puedeReportarIncidente = !!usuario && ["JEFE_DESPACHO", "COORDINADOR_TRANSPORTE", "COORDINADOR", "SUPERVISOR"].includes(usuario.rol);
 
   useEffect(() => {
     obtenerCamionApi(id)
@@ -958,10 +1234,33 @@ export default function DetalleCamionPage() {
               <Printer size={14} />
               Imprimir
             </button>
+            {puedeReportarIncidente && !ESTADOS_BLOQUEADOS_INCIDENTE.includes(camion.estado) && !camion.enReparacion && (
+              <button
+                onClick={() => setModalAveriaAbierto(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-red-200 text-red-700 hover:bg-red-50 transition-colors text-xs font-medium cursor-pointer"
+                title="Reportar avería del camión"
+              >
+                <AlertOctagon size={14} />
+                Reportar avería
+              </button>
+            )}
             <QrCamion camionId={camion.id} numeroTransporte={camion.numeroTransporte ?? camion.patente} />
           </div>
         </div>
       </motion.div>
+
+      {/* Banners de incidente */}
+      <BannerEnReparacion camion={camion} onMarcarReparado={setCamion} />
+      <BannerAveriado camion={camion} />
+      <BannerSustitutoDe camion={camion} />
+
+      {modalAveriaAbierto && (
+        <ModalReportarAveria
+          camion={camion}
+          onCerrar={() => setModalAveriaAbierto(false)}
+          onIncidenteRegistrado={setCamion}
+        />
+      )}
 
       {/* KPIs de tiempos */}
       <KpiTiempos camion={camion} />

@@ -13,7 +13,8 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:deploy": "prisma migrate deploy",
-    "prisma:seed": "ts-node prisma/seed.ts"
+    "prisma:seed": "ts-node prisma/seed.ts",
+    "generar-datos:demo": "ts-node prisma/generar-datos-demo.ts"
   },
   "dependencies": {
     "@dispatch-track/types": "*",

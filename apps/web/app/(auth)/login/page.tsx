@@ -98,15 +98,24 @@ export default function LoginPage() {
     resolver: zodResolver(esquemaLogin),
   });
 
+  function rutaInicialPorRol(rol: string): string {
+    if (rol === "PORTERO") return "/porteria";
+    if (rol === "PICKINERO") return "/picking";
+    if (rol === "CARGADOR") return "/carga";
+    if (rol === "OPERADOR_TUNEL") return "/tunel";
+    if (rol === "SAG") return "/exportaciones";
+    return "/dashboard";
+  }
+
   useEffect(() => {
-    if (!cargando && usuario) router.push("/dashboard");
+    if (!cargando && usuario) router.push(rutaInicialPorRol(usuario.rol));
   }, [cargando, usuario, router]);
 
   async function manejarSubmit(datos: FormLogin) {
     setErrorServidor(null);
     try {
-      await login(datos.identificador, datos.password);
-      router.push("/dashboard");
+      const respuesta = await login(datos.identificador, datos.password);
+      router.push(rutaInicialPorRol(respuesta.usuario.rol));
     } catch (err: unknown) {
       setErrorServidor(err instanceof Error ? err.message : "Credenciales inválidas");
     }

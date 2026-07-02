@@ -39,7 +39,7 @@ export default function ImprimirCamionPage() {
     ])
       .then(([c, { token }]) => {
         setCamion(c);
-        const url = `${window.location.origin}/qr/${token}`;
+        const url = `${window.location.origin}/p/${token}`;
         return QRCode.toDataURL(url, {
           width: 220,
           margin: 1,

@@ -16,6 +16,7 @@ import { ClientesModule } from './clientes/clientes.module';
 import { QrModule } from './qr/qr.module';
 import { BusquedaModule } from './busqueda/busqueda.module';
 import { ProductosModule } from './productos/productos.module';
+import { PorteriaModule } from './porteria/porteria.module';
 
 @Module({
   imports: [
@@ -72,6 +73,9 @@ import { ProductosModule } from './productos/productos.module';
 
     // Catálogo de productos e ítems de entrega
     ProductosModule,
+
+    // Portería: registro de llegada de camiones (público + autenticado)
+    PorteriaModule,
   ],
   providers: [
     // Aplicar ThrottlerGuard globalmente

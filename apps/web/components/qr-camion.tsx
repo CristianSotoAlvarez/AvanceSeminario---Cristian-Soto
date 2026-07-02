@@ -22,7 +22,7 @@ export function QrCamion({ camionId, numeroTransporte }: Props) {
 
     generarQrCamionApi(camionId)
       .then(({ token }) => {
-        const url = `${window.location.origin}/qr/${token}`;
+        const url = `${window.location.origin}/p/${token}`;
         return QRCode.toDataURL(url, {
           width: 280,
           margin: 2,
