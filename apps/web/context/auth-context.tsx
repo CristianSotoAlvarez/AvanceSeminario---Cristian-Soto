@@ -7,13 +7,14 @@ import {
   guardarToken,
   limpiarToken,
   type UsuarioAuth,
+  type RespuestaLogin,
 } from "@/lib/api";
 
 interface AuthContexto {
   usuario: UsuarioAuth | null;
   cargando: boolean;
   error: string | null;
-  login: (identificador: string, password: string) => Promise<void>;
+  login: (identificador: string, password: string) => Promise<RespuestaLogin>;
   logout: () => Promise<void>;
 }
 
@@ -51,6 +52,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const datos = await loginApi(identificador, password);
       setUsuario(datos.usuario);
+      return datos;
     } catch (err: any) {
       const mensaje = err.message || 'Error al iniciar sesión';
       setError(mensaje);

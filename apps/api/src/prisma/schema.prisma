@@ -20,6 +20,7 @@ enum RolUsuario {
   OPERADOR_TUNEL
   JEFE_DESPACHO
   SAG
+  PORTERO
 }
 
 enum TipoEdificio {
@@ -39,6 +40,22 @@ enum EstadoCamion {
   RECHAZADO_SAG
   LISTO
   DESPACHADO
+  AVERIADO
+}
+
+enum TipoIncidente {
+  AVERIA
+  FALTA_PRODUCTO
+  CAMBIO_ANDEN
+  REPROGRAMACION
+}
+
+enum AccionIncidente {
+  ESPERAR_REPARACION
+  SUSTITUIR
+  REGISTRAR_FALTANTE
+  REASIGNAR_ANDEN
+  REPROGRAMAR
 }
 
 enum TipoCamion {
@@ -87,6 +104,9 @@ model Usuario {
   email         String      @unique
   passwordHash  String
   rol           RolUsuario
+  /// Operador polivalente: PICKINERO que también puede cargar, o CARGADOR que también puede armar.
+  /// Refleja la realidad operativa donde algunos operarios cumplen ambos roles según el contexto del turno.
+  polivalente   Boolean     @default(false)
   edificioId    String?
   edificio      Edificio?   @relation(fields: [edificioId], references: [id])
   activo        Boolean     @default(true)
@@ -102,6 +122,8 @@ model Usuario {
   atrasos         Atraso[]
   justificaciones JustificacionAtraso[]
   auditorias      AuditLog[]
+  incidentesRegistrados IncidenteCamion[]
+  andenesFueraServicio  Anden[]         @relation("AndenFueraServicio")
 
   @@map("usuarios")
 }
@@ -113,18 +135,24 @@ model Edificio {
   andenes   Anden[]
   usuarios  Usuario[]
   atrasos   Atraso[]
+  pallets   Pallet[]
 
   @@map("edificios")
 }
 
 model Anden {
-  id          String    @id @default(cuid())
-  codigo      String    @unique
-  edificioId  String
-  edificio    Edificio  @relation(fields: [edificioId], references: [id])
-  ocupado     Boolean   @default(false)
-  camiones    Camion[]
-  paradas     ParadaExpedicion[]
+  id                    String    @id @default(cuid())
+  codigo                String    @unique
+  edificioId            String
+  edificio              Edificio  @relation(fields: [edificioId], references: [id])
+  ocupado               Boolean   @default(false)
+  fueraDeServicio       Boolean   @default(false)
+  motivoFueraServicio   String?
+  fueraServicioDesde    DateTime?
+  fueraServicioPorId    String?
+  fueraServicioPor      Usuario?  @relation("AndenFueraServicio", fields: [fueraServicioPorId], references: [id])
+  camiones              Camion[]
+  paradas               ParadaExpedicion[]
 
   @@index([edificioId])
   @@map("andenes")
@@ -177,6 +205,11 @@ model Camion {
   horaLlegadaReal         DateTime?
   horaSalidaReal          DateTime?
   cargaPreviaDescripcion  String?
+  enReparacion            Boolean       @default(false)
+  reparacionDesde         DateTime?
+  reemplazadoPorId        String?
+  reemplazadoPor          Camion?       @relation("SustitucionPorAveria", fields: [reemplazadoPorId], references: [id])
+  reemplaza               Camion[]      @relation("SustitucionPorAveria")
   creadoEn                DateTime      @default(now())
   actualizadoEn           DateTime      @updatedAt
 
@@ -187,12 +220,34 @@ model Camion {
   eventosTunel  EventoTunel[]
   atrasos       Atraso[]
   paradas       ParadaExpedicion[]
+  incidentes               IncidenteCamion[] @relation("IncidentesDeCamion")
+  incidentesComoReemplazo  IncidenteCamion[] @relation("ReemplazoIncidente")
 
   @@index([estado])
   @@index([tipo])
   @@index([andenId])
   @@index([andenId, estado, horaLlegadaPlanificada])
   @@map("camiones")
+}
+
+model IncidenteCamion {
+  id                       String           @id @default(cuid())
+  camionId                 String
+  camion                   Camion           @relation("IncidentesDeCamion", fields: [camionId], references: [id])
+  tipo                     TipoIncidente
+  accion                   AccionIncidente
+  estadoCamionEnIncidente  EstadoCamion
+  descripcion              String
+  registradoPorId          String
+  registradoPor            Usuario          @relation(fields: [registradoPorId], references: [id])
+  timestamp                DateTime         @default(now())
+  resueltoEn               DateTime?
+  camionReemplazoId        String?
+  camionReemplazo          Camion?          @relation("ReemplazoIncidente", fields: [camionReemplazoId], references: [id])
+
+  @@index([camionId])
+  @@index([tipo])
+  @@map("incidentes_camion")
 }
 
 /// Registro inmutable (append-only) de cada cambio de estado
@@ -305,6 +360,7 @@ model Pallet {
   cargadorId           String?
   cargador             Usuario?      @relation("PalletCargador", fields: [cargadorId], references: [id])
   edificioId           String?
+  edificio             Edificio?     @relation(fields: [edificioId], references: [id])
   estado               EstadoPallet  @default(EN_ARMADO)
   timestampInicio      DateTime      @default(now())
   timestampFin         DateTime?

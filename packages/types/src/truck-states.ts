@@ -9,6 +9,7 @@ export enum TruckState {
   RECHAZADO_SAG = "RECHAZADO_SAG",
   LISTO = "LISTO",
   DESPACHADO = "DESPACHADO",
+  AVERIADO = "AVERIADO",
 }
 
 export enum TruckType {
@@ -30,4 +31,5 @@ export const TRUCK_STATE_COLOR: Record<TruckState, SemanticColor> = {
   [TruckState.RECHAZADO_SAG]: "error",
   [TruckState.LISTO]: "success",
   [TruckState.DESPACHADO]: "success",
+  [TruckState.AVERIADO]: "error",
 };

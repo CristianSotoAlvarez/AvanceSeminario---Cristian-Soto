@@ -7,6 +7,7 @@ import { AsignarAndenDto } from './dto/asignar-anden.dto';
 import { FiltrosCamionDto } from './dto/filtros-camion.dto';
 import { InspeccionSagDto } from './dto/inspeccion-sag.dto';
 import { ReordenarParadasDto } from './dto/reordenar-paradas.dto';
+import { RegistrarIncidenteDto } from './dto/registrar-incidente.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decoradores/roles.decorator';
@@ -141,6 +142,29 @@ export class CamionesController {
     @UsuarioActual('id') usuarioId: string,
   ) {
     return this.camionesService.cambiarEstado(id, EstadoCamion.DESPACHADO, usuarioId);
+  }
+
+  // ——— Incidentes ———
+
+  @Post(':id/incidente')
+  @Roles('JEFE_DESPACHO', 'COORDINADOR_TRANSPORTE', 'COORDINADOR', 'SUPERVISOR')
+  @ApiOperation({ summary: 'Registrar incidente del camión (avería en v1)' })
+  registrarIncidente(
+    @Param('id') id: string,
+    @Body() dto: RegistrarIncidenteDto,
+    @UsuarioActual('id') usuarioId: string,
+  ) {
+    return this.camionesService.registrarIncidente(id, dto, usuarioId);
+  }
+
+  @Post(':id/marcar-reparado')
+  @Roles('JEFE_DESPACHO', 'COORDINADOR_TRANSPORTE', 'COORDINADOR', 'SUPERVISOR')
+  @ApiOperation({ summary: 'Cerrar reparación in situ del camión' })
+  marcarReparado(
+    @Param('id') id: string,
+    @UsuarioActual('id') usuarioId: string,
+  ) {
+    return this.camionesService.marcarReparado(id, usuarioId);
   }
 
   @Patch(':id/paradas/reordenar')

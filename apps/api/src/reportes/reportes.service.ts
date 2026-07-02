@@ -40,7 +40,15 @@ export class ReportesService {
     const desde = query.desde ? new Date(query.desde) : hace30Dias;
     const hasta = query.hasta ? new Date(query.hasta) : ahora;
 
+    // Período anterior del mismo largo (para deltas)
+    const largoMs = hasta.getTime() - desde.getTime();
+    const desdePrev = new Date(desde.getTime() - largoMs);
+    const hastaPrev = new Date(desde.getTime());
+
     const rango = { gte: desde, lte: hasta };
+
+    // Filtro común para excluir camiones averiados de cuentas operativas
+    const excluirAveriado = { estado: { not: 'AVERIADO' as const } };
 
     const [
       totalCamiones,
@@ -58,7 +66,7 @@ export class ReportesService {
       justificadasCount,
       topCausasRaw,
     ] = await Promise.all([
-      this.prisma.camion.count({ where: { horaLlegadaPlanificada: rango } }),
+      this.prisma.camion.count({ where: { horaLlegadaPlanificada: rango, ...excluirAveriado } }),
 
       this.prisma.camion.count({ where: { horaLlegadaPlanificada: rango, estado: 'DESPACHADO' } }),
 
@@ -94,7 +102,7 @@ export class ReportesService {
 
       this.prisma.camion.groupBy({
         by: ['tipo'],
-        where: { horaLlegadaPlanificada: { gte: desde, lte: hasta } },
+        where: { horaLlegadaPlanificada: { gte: desde, lte: hasta }, ...excluirAveriado },
         _count: { id: true },
       }),
 
@@ -114,7 +122,7 @@ export class ReportesService {
 
       this.prisma.camion.groupBy({
         by: ['estado'],
-        where: { horaLlegadaPlanificada: rango },
+        where: { horaLlegadaPlanificada: rango, ...excluirAveriado },
         _count: { id: true },
       }),
 
@@ -210,6 +218,15 @@ export class ReportesService {
         ? Math.round(Number(tiempoCicloRaw[0].promedio_minutos))
         : null;
 
+    // Métricas nuevas (rediseño 2026-05-06) — se ejecutan en paralelo
+    const [cumplimientoYOtif, productividad, tiempoTunel, comparativo, incidentesOperativos] = await Promise.all([
+      this.calcularCumplimientoYOtif(desde, hasta),
+      this.calcularProductividadOperadores(desde, hasta),
+      this.calcularTiempoTunel(desde, hasta),
+      this.calcularComparativoPeriodoAnterior(desdePrev, hastaPrev),
+      this.calcularIncidentesOperativos(desde, hasta),
+    ]);
+
     // Motor de medianas + IQR por edificio (últimos 30 días, sin justificados)
     const minutosPorEdificio: Record<string, number[]> = {};
     for (const row of atrasos30DiasRaw) {
@@ -286,6 +303,305 @@ export class ReportesService {
         presupuestoNacional:    presupuestoPorEdificio[edificio]?.nacional ?? null,
         presupuestoExportacion: presupuestoPorEdificio[edificio]?.exportacion ?? null,
       })),
+      // ─── Métricas nuevas (rediseño 2026-05-06) ──────────────────────────────
+      cumplimientoServicio: cumplimientoYOtif.cumplimientoServicio,
+      otif: cumplimientoYOtif.otif,
+      cumplimientoPorTipo: cumplimientoYOtif.cumplimientoPorTipo,
+      productividadOperadores: productividad,
+      tiempoPromedioTunelMinutos: tiempoTunel,
+      comparativoPeriodoAnterior: comparativo,
+      incidentesOperativos,
+    };
+  }
+
+  /**
+   * Cuenta los incidentes operativos del rango por (tipo, accion).
+   * En esta versión solo aparece AVERIA con sus dos acciones.
+   */
+  private async calcularIncidentesOperativos(desde: Date, hasta: Date) {
+    const filas = await this.prisma.incidenteCamion.groupBy({
+      by: ['tipo', 'accion'],
+      where: { timestamp: { gte: desde, lte: hasta } },
+      _count: { id: true },
+    });
+    const total = filas.reduce((s, f) => s + f._count.id, 0);
+    return {
+      total,
+      desglose: filas.map(f => ({
+        tipo: f.tipo,
+        accion: f.accion,
+        cantidad: f._count.id,
+        porcentaje: total > 0 ? Math.round((f._count.id / total) * 1000) / 10 : 0,
+      })),
+    };
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // Helpers métricas nuevas (rediseño 2026-05-06)
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  /**
+   * Calcula cumplimiento de servicio, OTIF y desglose por tipo de cliente.
+   *
+   * - cumplimientoServicio = Σ min(cargada, solicitada) / Σ solicitada (a nivel línea)
+   * - OTIF = camiones con (onTime AND inFull) / camiones con al menos una entrega
+   * - cumplimientoPorTipo = mismo cálculo agrupado por TipoCamion
+   *
+   * Universo OTIF: camiones con horaLlegadaPlanificada en [desde, hasta] que tienen
+   * al menos una Entrega registrada (sin entregas no podemos evaluar In-Full).
+   */
+  private async calcularCumplimientoYOtif(desde: Date, hasta: Date) {
+    const filas = await this.prisma.$queryRaw<Array<{
+      camionId: string;
+      tipo: string;
+      onTime: boolean | null;
+      itemId: string | null;
+      cantidadSolicitada: number | null;
+      cantidadCargada: number | null;
+    }>>(Prisma.sql`
+      SELECT
+        c.id AS "camionId",
+        c.tipo AS tipo,
+        CASE
+          WHEN c."horaSalidaReal" IS NOT NULL AND c."horaSalidaPlanificada" IS NOT NULL
+          THEN c."horaSalidaReal" <= c."horaSalidaPlanificada"
+          ELSE NULL
+        END AS "onTime",
+        ei.id AS "itemId",
+        ei."cantidadSolicitada" AS "cantidadSolicitada",
+        COALESCE((
+          SELECT SUM(pp.cantidad)
+          FROM pallets p
+          INNER JOIN productos_pallet pp ON pp."palletId" = p.id
+          WHERE p."entregaId" = e.id
+            AND pp."productoId" = ei."productoId"
+        ), 0) AS "cantidadCargada"
+      FROM camiones c
+      LEFT JOIN entregas e ON e."camionId" = c.id
+      LEFT JOIN entrega_items ei ON ei."entregaId" = e.id
+      WHERE c."horaLlegadaPlanificada" >= ${desde} AND c."horaLlegadaPlanificada" <= ${hasta}
+        AND c.estado != 'AVERIADO'
+    `);
+
+    type EstadoCamion = { tipo: string; onTime: boolean | null; solicitado: number; cargado: number; tieneEntregas: boolean };
+    const porCamion = new Map<string, EstadoCamion>();
+
+    for (const f of filas) {
+      let est = porCamion.get(f.camionId);
+      if (!est) {
+        est = { tipo: f.tipo, onTime: f.onTime, solicitado: 0, cargado: 0, tieneEntregas: false };
+        porCamion.set(f.camionId, est);
+      }
+      if (f.itemId && f.cantidadSolicitada != null) {
+        est.tieneEntregas = true;
+        est.solicitado += Number(f.cantidadSolicitada);
+        est.cargado += Math.min(Number(f.cantidadCargada ?? 0), Number(f.cantidadSolicitada));
+      }
+    }
+
+    let solicitadoTotal = 0;
+    let cargadoTotal = 0;
+    let camionesConEntregas = 0;
+    let camionesOtif = 0;
+
+    const porTipo: Record<string, { camiones: number; conEntregas: number; onTime: number; solicitado: number; cargado: number; otif: number }> = {};
+
+    for (const est of porCamion.values()) {
+      const t = porTipo[est.tipo] ??= { camiones: 0, conEntregas: 0, onTime: 0, solicitado: 0, cargado: 0, otif: 0 };
+      t.camiones += 1;
+
+      if (!est.tieneEntregas) continue;
+
+      camionesConEntregas += 1;
+      t.conEntregas += 1;
+      solicitadoTotal += est.solicitado;
+      cargadoTotal += est.cargado;
+      t.solicitado += est.solicitado;
+      t.cargado += est.cargado;
+
+      const inFull = est.solicitado > 0 && est.cargado >= est.solicitado;
+      const onTime = est.onTime === true;
+      if (onTime) t.onTime += 1;
+      if (onTime && inFull) {
+        camionesOtif += 1;
+        t.otif += 1;
+      }
+    }
+
+    const cumplimientoServicio = solicitadoTotal > 0
+      ? Math.round((cargadoTotal / solicitadoTotal) * 1000) / 10
+      : null;
+    const otif = camionesConEntregas > 0
+      ? Math.round((camionesOtif / camionesConEntregas) * 1000) / 10
+      : null;
+
+    const cumplimientoPorTipo = Object.entries(porTipo).map(([tipo, t]) => ({
+      tipo,
+      camiones: t.camiones,
+      onTime: t.conEntregas > 0 ? Math.round((t.onTime / t.conEntregas) * 1000) / 10 : null,
+      cumplimientoServicio: t.solicitado > 0 ? Math.round((t.cargado / t.solicitado) * 1000) / 10 : null,
+      otif: t.conEntregas > 0 ? Math.round((t.otif / t.conEntregas) * 1000) / 10 : null,
+    }));
+
+    return { cumplimientoServicio, otif, cumplimientoPorTipo, camionesConEntregas };
+  }
+
+  /**
+   * Productividad de operadores (pickineros y cargadores) en el rango.
+   *
+   * Pickinero: pallets que armó, tiempo promedio de armado (filtrado IQR), días activos.
+   * Cargador: pallets que cargó, camiones distintos atendidos, días activos.
+   * palletsPorTurno = palletsArmados/Cargados / diasActivos.
+   */
+  private async calcularProductividadOperadores(desde: Date, hasta: Date) {
+    const pickineros = await this.prisma.$queryRaw<Array<{
+      usuarioId: string;
+      nombre: string;
+      palletsArmados: bigint;
+      diasActivos: bigint;
+      tiempos: number[];
+    }>>(Prisma.sql`
+      SELECT
+        u.id AS "usuarioId",
+        u.nombre AS nombre,
+        COUNT(p.id) AS "palletsArmados",
+        COUNT(DISTINCT DATE(COALESCE(p."timestampFin", p."timestampInicio"))) AS "diasActivos",
+        ARRAY_AGG(p."tiempoArmadoSegundos") FILTER (WHERE p."tiempoArmadoSegundos" IS NOT NULL) AS tiempos
+      FROM usuarios u
+      INNER JOIN pallets p ON p."pickineroId" = u.id
+      WHERE p."timestampInicio" >= ${desde} AND p."timestampInicio" <= ${hasta}
+      GROUP BY u.id, u.nombre
+      ORDER BY "palletsArmados" DESC
+    `);
+
+    const cargadores = await this.prisma.$queryRaw<Array<{
+      usuarioId: string;
+      nombre: string;
+      palletsCargados: bigint;
+      camionesAtendidos: bigint;
+      diasActivos: bigint;
+    }>>(Prisma.sql`
+      SELECT
+        u.id AS "usuarioId",
+        u.nombre AS nombre,
+        COUNT(p.id) AS "palletsCargados",
+        COUNT(DISTINCT e."camionId") AS "camionesAtendidos",
+        COUNT(DISTINCT DATE(p."timestampFin")) AS "diasActivos"
+      FROM usuarios u
+      INNER JOIN pallets p ON p."cargadorId" = u.id
+      LEFT JOIN entregas e ON e.id = p."entregaId"
+      WHERE p."timestampFin" IS NOT NULL
+        AND p."timestampFin" >= ${desde} AND p."timestampFin" <= ${hasta}
+      GROUP BY u.id, u.nombre
+      ORDER BY "palletsCargados" DESC
+    `);
+
+    return {
+      pickineros: pickineros.map(p => {
+        const tiempos = (p.tiempos ?? []).map(Number).filter(n => Number.isFinite(n));
+        const limpios = filtrarOutliers(tiempos);
+        const promedio = limpios.length > 0
+          ? Math.round(limpios.reduce((s, v) => s + v, 0) / limpios.length)
+          : null;
+        const palletsArmados = Number(p.palletsArmados);
+        const diasActivos = Number(p.diasActivos);
+        return {
+          usuarioId: p.usuarioId,
+          nombre: p.nombre,
+          palletsArmados,
+          tiempoPromedioSegundos: promedio,
+          diasActivos,
+          palletsPorTurno: diasActivos > 0 ? Math.round((palletsArmados / diasActivos) * 10) / 10 : 0,
+        };
+      }),
+      cargadores: cargadores.map(c => {
+        const palletsCargados = Number(c.palletsCargados);
+        const diasActivos = Number(c.diasActivos);
+        return {
+          usuarioId: c.usuarioId,
+          nombre: c.nombre,
+          palletsCargados,
+          camionesAtendidos: Number(c.camionesAtendidos),
+          diasActivos,
+          palletsPorTurno: diasActivos > 0 ? Math.round((palletsCargados / diasActivos) * 10) / 10 : 0,
+        };
+      }),
+    };
+  }
+
+  /**
+   * Tiempo promedio que los camiones de exportación pasan en el túnel de frío.
+   * Se deriva de EventoCamion: diferencia entre el primer evento EN_TUNEL_FRIO
+   * y el siguiente cambio de estado, por camión.
+   */
+  private async calcularTiempoTunel(desde: Date, hasta: Date): Promise<number | null> {
+    const filas = await this.prisma.$queryRaw<Array<{ promedio_minutos: number | null }>>(Prisma.sql`
+      WITH eventos_ordenados AS (
+        SELECT
+          ec."camionId",
+          ec.estado,
+          ec.timestamp,
+          LEAD(ec.timestamp) OVER (PARTITION BY ec."camionId" ORDER BY ec.timestamp) AS proximo_timestamp,
+          LEAD(ec.estado)    OVER (PARTITION BY ec."camionId" ORDER BY ec.timestamp) AS proximo_estado
+        FROM eventos_camion ec
+        INNER JOIN camiones c ON c.id = ec."camionId"
+        WHERE c."horaLlegadaPlanificada" >= ${desde}
+          AND c."horaLlegadaPlanificada" <= ${hasta}
+      )
+      SELECT AVG(EXTRACT(EPOCH FROM (proximo_timestamp - timestamp)) / 60) AS promedio_minutos
+      FROM eventos_ordenados
+      WHERE estado = 'EN_TUNEL_FRIO'
+        AND proximo_timestamp IS NOT NULL
+        AND proximo_estado != 'AVERIADO'
+    `);
+    const v = filas[0]?.promedio_minutos;
+    return v != null ? Math.round(Number(v)) : null;
+  }
+
+  /**
+   * Calcula los KPIs principales para el período inmediatamente anterior del
+   * mismo largo, para alimentar deltas en las cards.
+   */
+  private async calcularComparativoPeriodoAnterior(desde: Date, hasta: Date) {
+    const rango = { gte: desde, lte: hasta };
+    const excluirAveriado = { estado: { not: 'AVERIADO' as const } };
+
+    const [totalCamiones, despachados, atrasadosRaw, tiempoCicloRaw, cumpl] = await Promise.all([
+      this.prisma.camion.count({ where: { horaLlegadaPlanificada: rango, ...excluirAveriado } }),
+
+      this.prisma.camion.count({ where: { horaLlegadaPlanificada: rango, estado: 'DESPACHADO' } }),
+
+      this.prisma.$queryRaw<[{ count: bigint }]>(Prisma.sql`
+        SELECT COUNT(*) AS count FROM camiones
+        WHERE "horaLlegadaPlanificada" >= ${desde} AND "horaLlegadaPlanificada" <= ${hasta}
+        AND estado = 'DESPACHADO'
+        AND "horaSalidaReal" IS NOT NULL AND "horaSalidaPlanificada" IS NOT NULL
+        AND "horaSalidaReal" > "horaSalidaPlanificada"
+      `).then(r => Number(r[0].count)),
+
+      this.prisma.$queryRaw<Array<{ promedio_minutos: number | null }>>(Prisma.sql`
+        SELECT AVG(EXTRACT(EPOCH FROM ("horaSalidaReal" - "horaLlegadaReal")) / 60) AS promedio_minutos
+        FROM camiones
+        WHERE estado = 'DESPACHADO'
+          AND "horaLlegadaReal" IS NOT NULL AND "horaSalidaReal" IS NOT NULL
+          AND "horaLlegadaPlanificada" >= ${desde} AND "horaLlegadaPlanificada" <= ${hasta}
+      `),
+
+      this.calcularCumplimientoYOtif(desde, hasta),
+    ]);
+
+    const tiempoCiclo = tiempoCicloRaw[0]?.promedio_minutos != null
+      ? Math.round(Number(tiempoCicloRaw[0].promedio_minutos))
+      : null;
+
+    return {
+      totalCamiones,
+      despachados,
+      atrasados: atrasadosRaw,
+      tiempoCicloPromedioMinutos: tiempoCiclo,
+      cumplimientoServicio: cumpl.cumplimientoServicio,
+      otif: cumpl.otif,
+      camionesConEntregas: cumpl.camionesConEntregas,
     };
   }
 }

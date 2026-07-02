@@ -27,55 +27,103 @@ export class PalletsController {
     return this.palletsService.obtenerPorId(id);
   }
 
+  /**
+   * Crear pallet (acción de PICKING).
+   * Permitido para: PICKINERO; CARGADOR polivalente; roles de gestión.
+   */
   @Post()
-  @Roles('PICKINERO', 'JEFE_DESPACHO', 'SUPERVISOR', 'COORDINADOR')
+  @Roles('PICKINERO', 'CARGADOR', 'JEFE_DESPACHO', 'SUPERVISOR', 'COORDINADOR')
   crear(
     @Body() dto: CrearPalletDto,
-    @UsuarioActual('id') usuarioId: string,
+    @UsuarioActual() usuario: { id: string; rol: string; polivalente?: boolean },
   ) {
-    return this.palletsService.crear(dto, usuarioId);
+    validarPuedePickear(usuario);
+    return this.palletsService.crear(dto, usuario.id);
   }
 
   @Post(':id/productos')
-  @Roles('PICKINERO', 'JEFE_DESPACHO', 'SUPERVISOR', 'COORDINADOR')
+  @Roles('PICKINERO', 'CARGADOR', 'JEFE_DESPACHO', 'SUPERVISOR', 'COORDINADOR')
   agregarProducto(
     @Param('id') palletId: string,
     @Body() dto: AgregarProductoDto,
+    @UsuarioActual() usuario: { id: string; rol: string; polivalente?: boolean },
   ) {
+    validarPuedePickear(usuario);
     return this.palletsService.agregarProducto(palletId, dto);
   }
 
   @Patch(':id/items/:productoId')
-  @Roles('PICKINERO', 'JEFE_DESPACHO', 'SUPERVISOR', 'COORDINADOR')
+  @Roles('PICKINERO', 'CARGADOR', 'JEFE_DESPACHO', 'SUPERVISOR', 'COORDINADOR')
   setItemPallet(
     @Param('id') palletId: string,
     @Param('productoId') productoId: string,
     @Body() body: { cantidad: number },
+    @UsuarioActual() usuario: { id: string; rol: string; polivalente?: boolean },
   ) {
+    validarPuedePickear(usuario);
     return this.palletsService.setItemPallet(palletId, productoId, body.cantidad);
   }
 
   @Post(':id/cerrar-y-crear-nuevo')
-  @Roles('PICKINERO', 'JEFE_DESPACHO', 'SUPERVISOR', 'COORDINADOR')
+  @Roles('PICKINERO', 'CARGADOR', 'JEFE_DESPACHO', 'SUPERVISOR', 'COORDINADOR')
   cerrarYCrearNuevo(
     @Param('id') palletId: string,
-    @UsuarioActual('id') usuarioId: string,
+    @UsuarioActual() usuario: { id: string; rol: string; polivalente?: boolean },
   ) {
-    return this.palletsService.cerrarYCrearNuevo(palletId, usuarioId);
+    validarPuedePickear(usuario);
+    return this.palletsService.cerrarYCrearNuevo(palletId, usuario.id);
   }
 
+  /**
+   * Cambia el estado del pallet. Valida:
+   *  - ARMADO  → solo el pickinero que lo creó (o polivalente que cumpla); también jefes.
+   *  - CARGADO → CARGADOR; PICKINERO polivalente; también jefes.
+   *  - VERIFICADO → solo gestión (JEFE_DESPACHO/SUPERVISOR/COORDINADOR).
+   */
   @Patch(':id/estado')
   @Roles('PICKINERO', 'CARGADOR', 'JEFE_DESPACHO', 'SUPERVISOR', 'COORDINADOR')
   cambiarEstado(
     @Param('id') id: string,
     @Body() dto: CambiarEstadoPalletDto,
-    @UsuarioActual('id') usuarioId: string,
-    @UsuarioActual('rol') rol: string,
+    @UsuarioActual() usuario: { id: string; rol: string; polivalente?: boolean },
   ) {
-    // VERIFICADO solo para JEFE_DESPACHO, SUPERVISOR y COORDINADOR
-    if (dto.estado === 'VERIFICADO' && !['JEFE_DESPACHO', 'SUPERVISOR', 'COORDINADOR'].includes(rol)) {
-      throw new ForbiddenException('Solo Jefe de Despacho, Supervisor o Coordinador pueden verificar pallets');
+    if (dto.estado === 'VERIFICADO') {
+      if (!ROLES_GESTION.includes(usuario.rol)) {
+        throw new ForbiddenException('Solo Jefe de Despacho, Supervisor o Coordinador pueden verificar pallets');
+      }
+    } else if (dto.estado === 'ARMADO') {
+      if (!puedePickear(usuario)) {
+        throw new ForbiddenException('Solo PICKINERO (o CARGADOR polivalente) puede cerrar un pallet armado');
+      }
+    } else if (dto.estado === 'CARGADO') {
+      if (!puedeCargar(usuario)) {
+        throw new ForbiddenException('Solo CARGADOR (o PICKINERO polivalente) puede marcar un pallet como cargado');
+      }
     }
-    return this.palletsService.cambiarEstado(id, dto.estado, usuarioId);
+    return this.palletsService.cambiarEstado(id, dto.estado, usuario.id);
+  }
+}
+
+// ─── Helpers de autorización ────────────────────────────────────────────────
+
+const ROLES_GESTION = ['JEFE_DESPACHO', 'SUPERVISOR', 'COORDINADOR'];
+
+function puedePickear(usuario: { rol: string; polivalente?: boolean }): boolean {
+  if (ROLES_GESTION.includes(usuario.rol)) return true;
+  if (usuario.rol === 'PICKINERO') return true;
+  if (usuario.rol === 'CARGADOR' && usuario.polivalente) return true;
+  return false;
+}
+
+function puedeCargar(usuario: { rol: string; polivalente?: boolean }): boolean {
+  if (ROLES_GESTION.includes(usuario.rol)) return true;
+  if (usuario.rol === 'CARGADOR') return true;
+  if (usuario.rol === 'PICKINERO' && usuario.polivalente) return true;
+  return false;
+}
+
+function validarPuedePickear(usuario: { rol: string; polivalente?: boolean }) {
+  if (!puedePickear(usuario)) {
+    throw new ForbiddenException('Solo PICKINERO (o CARGADOR polivalente) puede armar pallets');
   }
 }

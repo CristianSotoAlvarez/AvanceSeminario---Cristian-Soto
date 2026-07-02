@@ -1,19 +1,34 @@
 {
   "permissions": {
     "allow": [
-      "Bash(bash \"C:\\\\Users\\\\crist\\\\.claude\\\\plugins\\\\cache\\\\claude-plugins-official\\\\superpowers\\\\5.0.5\\\\skills\\\\brainstorming\\\\scripts\\\\start-server.sh\" --project-dir \"C:\\\\Users\\\\crist\\\\Desktop\\\\Sem_Titulo\")",
-      "WebSearch",
-      "Bash(node:*)",
-      "Bash(git init:*)",
-      "Bash(npx turbo:*)",
-      "Bash(git add:*)",
-      "Bash(git commit:*)",
-      "Bash(npx nest:*)",
-      "Bash(npx prisma:*)",
-      "Bash(docker compose:*)",
-      "Bash(npx tsc:*)",
-      "Bash(gh auth:*)",
-      "Bash(where gh:*)"
+      "PowerShell(Get-Process node -ErrorAction SilentlyContinue)",
+      "PowerShell(Stop-Process -Force)",
+      "PowerShell(Get-Process nest -ErrorAction SilentlyContinue)",
+      "PowerShell(Get-Process node,nest -ErrorAction SilentlyContinue)",
+      "PowerShell(taskkill /F /IM node.exe /T 2>&1 | Out-Null; Start-Sleep -Seconds 2; \\(Get-Process node -ErrorAction SilentlyContinue | Measure-Object\\).Count)",
+      "Bash(shopt -s dotglob)",
+      "Bash(mv * /c/Users/crist/Desktop/Sem_Titulo/)",
+      "Bash(cp -r /c/Users/crist/Desktop/_sem_titulo_new/.claude/skills /c/Users/crist/Desktop/Sem_Titulo/.claude/)",
+      "Bash(cp /c/Users/crist/Desktop/_sem_titulo_new/.claude/settings.local.json /c/Users/crist/Desktop/Sem_Titulo/.claude/settings.local.json.from-repo)",
+      "Bash(npx prisma *)",
+      "Bash(PRISMA_USER_CONSENT_FOR_DANGEROUS_AI_ACTION=\"si\" npx prisma migrate reset --force --skip-seed)",
+      "Bash(curl -s -o /dev/null -w \"API: %{http_code}\\\\n\" http://localhost:3001/api/v1/health)",
+      "Bash(curl -s -o /dev/null -w \"WEB: %{http_code}\\\\n\" http://localhost:3000)",
+      "Bash(npx tsc *)",
+      "Bash(echo \"EXIT=$?\")",
+      "Bash(echo \"API_EXIT=$?\")",
+      "Bash(cat /tmp/camiones.json | head -c 2000)",
+      "Read(//tmp/**)",
+      "Bash(docker exec *)",
+      "Bash(curl -s -X POST http://localhost:3001/api/v1/auth/login -H \"Content-Type: application/json\" -d '{\"identificador\":\"jefe@dispatch.cl\",\"password\":\"clave123\"}' -w \"\\\\nStatus: %{http_code}\\\\n\")",
+      "Bash(curl -s -o /dev/null -w \"Login page: %{http_code}\\\\n\" http://localhost:3000/login)",
+      "Bash(curl -s -o /dev/null -w \"Andenes: %{http_code}\\\\n\" http://localhost:3000/andenes)",
+      "Bash(mkdir -p /c/Users/crist/Desktop/Sem_Titulo/docs/informe && echo \"ok\")",
+      "Bash(echo \"API tsc EXIT=$?\")",
+      "Bash(git add:*)"
+    ],
+    "additionalDirectories": [
+      "C:\\Users\\crist\\Desktop\\Sem_Titulo\\docs"
     ]
   }
 }

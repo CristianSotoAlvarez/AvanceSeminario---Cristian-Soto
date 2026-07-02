@@ -60,10 +60,12 @@ export class AuthService {
   }
 
   /** Genera par de tokens (access + refresh) */
-  private generarTokens(usuario: { id: string; nombre: string; email: string; rol: string; edificioId: string | null }) {
+  private generarTokens(usuario: { id: string; nombre: string; email: string; rol: string; polivalente?: boolean; edificioId: string | null }) {
+    const polivalente = usuario.polivalente ?? false;
     const payload = {
       sub: usuario.id,
       rol: usuario.rol,
+      polivalente,
       edificioId: usuario.edificioId,
     };
 
@@ -85,6 +87,7 @@ export class AuthService {
         nombre: usuario.nombre,
         email: usuario.email,
         rol: usuario.rol,
+        polivalente,
         edificioId: usuario.edificioId,
       },
     };

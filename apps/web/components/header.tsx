@@ -16,6 +16,7 @@ const etiquetasRol: Record<string, string> = {
   SUPERVISOR: "Supervisor",
   OPERADOR_TUNEL: "Operador Túnel",
   SAG: "Inspector SAG",
+  PORTERO: "Portería",
 };
 
 function BusquedaGlobal() {
@@ -210,9 +211,19 @@ export function Header({ title }: HeaderProps) {
               <p className="font-display text-xs font-semibold text-text-primary leading-tight">
                 {usuario.nombre}
               </p>
-              <p className="font-display text-[10px] text-text-muted leading-tight">
-                {etiquetasRol[usuario.rol] || usuario.rol}
-              </p>
+              <div className="flex items-center gap-1.5 justify-end">
+                <span className="font-display text-[10px] text-text-muted leading-tight">
+                  {etiquetasRol[usuario.rol] || usuario.rol}
+                </span>
+                {usuario.polivalente && (
+                  <span
+                    title="Operador polivalente: puede armar y cargar"
+                    className="font-display text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-purple-100 text-purple-700 border border-purple-200"
+                  >
+                    Polivalente
+                  </span>
+                )}
+              </div>
             </div>
             <button
               onClick={manejarLogout}

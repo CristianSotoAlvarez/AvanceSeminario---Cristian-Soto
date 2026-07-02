@@ -195,11 +195,17 @@ export default function PickingPage() {
           <div className="w-14 h-14 rounded-2xl bg-bg-elevated flex items-center justify-center">
             <Package size={24} className="text-text-muted opacity-40" />
           </div>
-          <div className="text-center">
-            <p className="font-display text-sm font-semibold text-text-primary">Sin pallets en armado</p>
+          <div className="text-center max-w-md">
+            <p className="font-display text-sm font-semibold text-text-primary">No hay pallets pendientes</p>
             <p className="font-display text-xs text-text-muted mt-1">
-              Los pallets nuevos aparecerán aquí automáticamente
+              Aparecerán aquí cuando un camión nuevo llegue a planta y tenga entregas asignadas. Volvé en unos minutos o usá el escáner QR si recibiste un pallet directo.
             </p>
+            <button
+              onClick={() => recargar()}
+              className="mt-4 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-bg-elevated text-text-muted hover:text-text-primary hover:border-accent/40 transition-colors text-xs font-display cursor-pointer"
+            >
+              <RefreshCw size={12} /> Actualizar
+            </button>
           </div>
         </div>
       ) : (

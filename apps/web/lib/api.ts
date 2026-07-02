@@ -89,6 +89,7 @@ export interface UsuarioAuth {
   nombre: string;
   email: string;
   rol: string;
+  polivalente?: boolean;
   edificioId: string | null;
 }
 
@@ -170,6 +171,9 @@ export interface Camion {
   horaSalidaPlanificada: string | null;
   horaLlegadaReal: string | null;
   horaSalidaReal: string | null;
+  enReparacion?: boolean;
+  reparacionDesde?: string | null;
+  reemplazadoPorId?: string | null;
   creadoEn: string;
   paradas: ParadaExpedicion[];
 }
@@ -235,6 +239,78 @@ export interface CamionDetalle extends Camion {
   entregas: EntregaResumen[];
 }
 
+export type TipoIncidente = 'AVERIA' | 'FALTA_PRODUCTO' | 'CAMBIO_ANDEN' | 'REPROGRAMACION';
+export type AccionIncidente = 'ESPERAR_REPARACION' | 'SUSTITUIR' | 'REGISTRAR_FALTANTE' | 'REASIGNAR_ANDEN' | 'REPROGRAMAR';
+
+export interface RegistrarIncidentePayload {
+  tipo: TipoIncidente;
+  accion: AccionIncidente;
+  descripcion: string;
+  patenteNueva?: string;
+  numeroTransporteNuevo?: string;
+}
+
+export async function registrarIncidenteApi(camionId: string, datos: RegistrarIncidentePayload): Promise<CamionDetalle> {
+  return fetchApi<CamionDetalle>(`/camiones/${camionId}/incidente`, {
+    method: 'POST',
+    body: JSON.stringify(datos),
+  });
+}
+
+export async function marcarReparadoApi(camionId: string): Promise<CamionDetalle> {
+  return fetchApi<CamionDetalle>(`/camiones/${camionId}/marcar-reparado`, {
+    method: 'POST',
+  });
+}
+
+// =====================
+// Portería
+// =====================
+
+export interface CamionPorteria {
+  id: string;
+  patente: string;
+  numeroTransporte: string | null;
+  tipo: string;
+  estado: string;
+  horaLlegadaPlanificada: string;
+  horaLlegadaReal: string | null;
+  horaSalidaPlanificada: string | null;
+  cliente: { nombre: string; pais: string | null } | null;
+  pedido: { numero: string; cliente: { nombre: string } } | null;
+  anden: { codigo: string } | null;
+}
+
+/** Llamada pública (sin auth) para validar token y obtener info del camión. */
+export async function obtenerPorteriaPorTokenApi(token: string): Promise<CamionPorteria> {
+  const respuesta = await fetch(`${API_URL}/porteria/qr/${token}`);
+  if (!respuesta.ok) {
+    const error = await respuesta.json().catch(() => ({ message: 'Error en la petición' }));
+    throw new ApiError(respuesta.status, error.message ?? 'QR no válido');
+  }
+  return respuesta.json();
+}
+
+/** Llamada pública (sin auth) para confirmar la llegada vía token. */
+export async function confirmarPorteriaPorTokenApi(token: string): Promise<CamionPorteria> {
+  const respuesta = await fetch(`${API_URL}/porteria/qr/${token}/confirmar`, { method: 'POST' });
+  if (!respuesta.ok) {
+    const error = await respuesta.json().catch(() => ({ message: 'Error en la petición' }));
+    throw new ApiError(respuesta.status, error.message ?? 'Error al confirmar');
+  }
+  return respuesta.json();
+}
+
+/** Lista camiones planificados de hoy (autenticado, rol PORTERO+). */
+export async function listarCamionesHoyApi(): Promise<CamionPorteria[]> {
+  return fetchApi<CamionPorteria[]>('/porteria/camiones-hoy');
+}
+
+/** Confirma llegada por ID desde la pantalla autenticada. */
+export async function confirmarLlegadaPorIdApi(camionId: string): Promise<CamionPorteria> {
+  return fetchApi<CamionPorteria>(`/porteria/camion/${camionId}/confirmar`, { method: 'POST' });
+}
+
 export async function obtenerCamionApi(id: string): Promise<CamionDetalle> {
   return fetchApi<CamionDetalle>(`/camiones/${id}`);
 }
@@ -276,12 +352,27 @@ export interface Anden {
   id: string;
   codigo: string;
   ocupado: boolean;
+  fueraDeServicio: boolean;
+  motivoFueraServicio: string | null;
+  fueraServicioDesde: string | null;
+  fueraServicioPor: { nombre: string } | null;
   edificio: { id: string; nombre: string; tipo: string };
   camiones: Camion[];
 }
 
 export async function listarAndenesApi(): Promise<Anden[]> {
   return fetchApi<Anden[]>('/andenes');
+}
+
+export async function marcarAndenFueraServicioApi(id: string, motivo: string): Promise<Anden> {
+  return fetchApi<Anden>(`/andenes/${id}/fuera-servicio`, {
+    method: 'PATCH',
+    body: JSON.stringify({ motivo }),
+  });
+}
+
+export async function reactivarAndenApi(id: string): Promise<Anden> {
+  return fetchApi<Anden>(`/andenes/${id}/reactivar`, { method: 'PATCH' });
 }
 
 // =====================
@@ -333,6 +424,53 @@ export interface ResumenReportes {
     presupuestoNacional: number | null;
     presupuestoExportacion: number | null;
   }[];
+  // Métricas nuevas (rediseño 2026-05-06)
+  cumplimientoServicio: number | null;
+  otif: number | null;
+  cumplimientoPorTipo: {
+    tipo: string;
+    camiones: number;
+    onTime: number | null;
+    cumplimientoServicio: number | null;
+    otif: number | null;
+  }[];
+  productividadOperadores: {
+    pickineros: {
+      usuarioId: string;
+      nombre: string;
+      palletsArmados: number;
+      tiempoPromedioSegundos: number | null;
+      diasActivos: number;
+      palletsPorTurno: number;
+    }[];
+    cargadores: {
+      usuarioId: string;
+      nombre: string;
+      palletsCargados: number;
+      camionesAtendidos: number;
+      diasActivos: number;
+      palletsPorTurno: number;
+    }[];
+  };
+  tiempoPromedioTunelMinutos: number | null;
+  comparativoPeriodoAnterior: {
+    totalCamiones: number;
+    despachados: number;
+    atrasados: number;
+    tiempoCicloPromedioMinutos: number | null;
+    cumplimientoServicio: number | null;
+    otif: number | null;
+    camionesConEntregas: number;
+  };
+  incidentesOperativos: {
+    total: number;
+    desglose: {
+      tipo: TipoIncidente;
+      accion: AccionIncidente;
+      cantidad: number;
+      porcentaje: number;
+    }[];
+  };
 }
 
 export async function obtenerResumenReportesApi(params?: {

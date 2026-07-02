@@ -12,6 +12,7 @@ export const etiquetasEstado: Record<string, string> = {
   RECHAZADO_SAG: "RECHAZADO SAG",
   LISTO: "LISTO",
   DESPACHADO: "DESPACHADO",
+  AVERIADO: "AVERIADO",
 };
 
 /** Etiquetas legibles para tipos de camión */

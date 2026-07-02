@@ -223,13 +223,13 @@ export default function CargaPage() {
         </div>
       ) : totalPallets === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 gap-4 bg-bg-surface border border-bg-elevated rounded-xl">
-          <div className="w-14 h-14 rounded-2xl bg-bg-elevated flex items-center justify-center">
-            <CheckCircle2 size={24} className="text-[#16A34A] opacity-60" />
+          <div className="w-14 h-14 rounded-2xl bg-green-50 flex items-center justify-center">
+            <CheckCircle2 size={24} className="text-[#16A34A]" />
           </div>
-          <div className="text-center">
-            <p className="font-display text-sm font-semibold text-text-primary">Todo al día</p>
+          <div className="text-center max-w-md">
+            <p className="font-display text-sm font-semibold text-text-primary">¡Todo al día!</p>
             <p className="font-display text-xs text-text-muted mt-1">
-              No hay pallets armados pendientes de carga
+              No hay pallets armados pendientes de carga. Cuando los pickineros terminen de armar pallets nuevos, aparecerán acá automáticamente.
             </p>
           </div>
         </div>

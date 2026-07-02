@@ -59,11 +59,16 @@ async function main() {
     { nombre: 'Carlos Jefe', rut: '11.111.111-1', email: 'jefe@dispatch.cl', rol: RolUsuario.JEFE_DESPACHO, edificioId: null },
     { nombre: 'Ana Coordinadora Transporte', rut: '22.222.222-2', email: 'coord.transporte@dispatch.cl', rol: RolUsuario.COORDINADOR_TRANSPORTE, edificioId: null },
     { nombre: 'Pedro Coordinador', rut: '33.333.333-3', email: 'coordinador@dispatch.cl', rol: RolUsuario.COORDINADOR, edificioId: null },
-    { nombre: 'Luis Pickinero', rut: '44.444.444-4', email: 'pickinero@dispatch.cl', rol: RolUsuario.PICKINERO, edificioId: aves.id },
-    { nombre: 'María Cargadora', rut: '55.555.555-5', email: 'cargador@dispatch.cl', rol: RolUsuario.CARGADOR, edificioId: aves.id },
+    { nombre: 'Luis Pickinero', rut: '44.444.444-4', email: 'pickinero@dispatch.cl', rol: RolUsuario.PICKINERO, edificioId: aves.id, polivalente: false },
+    { nombre: 'María Cargadora', rut: '55.555.555-5', email: 'cargador@dispatch.cl', rol: RolUsuario.CARGADOR, edificioId: aves.id, polivalente: false },
     { nombre: 'Jorge Supervisor', rut: '66.666.666-6', email: 'supervisor@dispatch.cl', rol: RolUsuario.SUPERVISOR, edificioId: aves.id },
     { nombre: 'Roberto Operador Túnel', rut: '77.777.777-7', email: 'tunel@dispatch.cl', rol: RolUsuario.OPERADOR_TUNEL, edificioId: frigorifico.id },
     { nombre: 'Inspector García (SAG)', rut: '88.888.888-8', email: 'sag@dispatch.cl', rol: RolUsuario.SAG, edificioId: null },
+    { nombre: 'Portería (cuenta compartida)', rut: '99.999.999-9', email: 'porteria@dispatch.cl', rol: RolUsuario.PORTERO, edificioId: null },
+    // Operador polivalente: PICKINERO con capacidad de cargar
+    { nombre: 'Tomás Polivalente (P)', rut: '10.111.111-1', email: 'tomas.pickinero@dispatch.cl', rol: RolUsuario.PICKINERO, edificioId: cerdo.id, polivalente: true },
+    // Operador polivalente: CARGADOR con capacidad de armar
+    { nombre: 'Camila Polivalente (C)', rut: '10.222.222-2', email: 'camila.cargador@dispatch.cl', rol: RolUsuario.CARGADOR, edificioId: cerdo.id, polivalente: true },
   ];
 
   for (const usuario of usuariosData) {
@@ -74,7 +79,7 @@ async function main() {
     });
   }
 
-  console.log('✅ 8 usuarios de prueba creados (contraseña: clave123)');
+  console.log(`✅ ${usuariosData.length} usuarios de prueba creados (contraseña: clave123)`);
 
   // --- Clientes ---
   type ClienteSeed = { nombre: string; rut?: string; codigo: string; tipoDestino: TipoCamion; pais?: string };

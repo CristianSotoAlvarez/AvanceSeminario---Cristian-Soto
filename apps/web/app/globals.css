@@ -81,8 +81,20 @@ body {
   * { box-shadow: none !important; }
   /* Ajustar colores para impresión */
   .bg-bg-surface { background: white !important; }
+  .border-bg-elevated { border-color: #e2e8f0 !important; }
   /* Saltos de página limpios */
-  section, .page-break { page-break-inside: avoid; }
+  section, .page-break, .print-avoid-break { page-break-inside: avoid; }
+  /* Bordes más definidos para tablas */
+  table { border-collapse: collapse; }
+  table th, table td { border: 1px solid #cbd5e1 !important; padding: 4px 8px !important; }
+  /* Tipografía más legible al imprimir */
+  body { font-size: 11pt !important; }
   /* Título del documento */
-  @page { margin: 1.5cm; }
+  @page { margin: 1.5cm; size: A4; }
+  /* Forzar colores de KPIs */
+  .font-data { color: #0f172a !important; }
+  /* Ocultar botones de acción */
+  button { display: none !important; }
+  /* Eliminar gradientes y backgrounds decorativos */
+  .bg-bg-elevated { background: white !important; }
 }

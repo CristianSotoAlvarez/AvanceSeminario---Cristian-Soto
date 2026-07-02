@@ -83,8 +83,17 @@ export default function OperativoLayout({
 
   if (!usuario || !ROLES_OPERATIVO.includes(usuario.rol)) return null;
 
-  // Filtrar ítems según rol del usuario
-  const itemsVisibles = ITEMS_NAV.filter(item => item.roles.includes(usuario.rol));
+  // Filtrar ítems según rol del usuario, con soporte de polivalencia
+  // (un PICKINERO polivalente también ve Carga, y viceversa).
+  const polivalente = usuario.polivalente ?? false;
+  const itemsVisibles = ITEMS_NAV.filter(item => {
+    if (item.roles.includes(usuario.rol)) return true;
+    if (polivalente) {
+      if (usuario.rol === "PICKINERO" && item.href === "/carga") return true;
+      if (usuario.rol === "CARGADOR" && item.href === "/picking") return true;
+    }
+    return false;
+  });
 
   const titulo = TITULOS_RUTA[pathname] ?? "Operativo";
 

@@ -1,0 +1,346 @@
+// =====================================================================
+//  DispatchTrack — Modelo Entidad-Relación (DBML para dbdiagram.io)
+//  Generado a partir de apps/api/src/prisma/schema.prisma
+//  Pegar en https://dbdiagram.io  (menú: Import > pegar / o editor directo)
+// =====================================================================
+
+// ---------- Enumeraciones ----------
+
+Enum rol_usuario {
+  COORDINADOR_TRANSPORTE
+  COORDINADOR
+  PICKINERO
+  CARGADOR
+  SUPERVISOR
+  OPERADOR_TUNEL
+  JEFE_DESPACHO
+  SAG
+  PORTERO
+}
+
+Enum tipo_edificio {
+  AVES
+  CERDO
+  FRIGORIFICO
+}
+
+Enum estado_camion {
+  ESPERADO
+  EN_PORTERIA
+  ASIGNADO
+  EN_CARGA
+  EN_TUNEL_FRIO
+  ESPERANDO_SAG
+  APROBADO_SAG
+  RECHAZADO_SAG
+  LISTO
+  DESPACHADO
+  AVERIADO
+}
+
+Enum tipo_camion {
+  NACIONAL
+  EXPORTACION
+  INTERPLANTA
+}
+
+Enum tipo_incidente {
+  AVERIA
+  FALTA_PRODUCTO
+  CAMBIO_ANDEN
+  REPROGRAMACION
+}
+
+Enum accion_incidente {
+  ESPERAR_REPARACION
+  SUSTITUIR
+  REGISTRAR_FALTANTE
+  REASIGNAR_ANDEN
+  REPROGRAMAR
+}
+
+Enum estado_inspeccion {
+  PENDIENTE
+  APROBADO
+  RECHAZADO
+}
+
+Enum estado_pallet {
+  EN_ARMADO
+  ARMADO
+  CARGADO
+  VERIFICADO
+}
+
+Enum estado_parada {
+  PENDIENTE
+  EN_PROCESO
+  COMPLETADO
+}
+
+Enum causa_justificacion {
+  FALLA_ANDEN
+  FALLA_MECANICA
+  FALTA_PERSONAL
+  FALTA_PRODUCTO
+  VOLUMEN_EXCESIVO
+  PROBLEMA_CALIDAD
+  OTRO
+}
+
+// ---------- Capa: Acceso / Actores ----------
+
+Table Usuario {
+  id           varchar [pk]
+  nombre       varchar [not null]
+  rut          varchar [unique, not null]
+  email        varchar [unique, not null]
+  passwordHash varchar [not null]
+  rol          rol_usuario [not null]
+  polivalente  boolean [not null, default: false, note: 'Pickinero que también carga, o viceversa']
+  edificioId   varchar [ref: > Edificio.id]
+  activo       boolean [not null, default: true]
+  creadoEn     timestamp
+}
+
+// ---------- Capa: Comercial ----------
+
+Table Cliente {
+  id          varchar [pk]
+  nombre      varchar [not null]
+  rut         varchar [unique]
+  codigo      varchar [unique]
+  tipoDestino tipo_camion [not null]
+  pais        varchar [note: 'Solo exportación']
+  activo      boolean [not null, default: true]
+}
+
+Table Pedido {
+  id           varchar [pk]
+  numero       varchar [unique, not null]
+  clienteId    varchar [not null, ref: > Cliente.id]
+  totalPallets int
+  totalBultos  int
+  fechaEntrega timestamp
+}
+
+// ---------- Capa: Infraestructura física ----------
+
+Table Edificio {
+  id     varchar [pk]
+  nombre varchar [not null]
+  tipo   tipo_edificio [unique, not null]
+}
+
+Table Anden {
+  id                  varchar [pk]
+  codigo              varchar [unique, not null]
+  edificioId          varchar [not null, ref: > Edificio.id]
+  ocupado             boolean [not null, default: false]
+  fueraDeServicio     boolean [not null, default: false]
+  motivoFueraServicio varchar
+  fueraServicioDesde  timestamp
+  fueraServicioPorId  varchar [ref: > Usuario.id]
+}
+
+// ---------- Capa: Operación del camión ----------
+
+Table Camion {
+  id                     varchar [pk]
+  patente                varchar [not null]
+  numeroTransporte       varchar [unique]
+  tipo                   tipo_camion [not null]
+  estado                 estado_camion [not null, default: 'ESPERADO']
+  clienteId              varchar [ref: > Cliente.id]
+  pedidoId               varchar [ref: > Pedido.id]
+  andenId                varchar [ref: > Anden.id]
+  horaLlegadaPlanificada timestamp [not null]
+  horaSalidaPlanificada  timestamp
+  horaLlegadaReal        timestamp
+  horaSalidaReal         timestamp
+  enReparacion           boolean [not null, default: false]
+  reparacionDesde        timestamp
+  reemplazadoPorId       varchar [ref: > Camion.id, note: 'Auto-relación: camión sustituto']
+}
+
+Table IncidenteCamion {
+  id                      varchar [pk]
+  camionId                varchar [not null, ref: > Camion.id]
+  tipo                    tipo_incidente [not null]
+  accion                  accion_incidente [not null]
+  estadoCamionEnIncidente estado_camion [not null]
+  descripcion             varchar [not null]
+  registradoPorId         varchar [not null, ref: > Usuario.id]
+  timestamp               timestamp
+  resueltoEn              timestamp
+  camionReemplazoId       varchar [ref: > Camion.id]
+}
+
+Table EventoCamion {
+  id        varchar [pk]
+  camionId  varchar [not null, ref: > Camion.id]
+  estado    estado_camion [not null]
+  timestamp timestamp
+  usuarioId varchar [ref: > Usuario.id]
+  nota      varchar [note: 'Registro inmutable (append-only)']
+}
+
+Table ParadaExpedicion {
+  id                         varchar [pk]
+  camionId                   varchar [not null, ref: > Camion.id]
+  andenId                    varchar [ref: > Anden.id]
+  edificioTipo               tipo_edificio [not null]
+  orden                      int
+  estado                     estado_parada [not null, default: 'PENDIENTE']
+  cantidadPalletsSolicitados int
+  horaInicio                 timestamp
+  horaFin                    timestamp
+}
+
+// ---------- Capa: Flujo de carga ----------
+
+Table Entrega {
+  id       varchar [pk]
+  numero   int [unique]
+  camionId varchar [not null, ref: > Camion.id]
+  paradaId varchar [unique, ref: - ParadaExpedicion.id, note: '1:1 con la parada']
+  creadoEn timestamp
+}
+
+Table EntregaItem {
+  id                 varchar [pk]
+  entregaId          varchar [not null, ref: > Entrega.id]
+  productoId         varchar [not null, ref: > Producto.id]
+  cantidadSolicitada int
+
+  indexes {
+    (entregaId, productoId) [unique]
+  }
+}
+
+Table Producto {
+  id             varchar [pk]
+  sku            varchar [unique, not null]
+  nombre         varchar [not null]
+  unidadMedida   varchar [default: 'caja']
+  pesoKgUnitario float
+  activo         boolean [not null, default: true]
+}
+
+Table Pallet {
+  id                   varchar [pk]
+  codigoUnico          varchar [unique, not null]
+  entregaId            varchar [ref: > Entrega.id]
+  pedidoId             varchar [ref: > Pedido.id]
+  pickineroId          varchar [ref: > Usuario.id, note: 'Quién armó']
+  cargadorId           varchar [ref: > Usuario.id, note: 'Quién cargó']
+  edificioId           varchar [ref: > Edificio.id, note: 'Edificio donde se arma el pallet']
+  estado               estado_pallet [not null, default: 'EN_ARMADO']
+  timestampInicio      timestamp
+  timestampFin         timestamp
+  tiempoArmadoSegundos int
+}
+
+Table ProductoPallet {
+  id           varchar [pk]
+  palletId     varchar [not null, ref: > Pallet.id]
+  productoId   varchar [ref: > Producto.id]
+  codigoBarras varchar
+  descripcion  varchar [not null]
+  cantidad     int [note: 'Cantidad efectivamente cargada']
+  pesoKg       float
+  temperatura  float
+}
+
+// ---------- Capa: Calidad / Exportación ----------
+
+Table InspeccionSAG {
+  id                  varchar [pk]
+  camionId            varchar [not null, ref: > Camion.id]
+  inspectorId         varchar [not null, ref: > Usuario.id]
+  estado              estado_inspeccion [not null, default: 'PENDIENTE']
+  timestampInicio     timestamp
+  timestampResolucion timestamp
+  observaciones       varchar
+}
+
+Table EventoTunel {
+  id                    varchar [pk]
+  camionId              varchar [not null, ref: > Camion.id]
+  operadorId            varchar [not null, ref: > Usuario.id]
+  temperaturaRegistrada float
+  timestamp             timestamp
+}
+
+// ---------- Capa: Trazabilidad / Excepciones ----------
+
+Table JustificacionAtraso {
+  id                varchar [pk]
+  paradaId          varchar [unique, ref: - ParadaExpedicion.id, note: '1:1 con la parada']
+  causa             causa_justificacion [not null]
+  descripcion       varchar
+  excluirDelCalculo boolean [not null, default: true]
+  registradoPorId   varchar [not null, ref: > Usuario.id]
+}
+
+Table Atraso {
+  id            varchar [pk]
+  camionId      varchar [not null, ref: > Camion.id]
+  edificioId    varchar [not null, ref: > Edificio.id]
+  motivoCodigo  varchar
+  motivoDetalle varchar
+  minutosAtraso int
+  registradoPor varchar [not null, ref: > Usuario.id, note: 'OBS: nombre de FK inconsistente (sin sufijo Id)']
+}
+
+Table AuditLog {
+  id          varchar [pk]
+  usuarioId   varchar [ref: > Usuario.id]
+  accion      varchar [not null]
+  entidadTipo varchar [not null]
+  entidadId   varchar [not null]
+  payload     json
+  timestamp   timestamp
+}
+
+// ---------- Agrupación visual por dominio ----------
+
+TableGroup "Acceso" {
+  Usuario
+}
+
+TableGroup "Comercial" {
+  Cliente
+  Pedido
+}
+
+TableGroup "Infraestructura" {
+  Edificio
+  Anden
+}
+
+TableGroup "Operación del camión" {
+  Camion
+  IncidenteCamion
+  EventoCamion
+  ParadaExpedicion
+}
+
+TableGroup "Flujo de carga" {
+  Entrega
+  EntregaItem
+  Producto
+  Pallet
+  ProductoPallet
+}
+
+TableGroup "Calidad / Exportación" {
+  InspeccionSAG
+  EventoTunel
+}
+
+TableGroup "Trazabilidad / Excepciones" {
+  JustificacionAtraso
+  Atraso
+  AuditLog
+}

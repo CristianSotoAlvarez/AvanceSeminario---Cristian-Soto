@@ -1,10 +1,33 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
-import { EstadoCamion, EstadoInspeccion, EstadoParada, TipoEdificio } from '@prisma/client';
+import { EstadoCamion, EstadoInspeccion, EstadoParada, TipoEdificio, TipoIncidente, AccionIncidente, TipoCamion } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { EventosGateway } from '../eventos/eventos.gateway';
 import { CrearCamionDto } from './dto/crear-camion.dto';
 import { FiltrosCamionDto } from './dto/filtros-camion.dto';
+import { RegistrarIncidenteDto } from './dto/registrar-incidente.dto';
 import { esTransicionValida, obtenerEstadosSiguientes } from './maquina-estados';
+
+const ESTADOS_BLOQUEADOS_INCIDENTE: EstadoCamion[] = [EstadoCamion.DESPACHADO, EstadoCamion.AVERIADO];
+
+// Mapea el estado de X (averiado) y el tipo al estado inicial del camión sustituto Y.
+function estadoInicialSustituto(estadoX: EstadoCamion, tipo: TipoCamion): EstadoCamion {
+  // Si X estaba antes de empezar carga → Y arranca en ASIGNADO
+  if (estadoX === EstadoCamion.ESPERADO || estadoX === EstadoCamion.EN_PORTERIA || estadoX === EstadoCamion.ASIGNADO) {
+    return EstadoCamion.ASIGNADO;
+  }
+  // En carga: continúa carga
+  if (estadoX === EstadoCamion.EN_CARGA) return EstadoCamion.EN_CARGA;
+  // Para exportación: SAG no se hereda. Volver a EN_TUNEL_FRIO o estado equivalente.
+  if (tipo === TipoCamion.EXPORTACION) {
+    if (estadoX === EstadoCamion.APROBADO_SAG || estadoX === EstadoCamion.LISTO) return EstadoCamion.EN_TUNEL_FRIO;
+    if (estadoX === EstadoCamion.EN_TUNEL_FRIO || estadoX === EstadoCamion.ESPERANDO_SAG || estadoX === EstadoCamion.RECHAZADO_SAG) {
+      return estadoX;
+    }
+  }
+  // Nacional/Interplanta: hereda (LISTO si era APROBADO_SAG o LISTO)
+  if (estadoX === EstadoCamion.APROBADO_SAG || estadoX === EstadoCamion.LISTO) return EstadoCamion.LISTO;
+  return EstadoCamion.ASIGNADO;
+}
 
 const INCLUDE_CAMION = {
   anden: true,
@@ -168,6 +191,7 @@ export class CamionesService {
     });
     if (!anden) throw new NotFoundException('Andén no encontrado');
     if (anden.ocupado) throw new BadRequestException(`El andén ${anden.codigo} ya está ocupado`);
+    if (anden.fueraDeServicio) throw new BadRequestException(`El andén ${anden.codigo} está fuera de servicio`);
 
     return this.prisma.$transaction(async (tx) => {
       const camionActualizado = await tx.camion.update({
@@ -432,6 +456,182 @@ export class CamionesService {
     const sinFrio = edificios.filter((e) => e !== TipoEdificio.FRIGORIFICO);
     const tieneFrio = edificios.includes(TipoEdificio.FRIGORIFICO);
     return tieneFrio ? [...sinFrio, TipoEdificio.FRIGORIFICO] : sinFrio;
+  }
+
+  // ─── Incidentes (avería en v1) ─────────────────────────────────────────────
+
+  async registrarIncidente(camionId: string, dto: RegistrarIncidenteDto, usuarioId: string) {
+    if (dto.tipo !== TipoIncidente.AVERIA) {
+      throw new BadRequestException('Solo se soporta tipo AVERIA en esta versión');
+    }
+    if (dto.accion !== AccionIncidente.ESPERAR_REPARACION && dto.accion !== AccionIncidente.SUSTITUIR) {
+      throw new BadRequestException('Acción no soportada para AVERIA');
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      // Lock pessimista a nivel DB para evitar carrera entre dos supervisores
+      const lockResult = await tx.$queryRaw<Array<{ id: string; estado: EstadoCamion; tipo: TipoCamion; enReparacion: boolean }>>`
+        SELECT id, estado, tipo, "enReparacion"
+        FROM camiones
+        WHERE id = ${camionId}
+        FOR UPDATE
+      `;
+      const camion = lockResult[0];
+      if (!camion) throw new NotFoundException('Camión no encontrado');
+      if (ESTADOS_BLOQUEADOS_INCIDENTE.includes(camion.estado)) {
+        throw new BadRequestException(`No se puede registrar incidente en estado ${camion.estado}`);
+      }
+      if (camion.enReparacion && dto.accion === AccionIncidente.ESPERAR_REPARACION) {
+        throw new BadRequestException('El camión ya está en reparación');
+      }
+
+      if (dto.accion === AccionIncidente.ESPERAR_REPARACION) {
+        await tx.camion.update({
+          where: { id: camionId },
+          data: { enReparacion: true, reparacionDesde: new Date() },
+        });
+        await tx.incidenteCamion.create({
+          data: {
+            camionId,
+            tipo: TipoIncidente.AVERIA,
+            accion: AccionIncidente.ESPERAR_REPARACION,
+            estadoCamionEnIncidente: camion.estado,
+            descripcion: dto.descripcion,
+            registradoPorId: usuarioId,
+          },
+        });
+        await tx.eventoCamion.create({
+          data: { camionId, estado: camion.estado, usuarioId, nota: `Inicio de reparación in situ: ${dto.descripcion}` },
+        });
+      } else {
+        // SUSTITUIR
+        if (!dto.patenteNueva) throw new BadRequestException('Falta patente del camión sustituto');
+
+        // Validar que la patente nueva no esté en uso por un camión activo
+        const conflicto = await tx.camion.findFirst({
+          where: {
+            patente: dto.patenteNueva,
+            estado: { notIn: [EstadoCamion.DESPACHADO, EstadoCamion.AVERIADO] },
+          },
+          select: { id: true, patente: true },
+        });
+        if (conflicto) {
+          throw new BadRequestException(`La patente ${dto.patenteNueva} ya está en uso por otro camión activo`);
+        }
+
+        if (dto.numeroTransporteNuevo) {
+          const conflictoNumero = await tx.camion.findFirst({
+            where: { numeroTransporte: dto.numeroTransporteNuevo },
+            select: { id: true },
+          });
+          if (conflictoNumero) {
+            throw new BadRequestException(`El número de transporte ${dto.numeroTransporteNuevo} ya existe`);
+          }
+        }
+
+        // Cargar datos completos del camión X para heredar a Y
+        const x = await tx.camion.findUnique({ where: { id: camionId } });
+        if (!x) throw new NotFoundException('Camión no encontrado');
+
+        const estadoY = estadoInicialSustituto(x.estado, x.tipo);
+        const numeroTransporteY = dto.numeroTransporteNuevo
+          ?? await this.generarNumeroTransporte(x.tipo, tx);
+
+        const y = await tx.camion.create({
+          data: {
+            patente: dto.patenteNueva,
+            numeroTransporte: numeroTransporteY,
+            tipo: x.tipo,
+            estado: estadoY,
+            clienteId: x.clienteId,
+            pedidoId: x.pedidoId,
+            andenId: x.andenId,
+            horaLlegadaPlanificada: x.horaLlegadaPlanificada,
+            horaSalidaPlanificada: x.horaSalidaPlanificada,
+            horaLlegadaReal: x.horaLlegadaReal,
+            cargaPreviaDescripcion: x.cargaPreviaDescripcion,
+          },
+        });
+
+        // Mover entregas y paradas de X a Y
+        await tx.entrega.updateMany({ where: { camionId }, data: { camionId: y.id } });
+        await tx.paradaExpedicion.updateMany({ where: { camionId }, data: { camionId: y.id } });
+
+        // Marcar X como AVERIADO y enlazarlo
+        await tx.camion.update({
+          where: { id: camionId },
+          data: {
+            estado: EstadoCamion.AVERIADO,
+            andenId: null, // X libera el andén; Y ya lo tomó arriba
+            reemplazadoPorId: y.id,
+            enReparacion: false,
+            reparacionDesde: null,
+          },
+        });
+
+        // Registro de incidente
+        await tx.incidenteCamion.create({
+          data: {
+            camionId,
+            tipo: TipoIncidente.AVERIA,
+            accion: AccionIncidente.SUSTITUIR,
+            estadoCamionEnIncidente: camion.estado,
+            descripcion: dto.descripcion,
+            registradoPorId: usuarioId,
+            camionReemplazoId: y.id,
+            resueltoEn: new Date(),
+          },
+        });
+
+        // Eventos
+        await tx.eventoCamion.create({
+          data: { camionId, estado: EstadoCamion.AVERIADO, usuarioId, nota: `Avería + sustitución por ${dto.patenteNueva}: ${dto.descripcion}` },
+        });
+        await tx.eventoCamion.create({
+          data: { camionId: y.id, estado: estadoY, usuarioId, nota: `Camión sustituye a ${x.patente} por avería` },
+        });
+      }
+
+      const final = await tx.camion.findUnique({ where: { id: camionId }, include: INCLUDE_CAMION });
+      if (final) this.eventosGateway.emitirCamionActualizado(final as unknown as Record<string, unknown>);
+      return final;
+    });
+  }
+
+  async marcarReparado(camionId: string, usuarioId: string) {
+    return this.prisma.$transaction(async (tx) => {
+      const lock = await tx.$queryRaw<Array<{ id: string; enReparacion: boolean; estado: EstadoCamion }>>`
+        SELECT id, "enReparacion", estado FROM camiones WHERE id = ${camionId} FOR UPDATE
+      `;
+      const camion = lock[0];
+      if (!camion) throw new NotFoundException('Camión no encontrado');
+      if (!camion.enReparacion) throw new BadRequestException('El camión no está en reparación');
+
+      await tx.camion.update({
+        where: { id: camionId },
+        data: { enReparacion: false, reparacionDesde: null },
+      });
+
+      // Cerrar el incidente abierto más reciente
+      const incidente = await tx.incidenteCamion.findFirst({
+        where: { camionId, accion: AccionIncidente.ESPERAR_REPARACION, resueltoEn: null },
+        orderBy: { timestamp: 'desc' },
+      });
+      if (incidente) {
+        await tx.incidenteCamion.update({
+          where: { id: incidente.id },
+          data: { resueltoEn: new Date() },
+        });
+      }
+
+      await tx.eventoCamion.create({
+        data: { camionId, estado: camion.estado, usuarioId, nota: 'Reparación finalizada' },
+      });
+
+      const final = await tx.camion.findUnique({ where: { id: camionId }, include: INCLUDE_CAMION });
+      if (final) this.eventosGateway.emitirCamionActualizado(final as unknown as Record<string, unknown>);
+      return final;
+    });
   }
 
   private async obtenerCamionOError(id: string) {
