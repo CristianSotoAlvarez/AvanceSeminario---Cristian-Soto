@@ -2,8 +2,10 @@
 
 > **Propósito de este documento.** Es un registro autocontenido de las mejoras y funcionalidades implementadas en el sistema DispatchTrack durante esta etapa del proyecto de título. Está escrito para servir de **insumo de redacción del informe final de seminario**: cada sección describe el problema, la solución, las decisiones de diseño y su justificación, los componentes técnicos afectados y el beneficio esperado. Puede entregarse a una herramienta de asistencia de redacción (p. ej. Cowork) o usarse directamente como base de los capítulos de desarrollo y resultados.
 
-**Fecha de cierre de esta etapa:** 13 de junio de 2026.
-**Magnitud del trabajo:** 30 archivos modificados o creados, aproximadamente 1.950 líneas de código agregadas. 4 documentos de diseño formales, 5 documentos de manual/guía.
+**Fecha de cierre de la Etapa 1:** 13 de junio de 2026.
+**Fecha de cierre de la Etapa 2:** 5 de agosto de 2026 (ver sección 9).
+**Magnitud del trabajo (Etapa 1):** 30 archivos modificados o creados, aproximadamente 1.950 líneas de código agregadas. 4 documentos de diseño formales, 5 documentos de manual/guía.
+**Magnitud del trabajo (Etapa 2):** 29 archivos modificados o creados, aproximadamente 2.060 líneas de código agregadas; regeneración completa del conjunto de datos sintéticos (180 días).
 
 ---
 
@@ -221,17 +223,17 @@ Casos cualitativos disponibles en los datos (días emblemáticos): una avería c
 
 ---
 
-## 7. Trabajo futuro (fuera del alcance de esta etapa)
+## 7. Trabajo futuro (fuera del alcance de la Etapa 1)
 
 - Implementar los demás tipos de incidente ya previstos en el modelo (`FALTA_PRODUCTO`, `CAMBIO_ANDEN`, `REPROGRAMACION`) con flujo en vivo.
 - Detección automática de camiones atrasados en vivo (job periódico + notificación).
-- Historial de fallas por andén (tiempo fuera de servicio acumulado, andenes más problemáticos).
+- ~~Historial de fallas por andén (tiempo fuera de servicio acumulado, andenes más problemáticos).~~ **Completado en la Etapa 2, ver sección 9.3.**
 - Reasignación masiva de camiones/paradas cuando un andén cae con trabajo planificado.
 - Modelo formal de turnos (hoy la productividad por turno se aproxima por días activos).
 
 ---
 
-## 8. Apéndice — Inventario de cambios
+## 8. Apéndice — Inventario de cambios (Etapa 1)
 
 **Modelo de datos (`apps/api/src/prisma/schema.prisma`):**
 - Estado de camión `AVERIADO`; rol `PORTERO`.
@@ -253,3 +255,103 @@ Casos cualitativos disponibles en los datos (días emblemáticos): una avería c
 - `docs/informe/bitacora-cambios.md` — este documento.
 
 > **Sugerencia de mapeo a capítulos de informe.** Sección 2 → *Marco / Arquitectura*; Sección 3 → *Metodología*; Sección 4 → *Desarrollo / Implementación* (una subsección por funcionalidad); Sección 5 → *Resultados*; Secciones 6–7 → *Conclusiones y trabajo futuro*.
+
+---
+
+## 9. Etapa 2 — Ajustes previos a la defensa de avance (5 de agosto de 2026)
+
+Esta etapa se realizó en preparación de la **defensa de avance del proyecto de título**. Su eje fue reemplazar los datos de demostración por un **conjunto de datos sintéticos calibrado con el contexto real de negocio** que el estudiante recopiló directamente del caso de estudio, y cerrar dos brechas de trazabilidad detectadas al construirlo: el historial de fallas de infraestructura y la ausencia de un módulo de túneles de frío como recurso gestionable.
+
+### 9.1 Consolidación de trabajo pendiente y ajuste de despliegue
+
+**Contexto.** Al iniciar esta etapa había un conjunto grande de cambios sin commitear (rediseño de reportes, portería, avería, andén fuera de servicio, generador de 90 días, documentación) acumulados bajo una restricción previa de "no hacer commits". El usuario levantó esa restricción para reflejar el trabajo en producción antes de la defensa.
+
+**Solución.** Se hizo commit y push de todo el trabajo acumulado. Se detectó que el comando de arranque en producción (`railway.toml` / `Dockerfile.api`) usaba `prisma migrate deploy`, que requiere una carpeta `prisma/migrations/` que el proyecto no tenía — es decir, **los cambios de esquema nunca se aplicaban en producción** al desplegar. Se cambió a `prisma db push --accept-data-loss`, que sincroniza el esquema directamente sin depender de archivos de migración versionados, apropiado para la etapa actual del proyecto (aún sin necesidad de migraciones auditables incrementales).
+
+**Componentes técnicos.** `railway.toml`, `Dockerfile.api`.
+
+**Beneficio.** Garantiza que cada despliegue a Railway efectivamente sincroniza el esquema de base de datos con el código, evitando una clase de bug silencioso (API funcionando contra un esquema desactualizado).
+
+### 9.2 Ajuste visual del reporte de tiempo por punto de expedición
+
+**Problema.** El gráfico de tiempo promedio por punto de expedición (Aves/Cerdo/Frigorífico) usaba barras verticales agrupadas, dificultando comparar los tres puntos de un vistazo.
+
+**Solución.** Se cambió a barras horizontales apiladas (una fila por punto de expedición), cada una con su barra de presupuesto de tiempo (semitransparente) superpuesta a la barra de tiempo real, facilitando la comparación visual entre los tres puntos y su cumplimiento respecto al presupuesto.
+
+**Componentes técnicos.** `apps/web/app/(platform)/reportes/page.tsx` (componente `GraficoTiempoEdificio`, migrado de `BarChart` vertical a `layout="vertical"` de Recharts).
+
+### 9.3 Datos sintéticos calibrados con contexto de negocio real (180 días) e historial de fallas de infraestructura
+
+**Problema.** El generador de la Etapa 1 (90 días) usaba supuestos genéricos de volumen y distribución de camiones. Para la defensa de avance, el estudiante recopiló contexto operativo real de un caso de estudio agroindustrial (bajo condición explícita de no identificar a la empresa por nombre) que el conjunto de datos debía reflejar fielmente. Adicionalmente, se detectó que **el propio sistema no conservaba historial de fallas de andén**: al reactivar un andén, los campos de motivo y fecha se sobrescribían a `null`, perdiendo el registro — una limitación real del producto, no solo del generador de datos.
+
+**Contexto de negocio incorporado** (recopilado directamente del usuario en esta sesión):
+- **Calendario semanal:** operación de lunes a sábado; el domingo la planta cierra por completo desde las 06:00 y reabre a las 22:30 para empezar a recibir camiones hasta el sábado siguiente.
+- **Volumen diario:** el martes es el día de mayor recepción (~100 camiones); miércoles y jueves también altos; el resto de los días ronda los 40-70; promedio semanal 70-80 camiones/día en días operativos.
+- **Puntos de expedición:** Aves exporta en fresco (sin congelar); Cerdo **nunca** exporta (solo despacho nacional/interplanta); Frigorífico exporta congelado (aves, cerdo y salmón congelados) y es el único punto con productos congelados. Los camiones de exportación predominan sobre nacional/interplanta en todo momento dentro de la planta.
+- **Tiempos operativos:** portería ≤10 minutos; carga hasta 1h20-1h30 por punto de expedición; túnel de frío hasta presentación a inspección SAG, 8-8,5 horas. Límite legal de referencia: 3 horas para camiones nacional/interplanta, 6 horas para exportación — el estudiante indicó explícitamente que en la práctica este límite se excede con frecuencia (incluso por días completos en casos extremos), lo que se modeló como un 5-10% de camiones con atrasos fuertes fuera de norma.
+- **Inspección SAG:** tasa de rechazo de 60-70% (confirmada explícitamente por el usuario pese a ser un valor alto para un proceso de inspección real).
+- **Andenes fuera de servicio:** 1-2 fallas por semana en total (cualquier punto de expedición), con tiempo de reparación muy variable (30 minutos a un día completo); Frigorífico prácticamente nunca falla por la criticidad de temperatura de sus productos (se modeló como un outlier de baja probabilidad, no imposible).
+
+**Solución técnica.**
+- Se reescribió `generar-datos-demo.ts` para generar **180 días** de operación (~12.300 camiones) siguiendo exactamente los parámetros anteriores, generando todo el conjunto en memoria y utilizando inserciones masivas por lotes (`createMany`) en vez de escrituras individuales, para que el volumen fuera viable de generar en un tiempo razonable.
+- Se agregó el modelo **`HistorialAndenFueraServicio`**: un registro inmutable y permanente de cada período en que un andén estuvo fuera de servicio (motivo, fecha de inicio, fecha de fin, quién lo marcó, quién lo reactivó), independiente del estado "en vivo" del andén (que sigue existiendo para la UI operativa). `andenes.service.ts` se modificó para crear un registro de historial al marcar la falla y cerrarlo (no borrarlo) al reactivar.
+- Se conectó el modelo **`AuditLog`**, que existía en el esquema desde etapas anteriores pero **nunca se usaba en ningún servicio**: ahora registra el inicio de sesión (`auth.service.ts`) y la creación/actualización/desactivación de usuarios (`usuarios.service.ts`), dejando trazabilidad de acciones administrativas que antes no quedaban registradas en ningún lado.
+- Se agregó una métrica nueva en reportes: fallas por andén y tiempo promedio de resolución (`calcularFallasAnden` en `reportes.service.ts`).
+
+**Incidente de infraestructura y su resolución.** Durante la primera ejecución del generador de 180 días contra la base de datos de producción (Railway, plan gratuito), la instancia de PostgreSQL **agotó por completo el volumen de disco asignado (500 MB)** al insertar la tabla de productos por pallet (la más numerosa del conjunto), provocando una caída del servicio ("PANIC: could not write to file... No space left on device"). Se diagnosticó la causa (el volumen de datos generado excedía el disco disponible del plan gratuito), se guio al usuario para ampliar el volumen mediante la función de *live resize* de Railway (de 500 MB a varios GB, con cobro solo por el espacio efectivamente usado) y se recuperó el servicio. Dado que gran parte de los datos ya insertados eran válidos, se optó por **scripts de recuperación puntual** (`completar-productos-pallet.ts`, `completar-historial-fallas.ts`) que completaron únicamente los registros faltantes en lotes pequeños, en lugar de regenerar el conjunto completo desde cero. El tamaño final de la base de datos quedó en ~173 MB, muy por debajo del nuevo límite del volumen.
+
+**Decisiones de diseño relevantes.**
+- *Generación en memoria + inserción masiva:* la escala del dataset (180 días, ~12.300 camiones, ~190.000 pallets, ~476.000 productos por pallet) hace impracticable una escritura fila por fila contra una base remota; se optó por construir todas las estructuras en JavaScript con IDs propios y luego insertarlas en lotes (`createMany`), reduciendo drásticamente los viajes de red.
+- *Historial como tabla aparte, no como campo:* se separó el "estado actual" (campos en `Anden`, usados por la UI operativa) del "historial permanente" (tabla `HistorialAndenFueraServicio`), evitando romper el comportamiento existente mientras se añade la capacidad de reportar frecuencia y tiempos de resolución.
+- *Transparencia metodológica sobre el rechazo SAG:* se mantuvo la tasa de 60-70% de rechazo tal como la indicó el usuario, aun siendo alta para un proceso real, documentándose explícitamente como un parámetro de contexto de negocio dado, no una estimación del estudiante.
+
+**Componentes técnicos.** `schema.prisma` (`HistorialAndenFueraServicio`); `andenes.service.ts`, `andenes.controller.ts`; `auth.service.ts`, `auth.controller.ts`, `usuarios.service.ts`, `usuarios.controller.ts` (conexión de `AuditLog`); `reportes.service.ts` (métrica de fallas por andén); `apps/api/prisma/generar-datos-demo.ts` (reescritura completa); `apps/api/prisma/completar-productos-pallet.ts` y `completar-historial-fallas.ts` (scripts de recuperación).
+
+**Beneficio.** El conjunto de datos de demostración queda alineado con la realidad operativa descrita por el caso de estudio, aportando credibilidad a los resultados mostrados en la defensa. De forma colateral, se corrigió una limitación real del producto (pérdida de historial de fallas de andén) y se activó un mecanismo de auditoría que estaba definido pero inerte desde etapas anteriores.
+
+### 9.4 Módulo de túneles de frío
+
+**Problema.** El sistema modelaba el paso por el túnel de frío únicamente como un estado del camión (`EN_TUNEL_FRIO`), sin ningún recurso físico asociado — a diferencia de los andenes, no existía forma de saber **qué camión está usando cuál túnel**, ni quién lo hizo ingresar o salir. Adicionalmente, se detectaron dos fallas activas en el flujo existente: la pantalla operativa de túnel invocaba un endpoint del backend que **no existía** (`/camiones/:id/tunel`), y el modelo `EventoTunel` (pensado para registrar la temperatura validada) estaba definido en el esquema pero **nunca se escribía** desde ningún servicio.
+
+**Solución.** Se modeló el túnel de frío como un recurso real, en espejo directo del diseño de `Anden`:
+
+- Nuevo modelo **`TunelFrio`** (código, ocupación, fuera de servicio) exclusivo del edificio Frigorífico, con 5 túneles físicos (`TF1`-`TF5`).
+- Nuevo modelo **`HistorialTunelFueraServicio`**, con el mismo patrón que el de andenes (registro permanente, independiente del estado en vivo).
+- Campo `tunelId` en `Camion`, para saber en todo momento qué túnel usa cada camión.
+- Flujo operativo de tres pasos, reemplazando el paso único y roto anterior: **(1)** finalizar carga (`EN_CARGA → EN_TUNEL_FRIO`), **(2)** ingresar explícitamente a uno de los túneles disponibles (el operador elige cuál, quedando registrado quién y cuándo), **(3)** registrar la temperatura de salida (corrige el endpoint inexistente; ahora sí persiste un `EventoTunel` con operador, temperatura y observaciones, y libera el túnel automáticamente).
+- Nueva pantalla `/tuneles` (análoga a `/andenes`) para visualizar el estado de los 5 túneles y gestionar fuera de servicio/reactivación.
+
+**Decisiones de diseño relevantes.**
+- *Espejar el diseño de `Anden` en vez de crear un patrón nuevo:* al ser un recurso físico con las mismas necesidades (ocupación, fuera de servicio con historial, asignación a un camión), replicar el modelo ya validado reduce el riesgo de diseño y mantiene el código consistente.
+- *Paso de ingreso explícito, no automático:* se optó por que el operador elija manualmente el túnel (en vez de asignación automática al primero disponible) porque el requisito explícito del usuario fue poder ver "quién entra y quién saca" cada camión — una asignación automática habría ocultado esa decisión operativa.
+- *Corrección de bugs preexistentes como parte del alcance:* al construir la funcionalidad pedida se encontraron dos fallas reales del sistema (endpoint inexistente, modelo de auditoría de temperatura inerte); se corrigieron en el mismo cambio por estar directamente en el camino crítico de la funcionalidad solicitada.
+
+**Componentes técnicos.** `schema.prisma` (`TunelFrio`, `HistorialTunelFueraServicio`, campo `tunelId` en `Camion`); nuevo módulo `apps/api/src/tuneles/` (servicio, controlador, DTOs); `camiones.service.ts`/`camiones.controller.ts` (liberación de túnel al salir de `EN_TUNEL_FRIO`, nuevo DTO y método para registrar temperatura); `eventos.gateway.ts` (evento en tiempo real `tuneles:actualizados`); `apps/web/app/(platform)/tuneles/` (nueva pantalla); `apps/web/app/(operativo)/tunel/page.tsx` (rediseño en tres secciones); hooks y capa de acceso a la API correspondientes; actualización de la semilla base (5 túneles).
+
+**Beneficio.** Cierra una brecha de trazabilidad simétrica a la de andenes para el único recurso físico de la planta que antes no era gestionable, y corrige dos fallas reales que impedían que el flujo de túnel funcionara como estaba pensado.
+
+### 9.5 Trabajo en curso al cierre de esta etapa
+
+Por solicitud explícita del profesor guía, se inició el diseño de un **modelo predictivo basado en árbol de decisión** sobre el conjunto de datos sintéticos generado, con dos variables objetivo acordadas con el estudiante: riesgo de rechazo en inspección SAG y riesgo de incumplimiento OTIF. Se definió que el modelo se entrenará con **Python/scikit-learn** y quedará **integrado en vivo** en la aplicación. Este trabajo queda documentado en detalle en una entrega posterior de esta bitácora, una vez finalizado.
+
+> **Nota metodológica para el informe.** Dado que el rechazo SAG se modeló en el generador como un evento aproximadamente aleatorio (probabilidad fija, independiente de otras variables), es esperable que ese árbol específico muestre bajo poder predictivo — un hallazgo honesto y reportable ("el sistema actual no captura variables que expliquen el rechazo; se recomienda registrar variables adicionales como temperatura real o historial de calidad del proveedor"), no una limitación del modelo en sí. En cambio, el árbol de riesgo OTIF sí debería mostrar una relación real y explicable: los camiones de exportación rechazados en SAG nunca se despachan a tiempo, por lo que el tipo de camión debiera emerger como predictor genuino.
+
+---
+
+## 10. Apéndice — Inventario de cambios (Etapa 2)
+
+**Modelo de datos (`apps/api/src/prisma/schema.prisma`):**
+- Modelo `HistorialAndenFueraServicio` (historial permanente de fallas de andén).
+- Modelo `TunelFrio` (recurso físico, 5 túneles, exclusivo de Frigorífico).
+- Modelo `HistorialTunelFueraServicio` (historial permanente de fallas de túnel).
+- Campo `tunelId` en `Camion`.
+
+**Backend (NestJS):** nuevo módulo `tuneles/` completo (servicio, controlador, DTOs `ingresar-tunel` y `marcar-fuera-servicio`); nuevo DTO `registrar-temperatura` en `camiones/`; cambios en `andenes.service.ts`, `andenes.controller.ts`, `auth.service.ts`, `auth.controller.ts`, `usuarios.service.ts`, `usuarios.controller.ts`, `reportes.service.ts`, `eventos.gateway.ts`, `camiones.service.ts`, `camiones.controller.ts`, `app.module.ts`, `main.ts`.
+
+**Frontend (Next.js):** nueva pantalla `apps/web/app/(platform)/tuneles/`; rediseño de `apps/web/app/(operativo)/tunel/page.tsx`; hook `use-tuneles.ts`; extensión de `use-socket.ts`, `lib/api.ts`, `components/sidebar.tsx`; ajuste del gráfico en `app/(platform)/reportes/page.tsx`.
+
+**Datos y despliegue:** reescritura completa de `generar-datos-demo.ts` (180 días, contexto de negocio real); scripts de recuperación `completar-productos-pallet.ts` y `completar-historial-fallas.ts`; actualización de `seed.ts` (5 túneles); cambio de `prisma migrate deploy` a `prisma db push` en `railway.toml` y `Dockerfile.api`.
+
+**Documentación:** esta sección (9) y este apéndice (10), agregados a `docs/informe/bitacora-cambios.md`.
+
+> **Sugerencia de mapeo a capítulos de informe.** Sección 9.1 → *Infraestructura de despliegue*; 9.2 → *Mejora de interfaz analítica*; 9.3 → *Metodología de generación de datos y su justificación con el caso de estudio* (fuente primaria para el capítulo de "Datos y Método"); 9.4 → *Desarrollo / Implementación* (funcionalidad nueva); 9.5 → *Trabajo en curso / Modelo predictivo* (capítulo de resultados avanzados, una vez finalizado).
