@@ -19,8 +19,9 @@ export class AuthController {
   async login(
     @Body() dto: LoginDto,
     @Res({ passthrough: true }) res: Response,
+    @Req() req: Request,
   ) {
-    const resultado = await this.authService.login(dto.identificador, dto.password);
+    const resultado = await this.authService.login(dto.identificador, dto.password, req.ip);
 
     // Refresh token como cookie HttpOnly
     res.cookie('refresh_token', resultado.refreshToken, {

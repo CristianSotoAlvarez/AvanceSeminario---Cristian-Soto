@@ -52,6 +52,25 @@ async function main() {
 
   console.log('✅ 11 andenes creados (A1-A5, C1-C3, F1-F3)');
 
+  // --- Túneles de frío (exclusivos de Frigorífico) ---
+  const tunelesData = [
+    { codigo: 'TF1', edificioId: frigorifico.id },
+    { codigo: 'TF2', edificioId: frigorifico.id },
+    { codigo: 'TF3', edificioId: frigorifico.id },
+    { codigo: 'TF4', edificioId: frigorifico.id },
+    { codigo: 'TF5', edificioId: frigorifico.id },
+  ];
+
+  for (const tunel of tunelesData) {
+    await prisma.tunelFrio.upsert({
+      where: { codigo: tunel.codigo },
+      update: {},
+      create: tunel,
+    });
+  }
+
+  console.log('✅ 5 túneles de frío creados (TF1-TF5, Frigorífico)');
+
   // --- Usuarios de prueba (1 por rol) ---
   const passwordHash = await bcrypt.hash('clave123', 10);
 
@@ -92,9 +111,9 @@ async function main() {
     { nombre: 'Supermercados Mayorista 10',        rut: '78.432.100-2', codigo: 'CLI-N005', tipoDestino: TipoCamion.NACIONAL },
     { nombre: 'Distribuidora Alimentos del Sur',  rut: '77.650.320-1', codigo: 'CLI-N006', tipoDestino: TipoCamion.NACIONAL },
     // Interplanta
-    { nombre: 'Planta Rosario (Agrosuper)',        codigo: 'CLI-P001', tipoDestino: TipoCamion.INTERPLANTA },
-    { nombre: 'Planta El Maule (Agrosuper)',       codigo: 'CLI-P002', tipoDestino: TipoCamion.INTERPLANTA },
-    { nombre: 'Planta San Vicente (Agrosuper)',    codigo: 'CLI-P003', tipoDestino: TipoCamion.INTERPLANTA },
+    { nombre: 'Planta Rosario (Grupo AgroIndustrial)',        codigo: 'CLI-P001', tipoDestino: TipoCamion.INTERPLANTA },
+    { nombre: 'Planta El Maule (Grupo AgroIndustrial)',       codigo: 'CLI-P002', tipoDestino: TipoCamion.INTERPLANTA },
+    { nombre: 'Planta San Vicente (Grupo AgroIndustrial)',    codigo: 'CLI-P003', tipoDestino: TipoCamion.INTERPLANTA },
     { nombre: 'Planta Frigorífico Rancagua',       codigo: 'CLI-P004', tipoDestino: TipoCamion.INTERPLANTA },
     // Exportadores
     { nombre: 'China National Cereals Oils',      codigo: 'CLI-E001', tipoDestino: TipoCamion.EXPORTACION, pais: 'China' },

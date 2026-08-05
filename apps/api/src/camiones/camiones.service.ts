@@ -31,6 +31,7 @@ function estadoInicialSustituto(estadoX: EstadoCamion, tipo: TipoCamion): Estado
 
 const INCLUDE_CAMION = {
   anden: true,
+  tunel: true,
   cliente: true,
   pedido: { include: { cliente: true } },
   paradas: {
@@ -257,6 +258,15 @@ export class CamionesService {
         datos.horaLlegadaReal = new Date();
       }
 
+      // Al salir de EN_TUNEL_FRIO se libera el túnel físico asignado (si tenía uno)
+      let notaTunel: string | undefined;
+      if (camion.estado === EstadoCamion.EN_TUNEL_FRIO && nuevoEstado !== EstadoCamion.EN_TUNEL_FRIO && (camion as any).tunelId) {
+        const tunel = await tx.tunelFrio.findUnique({ where: { id: (camion as any).tunelId } });
+        await tx.tunelFrio.update({ where: { id: (camion as any).tunelId }, data: { ocupado: false } });
+        datos.tunelId = null;
+        notaTunel = `Salió del túnel ${tunel?.codigo ?? ''}`.trim();
+      }
+
       const camionActualizado = await tx.camion.update({
         where: { id: camionId },
         data: datos,
@@ -264,16 +274,37 @@ export class CamionesService {
       });
 
       await tx.eventoCamion.create({
-        data: { camionId, estado: nuevoEstado, usuarioId, nota },
+        data: { camionId, estado: nuevoEstado, usuarioId, nota: nota ?? notaTunel },
       });
 
       this.eventosGateway.emitirCamionActualizado(camionActualizado as any);
       if (nuevoEstado === EstadoCamion.DESPACHADO || nuevoEstado === EstadoCamion.ASIGNADO) {
         this.eventosGateway.emitirAndenesActualizados();
       }
+      if (notaTunel) {
+        this.eventosGateway.emitirTunelesActualizados();
+      }
 
       return camionActualizado;
     });
+  }
+
+  /**
+   * Registra la temperatura de salida del túnel de frío y avanza el camión a
+   * ESPERANDO_SAG. Deja constancia permanente en EventoTunel (quién, cuándo,
+   * qué temperatura) además de liberar el túnel físico asignado.
+   */
+  async registrarTemperaturaYSalirTunel(camionId: string, temperatura: number, usuarioId: string, observaciones?: string) {
+    const camion = await this.obtenerCamionOError(camionId);
+    if (camion.estado !== EstadoCamion.EN_TUNEL_FRIO) {
+      throw new BadRequestException('El camión no está en estado EN_TUNEL_FRIO');
+    }
+
+    await this.prisma.eventoTunel.create({
+      data: { camionId, operadorId: usuarioId, temperaturaRegistrada: temperatura, observaciones },
+    });
+
+    return this.cambiarEstado(camionId, EstadoCamion.ESPERANDO_SAG, usuarioId, `Temperatura registrada: ${temperatura}°C`);
   }
 
   /** Finaliza carga: si hay más paradas → vuelve a EN_PORTERIA, si no → LISTO / EN_TUNEL_FRIO */

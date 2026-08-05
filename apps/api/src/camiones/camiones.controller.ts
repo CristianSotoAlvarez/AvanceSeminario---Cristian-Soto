@@ -8,6 +8,7 @@ import { FiltrosCamionDto } from './dto/filtros-camion.dto';
 import { InspeccionSagDto } from './dto/inspeccion-sag.dto';
 import { ReordenarParadasDto } from './dto/reordenar-paradas.dto';
 import { RegistrarIncidenteDto } from './dto/registrar-incidente.dto';
+import { RegistrarTemperaturaDto } from './dto/registrar-temperatura.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decoradores/roles.decorator';
@@ -84,12 +85,13 @@ export class CamionesController {
 
   @Patch(':id/temperatura-ok')
   @Roles('OPERADOR_TUNEL', 'JEFE_DESPACHO', 'SUPERVISOR')
-  @ApiOperation({ summary: 'Validar temperatura -18°C alcanzada (EN_TUNEL_FRIO → ESPERANDO_SAG)' })
+  @ApiOperation({ summary: 'Registrar temperatura y validar salida del túnel (EN_TUNEL_FRIO → ESPERANDO_SAG)' })
   temperaturaOk(
     @Param('id') id: string,
+    @Body() dto: RegistrarTemperaturaDto,
     @UsuarioActual('id') usuarioId: string,
   ) {
-    return this.camionesService.cambiarEstado(id, EstadoCamion.ESPERANDO_SAG, usuarioId);
+    return this.camionesService.registrarTemperaturaYSalirTunel(id, dto.temperatura, usuarioId, dto.observaciones);
   }
 
   @Patch(':id/aprobar-sag')

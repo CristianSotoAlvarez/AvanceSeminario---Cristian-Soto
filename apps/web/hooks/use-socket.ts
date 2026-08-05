@@ -48,6 +48,19 @@ export function useSocketAndenes(onActualizado: () => void) {
   }, [onActualizado]);
 }
 
+/** Escucha eventos 'tuneles:actualizados' y llama al callback */
+export function useSocketTuneles(onActualizado: () => void) {
+  useEffect(() => {
+    const socket = obtenerSocket();
+    socket.on("tuneles:actualizados", onActualizado);
+    socket.on("camion:actualizado", onActualizado);
+    return () => {
+      socket.off("tuneles:actualizados", onActualizado);
+      socket.off("camion:actualizado", onActualizado);
+    };
+  }, [onActualizado]);
+}
+
 export type EstadoConexion = "conectado" | "desconectado" | "reconectando";
 
 /** Expone el estado de conexión del socket en tiempo real */

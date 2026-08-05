@@ -124,6 +124,11 @@ model Usuario {
   auditorias      AuditLog[]
   incidentesRegistrados IncidenteCamion[]
   andenesFueraServicio  Anden[]         @relation("AndenFueraServicio")
+  historialAndenMarcados     HistorialAndenFueraServicio[] @relation("HistorialAndenMarcado")
+  historialAndenReactivados  HistorialAndenFueraServicio[] @relation("HistorialAndenReactivado")
+  tunelesFueraServicio       TunelFrio[]                   @relation("TunelFueraServicio")
+  historialTunelMarcados     HistorialTunelFueraServicio[] @relation("HistorialTunelMarcado")
+  historialTunelReactivados  HistorialTunelFueraServicio[] @relation("HistorialTunelReactivado")
 
   @@map("usuarios")
 }
@@ -133,6 +138,7 @@ model Edificio {
   nombre    String
   tipo      TipoEdificio  @unique
   andenes   Anden[]
+  tuneles   TunelFrio[]
   usuarios  Usuario[]
   atrasos   Atraso[]
   pallets   Pallet[]
@@ -153,9 +159,73 @@ model Anden {
   fueraServicioPor      Usuario?  @relation("AndenFueraServicio", fields: [fueraServicioPorId], references: [id])
   camiones              Camion[]
   paradas               ParadaExpedicion[]
+  historialFueraServicio HistorialAndenFueraServicio[]
 
   @@index([edificioId])
   @@map("andenes")
+}
+
+/// Túnel de frío físico (exclusivo del edificio Frigorífico). Igual que Anden,
+/// modela un recurso real con ocupación y disponibilidad, para saber qué
+/// camión está usando cada túnel y quién lo asignó/liberó.
+model TunelFrio {
+  id                    String    @id @default(cuid())
+  codigo                String    @unique
+  edificioId            String
+  edificio              Edificio  @relation(fields: [edificioId], references: [id])
+  ocupado               Boolean   @default(false)
+  fueraDeServicio       Boolean   @default(false)
+  motivoFueraServicio   String?
+  fueraServicioDesde    DateTime?
+  fueraServicioPorId    String?
+  fueraServicioPor      Usuario?  @relation("TunelFueraServicio", fields: [fueraServicioPorId], references: [id])
+  camiones              Camion[]
+  historialFueraServicio HistorialTunelFueraServicio[]
+
+  @@index([edificioId])
+  @@map("tuneles_frio")
+}
+
+/// Historial inmutable de cada período en que un túnel de frío estuvo fuera
+/// de servicio. Mismo patrón que HistorialAndenFueraServicio.
+model HistorialTunelFueraServicio {
+  id              String    @id @default(cuid())
+  tunelId         String
+  tunel           TunelFrio @relation(fields: [tunelId], references: [id])
+  motivo          String
+  desde           DateTime
+  hasta           DateTime?
+  marcadoPorId    String
+  marcadoPor      Usuario   @relation("HistorialTunelMarcado", fields: [marcadoPorId], references: [id])
+  reactivadoPorId String?
+  reactivadoPor   Usuario?  @relation("HistorialTunelReactivado", fields: [reactivadoPorId], references: [id])
+  creadoEn        DateTime  @default(now())
+
+  @@index([tunelId])
+  @@index([desde])
+  @@map("historial_tunel_fuera_servicio")
+}
+
+/// Historial inmutable de cada período en que un andén estuvo fuera de servicio.
+/// A diferencia de los campos "fueraDeServicio*" de Anden (que reflejan solo el
+/// estado actual y se limpian al reactivar), este registro persiste para siempre
+/// y permite reportar frecuencia de fallas y tiempo de resolución por andén.
+model HistorialAndenFueraServicio {
+  id              String    @id @default(cuid())
+  andenId         String
+  anden           Anden     @relation(fields: [andenId], references: [id])
+  motivo          String
+  desde           DateTime
+  hasta           DateTime?
+  marcadoPorId    String
+  marcadoPor      Usuario   @relation("HistorialAndenMarcado", fields: [marcadoPorId], references: [id])
+  reactivadoPorId String?
+  reactivadoPor   Usuario?  @relation("HistorialAndenReactivado", fields: [reactivadoPorId], references: [id])
+  creadoEn        DateTime  @default(now())
+
+  @@index([andenId])
+  @@index([desde])
+  @@map("historial_anden_fuera_servicio")
 }
 
 model Cliente {
@@ -200,6 +270,8 @@ model Camion {
   pedido                  Pedido?       @relation(fields: [pedidoId], references: [id])
   andenId                 String?
   anden                   Anden?        @relation(fields: [andenId], references: [id])
+  tunelId                 String?
+  tunel                   TunelFrio?    @relation(fields: [tunelId], references: [id])
   horaLlegadaPlanificada  DateTime
   horaSalidaPlanificada   DateTime?
   horaLlegadaReal         DateTime?

@@ -1,16 +1,43 @@
 /**
- * Generador de datos sintéticos realistas para la presentación del proyecto de título.
+ * Generador de datos sintéticos realistas — 180 días terminando hoy.
  *
- * Periodo: 90 días terminando hoy.
- * Curva de mejora gradual: OTIF, cumplimiento, atrasos y tiempo de ciclo mejoran
- *   progresivamente a lo largo de los 90 días para evidenciar el aporte del sistema.
- * 4 días emblemáticos con incidentes específicos (avería, falla de andén, falta de
- *   producto, día pico) para demostrar el manejo de excepciones.
+ * Contexto de negocio (recopilado del cliente para la defensa de título):
+ *
+ * - Calendario: planta opera lunes a sábado. Domingo cierra desde las 06:00 y
+ *   reabre a las 22:30 para empezar a recibir camiones hasta el próximo sábado.
+ * - Volumen: martes es el día pico (~100 camiones), miércoles/jueves altos,
+ *   el resto de los días laborales ronda los 40-70. Domingo casi no recibe
+ *   (solo la ventana de 22:30 a 23:59). Promedio semanal ~70-80/día laboral.
+ * - Puntos de expedición: Aves exporta en fresco; Cerdo NUNCA exporta (solo
+ *   nacional/interplanta); Frigorífico exporta congelado (aves, cerdo y
+ *   salmón congelados). Los camiones de exportación predominan sobre
+ *   nacional/interplanta en cualquier momento dentro de la planta.
+ * - Tiempos: portería ≤10 min; carga ≤1h20-1h30 por punto; túnel de frío
+ *   hasta presentación a SAG ~8-8.5h (esto excede estructuralmente el límite
+ *   legal "de referencia" de 6h para exportación — es la norma, no la
+ *   excepción, tal como describió el cliente). Límite legal referencial:
+ *   3h nacional/interplanta, 6h exportación. 5-10% de los camiones exceden
+ *   fuertemente ese límite por atrasos reales (mecánicos, reinspecciones, etc).
+ * - SAG: 60-70% de rechazo en la inspección (calculado sobre el total de
+ *   registros de inspección, incluyendo reinspecciones).
+ * - Andenes fuera de servicio: 1-2 fallas por semana en total (cualquier
+ *   andén de Aves o Cerdo), reparación de duración muy variable (30 min a
+ *   un día completo). Frigorífico casi nunca falla (outlier ~4% de los casos)
+ *   por la criticidad de temperatura de sus productos. Se guarda como
+ *   historial permanente (HistorialAndenFueraServicio), no solo como estado
+ *   actual, y al final del período se deja UN andén actualmente fuera de
+ *   servicio para poder demostrar la función en vivo.
+ *
+ * Rendimiento: con ~70 camiones/día promedio durante 180 días (~11.000-12.000
+ * camiones y varios cientos de miles de registros hijos), generar todo con
+ * awaits individuales sería impracticable contra una BD remota. Por eso todo
+ * el dataset se arma en memoria (IDs propios, sin depender de retornos de la
+ * BD) y se inserta con createMany en lotes.
  *
  * Ejecutar con:  npm run generar-datos:demo
  *
  * IMPORTANTE: borra todos los datos transaccionales antes de generar.
- * Mantiene catálogos base (edificios, andenes, productos, clientes, usuarios del seed).
+ * Mantiene catálogos base (edificios, andenes, productos, clientes, usuarios).
  */
 import {
   PrismaClient,
@@ -33,38 +60,81 @@ import * as bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient();
 
-// ─── Configuración ──────────────────────────────────────────────────────────
+// ─── Configuración general ──────────────────────────────────────────────────
 
-const DIAS = 90;
+const DIAS = 180;
 const HOY = new Date(); HOY.setHours(0, 0, 0, 0);
 const INICIO = new Date(HOY); INICIO.setDate(INICIO.getDate() - DIAS + 1);
 
-const CAMIONES_POR_DIA = {
-  laboral: { min: 16, max: 22 },   // L-V
-  sabado:  { min: 10, max: 14 },
-  domingo: { min: 0,  max: 3 },
+const LOTE = 1000; // tamaño de lote para createMany
+
+// Volumen diario por día de semana (Date.getDay(): 0=domingo ... 6=sábado)
+const VOLUMEN_POR_DIA_SEMANA: Record<number, { min: number; max: number }> = {
+  0: { min: 8,  max: 18  }, // domingo: solo ventana 22:30-23:59
+  1: { min: 60, max: 70  }, // lunes
+  2: { min: 95, max: 108 }, // martes: día pico
+  3: { min: 85, max: 100 }, // miércoles
+  4: { min: 80, max: 95  }, // jueves
+  5: { min: 60, max: 70  }, // viernes
+  6: { min: 52, max: 65  }, // sábado
 };
 
+// Exportación predomina sobre nacional/interplanta
 const DISTRIBUCION_TIPO = {
-  NACIONAL: 0.60,
-  EXPORTACION: 0.25,
-  INTERPLANTA: 0.15,
+  EXPORTACION: 0.48,
+  NACIONAL: 0.32,
+  INTERPLANTA: 0.20,
 };
+
+// Cerdo nunca exporta. Frigorífico exporta congelado, Aves exporta fresco.
+const PESO_EDIFICIO_EXPORTACION: Record<string, number> = { AVES: 0.40, FRIGORIFICO: 0.60 };
+const PESO_EDIFICIO_NAC_INTER: Record<string, number> = { AVES: 0.34, CERDO: 0.33, FRIGORIFICO: 0.33 };
 
 const PALLETS_POR_TIPO: Record<TipoCamion, { min: number; max: number }> = {
   NACIONAL:    { min: 5,  max: 12 },
   EXPORTACION: { min: 18, max: 25 },
   INTERPLANTA: { min: 8,  max: 15 },
 };
-
-const PRODUCTOS_POR_PALLET = { min: 2, max: 4 };
+const PRODUCTOS_POR_PALLET = { min: 2, max: 3 };
 const UNIDADES_POR_PRODUCTO = { min: 20, max: 80 };
 
-// Días emblemáticos (offsets desde INICIO)
-const DIA_AVERIA = 47;
-const DIA_FALLA_ANDEN = 62;
-const DIA_FALTA_PRODUCTO = 71;
-const DIA_PICO = 85;
+// Tiempos (minutos)
+const PORTERIA_MIN = { min: 3, max: 10 };            // portería ≤10 min
+const HANDOFF_MIN = { min: 2, max: 8 };               // transiciones breves entre etapas
+const TUNEL_MIN = { min: 480, max: 510 };             // 8 a 8.5 horas
+const SAG_ESPERA_MIN = { min: 15, max: 45 };
+const SAG_REESPERA_EXTRA_MIN = { min: 60, max: 180 };
+
+const LIMITE_LEGAL_MIN: Record<TipoCamion, number> = {
+  NACIONAL: 180, INTERPLANTA: 180, EXPORTACION: 360, // 3h / 3h / 6h de referencia
+};
+
+// Outliers: 5-10% de los camiones exceden fuertemente el límite legal
+const PROB_OUTLIER = 0.07;
+const PROB_OUTLIER_EXTREMO = 0.10; // de los outliers, ~10% llegan a 1-2 días (≈0.7% del total)
+const OUTLIER_EXTRA_MIN = { min: 180, max: 720 };       // 3-12 horas extra
+const OUTLIER_EXTRA_EXTREMO_MIN = { min: 1440, max: 2880 }; // 1-2 días extra
+
+// SAG: calibrado para que la proporción de rechazo sobre el total de inspecciones
+// (incluida la reinspección) quede en 60-70%, tal como describió el cliente.
+const PROB_RECHAZO_SAG_PRIMERA = 0.70;
+const PROB_APROBACION_SAG_SEGUNDA = 0.50;
+
+// Andenes fuera de servicio: 1-2 fallas/semana en total, casi nunca Frigorífico
+const OUTAGES_POR_SEMANA = { min: 1, max: 2 };
+const PESO_EDIFICIO_OUTAGE: Record<string, number> = { AVES: 0.48, CERDO: 0.48, FRIGORIFICO: 0.04 };
+const PROB_OUTAGE_CORTA = 0.60;
+const OUTAGE_CORTA_MIN = { min: 30, max: 120 };
+const OUTAGE_LARGA_MIN = { min: 240, max: 960 }; // 4-16 horas (tarde completa / al día siguiente)
+
+const MOTIVOS_OUTAGE = [
+  'Falla mecánica en el sistema de rampa hidráulica',
+  'Falla eléctrica en la compuerta del andén',
+  'Mantenimiento correctivo de urgencia',
+  'Sensor de posicionamiento de camión dañado',
+  'Falla en el sistema de sellado térmico del andén',
+  'Desperfecto en la plataforma niveladora',
+];
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -76,64 +146,58 @@ function rng(seed: number) {
   };
 }
 
-const random = rng(20260609); // seed determinista
+const random = rng(20260805); // seed determinista
 
 function entreEnteros(min: number, max: number) {
   return Math.floor(random() * (max - min + 1)) + min;
 }
-
 function entreFloats(min: number, max: number) {
   return random() * (max - min) + min;
 }
-
 function elemAleatorio<T>(arr: T[]): T {
   return arr[entreEnteros(0, arr.length - 1)];
 }
-
-function diaSemana(d: Date): 'domingo' | 'sabado' | 'laboral' {
-  const ds = d.getDay();
-  if (ds === 0) return 'domingo';
-  if (ds === 6) return 'sabado';
-  return 'laboral';
-}
-
 function fechaConHora(base: Date, hora: number, minuto: number): Date {
   const d = new Date(base);
   d.setHours(hora, minuto, 0, 0);
   return d;
 }
-
 function sumarMinutos(base: Date, minutos: number): Date {
-  return new Date(base.getTime() + minutos * 60_000);
+  return new Date(base.getTime() + Math.round(minutos) * 60_000);
 }
-
-function eligePeso<T>(items: T[], pesos: number[]): T {
-  const total = pesos.reduce((a, b) => a + b, 0);
+function eligePeso<T extends string>(pesos: Record<T, number>): T {
+  const entradas = Object.entries(pesos) as [T, number][];
+  const total = entradas.reduce((a, [, p]) => a + p, 0);
   let r = random() * total;
-  for (let i = 0; i < items.length; i++) {
-    if (r < pesos[i]) return items[i];
-    r -= pesos[i];
+  for (const [k, p] of entradas) {
+    if (r < p) return k;
+    r -= p;
   }
-  return items[items.length - 1];
+  return entradas[entradas.length - 1][0];
 }
 
-/**
- * Factor de mejora a lo largo del periodo (0 al inicio, 1 al final).
- * Curva sigmoide suave para mostrar mejora gradual y plateau hacia el final.
- */
-function factorMejora(diaIdx: number): number {
-  const t = diaIdx / (DIAS - 1);
-  return 1 / (1 + Math.exp(-6 * (t - 0.5)));
+let contadorId = 0;
+function nuevoId(prefijo: string): string {
+  contadorId++;
+  return `${prefijo}_${contadorId.toString(36)}`;
+}
+
+async function insertarEnLotes<T>(nombre: string, filas: T[], insertar: (lote: T[]) => Promise<unknown>) {
+  if (filas.length === 0) return;
+  for (let i = 0; i < filas.length; i += LOTE) {
+    await insertar(filas.slice(i, i + LOTE));
+  }
+  console.log(`  ✅ ${nombre}: ${filas.length} filas`);
 }
 
 // ─── Reset transaccional ────────────────────────────────────────────────────
 
 async function reset() {
   console.log('🧹 Limpiando datos transaccionales...');
-  // Orden: dependientes primero
   await prisma.eventoTunel.deleteMany();
   await prisma.atraso.deleteMany();
   await prisma.justificacionAtraso.deleteMany();
+  await prisma.historialAndenFueraServicio.deleteMany();
   await prisma.incidenteCamion.deleteMany();
   await prisma.inspeccionSAG.deleteMany();
   await prisma.productoPallet.deleteMany();
@@ -144,6 +208,10 @@ async function reset() {
   await prisma.paradaExpedicion.deleteMany();
   await prisma.camion.deleteMany();
   await prisma.pedido.deleteMany();
+  // Limpiar estado "en vivo" de andenes que hayan quedado de corridas previas
+  await prisma.anden.updateMany({
+    data: { ocupado: false, fueraDeServicio: false, motivoFueraServicio: null, fueraServicioDesde: null, fueraServicioPorId: null },
+  });
   // No tocar: usuarios del seed base, clientes, productos, andenes, edificios
 }
 
@@ -198,331 +266,386 @@ async function crearOperadoresExtra(): Promise<{ pickineros: Usuario[]; cargador
   return { pickineros, cargadores };
 }
 
-// ─── Plan diario de camiones ────────────────────────────────────────────────
+// ─── Hora de llegada según día (respeta cierre dominical) ──────────────────
 
-interface PlanCamion {
-  fecha: Date;
-  tipo: TipoCamion;
-  cliente: Cliente;
-  horaPlanificada: Date;
-  duracionPlanificadaMin: number;
-}
-
-function generarPlanDiario(fecha: Date, clientes: Cliente[], diaIdx: number, esPico: boolean): PlanCamion[] {
-  const ds = diaSemana(fecha);
-  const cfg = CAMIONES_POR_DIA[ds];
-  let total = entreEnteros(cfg.min, cfg.max);
-  if (esPico) total = Math.max(total, 30);
-
-  const plan: PlanCamion[] = [];
-  for (let i = 0; i < total; i++) {
-    const tipo = eligePeso<TipoCamion>(
-      [TipoCamion.NACIONAL, TipoCamion.EXPORTACION, TipoCamion.INTERPLANTA],
-      [DISTRIBUCION_TIPO.NACIONAL, DISTRIBUCION_TIPO.EXPORTACION, DISTRIBUCION_TIPO.INTERPLANTA],
-    );
-    const clientesTipo = clientes.filter(c => c.tipoDestino === tipo);
-    const cliente = clientesTipo.length > 0 ? elemAleatorio(clientesTipo) : elemAleatorio(clientes);
-
-    // Distribuir llegada entre 6:00 y 19:00
-    const hora = entreEnteros(6, 18);
-    const minuto = entreEnteros(0, 59);
-    const horaPlanificada = fechaConHora(fecha, hora, minuto);
-
-    // Duración planificada típica: NACIONAL 3h, EXPO 5-6h, INTERPLANTA 2h
-    const duracionPlanificadaMin =
-      tipo === TipoCamion.EXPORTACION ? entreEnteros(300, 360) :
-      tipo === TipoCamion.NACIONAL ? entreEnteros(150, 210) :
-      entreEnteros(100, 150);
-
-    plan.push({ fecha, tipo, cliente, horaPlanificada, duracionPlanificadaMin });
+function horaLlegadaParaDia(fecha: Date): Date {
+  const esDomingo = fecha.getDay() === 0;
+  if (esDomingo) {
+    // Solo recibe desde las 22:30 hasta las 23:59
+    const hora = entreEnteros(22, 23);
+    const minuto = hora === 22 ? entreEnteros(30, 59) : entreEnteros(0, 59);
+    return fechaConHora(fecha, hora, minuto);
   }
-  return plan;
+  // Sesgo hacia la madrugada (horario principal de operación), con cola durante el día
+  const bloque = eligePeso({ madrugada: 0.40, manana: 0.35, tarde: 0.15, noche: 0.10 });
+  const rangos: Record<string, [number, number]> = {
+    madrugada: [0, 6], manana: [6, 12], tarde: [12, 18], noche: [18, 24],
+  };
+  const [ini, fin] = rangos[bloque];
+  const hora = entreEnteros(ini, fin - 1);
+  const minuto = entreEnteros(0, 59);
+  return fechaConHora(fecha, hora, minuto);
 }
 
-// ─── Generar un camión completo (con todos los eventos, entregas, pallets) ──
+function elegirEdificio(tipo: TipoCamion): TipoEdificio {
+  if (tipo === TipoCamion.EXPORTACION) {
+    return eligePeso(PESO_EDIFICIO_EXPORTACION) as TipoEdificio;
+  }
+  return eligePeso(PESO_EDIFICIO_NAC_INTER) as TipoEdificio;
+}
+
+function duracionCargaMin(numPallets: number): number {
+  const base = 20 + numPallets * 3;
+  return Math.min(90, Math.max(25, Math.round(base * entreFloats(0.85, 1.15))));
+}
+
+// ─── Contenedores de filas a insertar ───────────────────────────────────────
+
+interface Filas {
+  pedidos: any[];
+  camiones: any[];
+  paradas: any[];
+  entregas: any[];
+  entregaItems: any[];
+  pallets: any[];
+  productosPallet: any[];
+  eventosCamion: any[];
+  inspeccionesSAG: any[];
+  incidentesCamion: any[];
+  justificacionesAtraso: any[];
+  historialAnden: any[];
+}
+
+function filasVacias(): Filas {
+  return {
+    pedidos: [], camiones: [], paradas: [], entregas: [], entregaItems: [],
+    pallets: [], productosPallet: [], eventosCamion: [], inspeccionesSAG: [],
+    incidentesCamion: [], justificacionesAtraso: [], historialAnden: [],
+  };
+}
 
 interface ContextoGen {
   pickineros: Usuario[];
   cargadores: Usuario[];
-  polivalentes: Usuario[];
-  andenes: Anden[];
+  andenesPorEdificio: Record<string, Anden[]>;
   productos: Producto[];
+  clientesPorTipo: Record<TipoCamion, Cliente[]>;
   inspectorSAG: Usuario;
-  porteroId: string | null;
-  supervisor: Usuario | null;
+  supervisor: Usuario;
+  jefe: Usuario;
 }
 
-let contadorTransporte = { NACIONAL: 1, EXPORTACION: 1, INTERPLANTA: 1 };
-let contadorPallet = 1;
+// ─── Generación de un camión completo (en memoria) ─────────────────────────
 
-async function generarCamion(plan: PlanCamion, diaIdx: number, ctx: ContextoGen, escenario?: 'AVERIA' | 'FALLA_ANDEN' | 'FALTA_PRODUCTO') {
-  const mejora = factorMejora(diaIdx);
-
-  // Parámetros según día: mejora gradual
-  // pOnTime sube de 0.78 -> 0.95
-  const pOnTime = 0.78 + 0.17 * mejora;
-  // multiplicador de ciclo: 1.15 -> 0.92 (más rápido al final)
-  const multCiclo = 1.15 - 0.23 * mejora;
-  // pCumplimiento (probabilidad de cumplir 100%): 0.85 -> 0.97
-  const pCumplimientoCamion = 0.85 + 0.12 * mejora;
-
-  const onTime = random() < pOnTime;
-  const inFull = escenario === 'FALTA_PRODUCTO' ? false : random() < pCumplimientoCamion;
-
-  // Número de transporte
-  const prefijo = plan.tipo === TipoCamion.NACIONAL ? '600' : plan.tipo === TipoCamion.EXPORTACION ? '800' : '700';
-  const numeroTransporte = `${prefijo}-${String(contadorTransporte[plan.tipo]).padStart(4, '0')}`;
-  contadorTransporte[plan.tipo]++;
-
-  // Patente aleatoria
-  const letras = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-  const patente = `${letras[entreEnteros(0, 25)]}${letras[entreEnteros(0, 25)]}${letras[entreEnteros(0, 25)]}${letras[entreEnteros(0, 25)]}${entreEnteros(10, 99)}`;
-
-  // Horarios reales
-  const offsetLlegada = onTime ? entreEnteros(-15, 5) : entreEnteros(8, 60);
-  const horaLlegadaReal = sumarMinutos(plan.horaPlanificada, offsetLlegada);
-  const duracionReal = Math.round(plan.duracionPlanificadaMin * multCiclo * entreFloats(0.92, 1.08));
-  const horaSalidaPlanificada = sumarMinutos(plan.horaPlanificada, plan.duracionPlanificadaMin);
-  const horaSalidaReal = sumarMinutos(horaLlegadaReal, duracionReal);
-
-  // Pedido
-  const numPallets = entreEnteros(PALLETS_POR_TIPO[plan.tipo].min, PALLETS_POR_TIPO[plan.tipo].max);
-  const pedido = await prisma.pedido.create({
-    data: {
-      numero: `PED-${diaIdx}-${numeroTransporte}`,
-      clienteId: plan.cliente.id,
-      totalPallets: numPallets,
-      totalBultos: numPallets * 25,
-      fechaEntrega: plan.horaPlanificada,
-    },
-  });
-
-  // Elegir andenes según tipo de edificio del cliente (asumimos un edificio por camión por simplicidad de demo)
-  const edificioTipo: TipoEdificio =
-    plan.cliente.tipoDestino === TipoCamion.EXPORTACION ? TipoEdificio.FRIGORIFICO :
-    random() < 0.5 ? TipoEdificio.AVES : TipoEdificio.CERDO;
-  const andenesEdif = ctx.andenes.filter(a => {
-    const inicial = a.codigo[0];
-    return (edificioTipo === TipoEdificio.AVES && inicial === 'A')
-        || (edificioTipo === TipoEdificio.CERDO && inicial === 'C')
-        || (edificioTipo === TipoEdificio.FRIGORIFICO && inicial === 'F');
-  });
+function generarCamion(fecha: Date, diaIdx: number, ctx: ContextoGen, filas: Filas) {
+  const tipo = eligePeso(DISTRIBUCION_TIPO) as TipoCamion;
+  const edificioTipo = elegirEdificio(tipo);
+  const clientesTipo = ctx.clientesPorTipo[tipo];
+  const cliente = clientesTipo.length > 0 ? elemAleatorio(clientesTipo) : elemAleatorio(Object.values(ctx.clientesPorTipo).flat());
+  const andenesEdif = ctx.andenesPorEdificio[edificioTipo];
   const anden = elemAleatorio(andenesEdif);
 
-  // Crear camión en estado DESPACHADO
-  const estadoFinal = EstadoCamion.DESPACHADO;
-  const camion = await prisma.camion.create({
-    data: {
-      patente,
-      numeroTransporte,
-      tipo: plan.tipo,
-      estado: estadoFinal,
-      clienteId: plan.cliente.id,
-      pedidoId: pedido.id,
-      andenId: anden.id,
-      horaLlegadaPlanificada: plan.horaPlanificada,
-      horaSalidaPlanificada,
-      horaLlegadaReal,
-      horaSalidaReal,
-    },
+  const horaLlegadaPlanificada = horaLlegadaParaDia(fecha);
+  const horaSalidaPlanificada = sumarMinutos(horaLlegadaPlanificada, LIMITE_LEGAL_MIN[tipo]);
+  const horaLlegadaReal = sumarMinutos(horaLlegadaPlanificada, entreEnteros(-10, 15));
+
+  const letras = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  const patente = `${letras[entreEnteros(0, 25)]}${letras[entreEnteros(0, 25)]}${letras[entreEnteros(0, 25)]}${letras[entreEnteros(0, 25)]}${entreEnteros(10, 99)}`;
+  const prefijo = tipo === TipoCamion.NACIONAL ? '600' : tipo === TipoCamion.EXPORTACION ? '800' : '700';
+  const numeroTransporte = `${prefijo}-${nuevoId('t').slice(2)}`;
+
+  const camionId = nuevoId('cm');
+  const pedidoId = nuevoId('pd');
+  const paradaId = nuevoId('pe');
+  const entregaId = nuevoId('en');
+
+  const numPallets = entreEnteros(PALLETS_POR_TIPO[tipo].min, PALLETS_POR_TIPO[tipo].max);
+
+  filas.pedidos.push({
+    id: pedidoId,
+    numero: `PED-${diaIdx}-${numeroTransporte}`,
+    clienteId: cliente.id,
+    totalPallets: numPallets,
+    totalBultos: numPallets * 25,
+    fechaEntrega: horaLlegadaPlanificada,
   });
 
-  // Parada de expedición
-  const horaInicioParada = sumarMinutos(horaLlegadaReal, 15);
-  const horaFinParada = sumarMinutos(horaInicioParada, Math.round(duracionReal * 0.6));
-  const parada = await prisma.paradaExpedicion.create({
-    data: {
-      camionId: camion.id,
-      andenId: anden.id,
-      edificioTipo,
-      orden: 1,
-      estado: EstadoParada.COMPLETADO,
-      cantidadPalletsSolicitados: numPallets,
-      horaInicio: horaInicioParada,
-      horaFin: horaFinParada,
-    },
+  // ── Timeline ──
+  const porteriaMin = entreEnteros(PORTERIA_MIN.min, PORTERIA_MIN.max);
+  const tAsignado = sumarMinutos(horaLlegadaReal, porteriaMin);
+  const tInicioCarga = sumarMinutos(tAsignado, entreEnteros(HANDOFF_MIN.min, HANDOFF_MIN.max));
+  const cargaMin = duracionCargaMin(numPallets);
+  const tFinCarga = sumarMinutos(tInicioCarga, cargaMin);
+
+  let estadoFinal: EstadoCamion = EstadoCamion.DESPACHADO;
+  let horaSalidaReal: Date | null = null;
+  let sagAprobadoFinal: boolean | null = null;
+
+  const eventos: { estado: EstadoCamion; timestamp: Date }[] = [
+    { estado: EstadoCamion.ESPERADO, timestamp: sumarMinutos(horaLlegadaPlanificada, -30) },
+    { estado: EstadoCamion.EN_PORTERIA, timestamp: horaLlegadaReal },
+    { estado: EstadoCamion.ASIGNADO, timestamp: tAsignado },
+    { estado: EstadoCamion.EN_CARGA, timestamp: tInicioCarga },
+  ];
+
+  const esOutlier = random() < PROB_OUTLIER;
+  const esOutlierExtremo = esOutlier && random() < PROB_OUTLIER_EXTREMO;
+  const extraOutlierMin = esOutlierExtremo
+    ? entreEnteros(OUTLIER_EXTRA_EXTREMO_MIN.min, OUTLIER_EXTRA_EXTREMO_MIN.max)
+    : esOutlier
+      ? entreEnteros(OUTLIER_EXTRA_MIN.min, OUTLIER_EXTRA_MIN.max)
+      : 0;
+
+  if (tipo === TipoCamion.EXPORTACION) {
+    const tTunel = sumarMinutos(tFinCarga, entreEnteros(HANDOFF_MIN.min, HANDOFF_MIN.max));
+    const tunelMin = entreEnteros(TUNEL_MIN.min, TUNEL_MIN.max);
+    const tEsperandoSag = sumarMinutos(tTunel, tunelMin);
+
+    eventos.push({ estado: EstadoCamion.EN_TUNEL_FRIO, timestamp: tTunel });
+    eventos.push({ estado: EstadoCamion.ESPERANDO_SAG, timestamp: tEsperandoSag });
+
+    const rechazoPrimera = random() < PROB_RECHAZO_SAG_PRIMERA;
+    const tResolucionPrimera = sumarMinutos(tEsperandoSag, entreEnteros(SAG_ESPERA_MIN.min, SAG_ESPERA_MIN.max));
+
+    filas.inspeccionesSAG.push({
+      id: nuevoId('sag'),
+      camionId,
+      inspectorId: ctx.inspectorSAG.id,
+      estado: rechazoPrimera ? EstadoInspeccion.RECHAZADO : EstadoInspeccion.APROBADO,
+      timestampInicio: tEsperandoSag,
+      timestampResolucion: tResolucionPrimera,
+      observaciones: rechazoPrimera ? 'Temperatura o documentación no conforme en primera inspección.' : 'Conforme en primera inspección.',
+    });
+
+    let tAprobacionFinal: Date;
+    if (!rechazoPrimera) {
+      sagAprobadoFinal = true;
+      eventos.push({ estado: EstadoCamion.APROBADO_SAG, timestamp: tResolucionPrimera });
+      tAprobacionFinal = tResolucionPrimera;
+    } else {
+      eventos.push({ estado: EstadoCamion.RECHAZADO_SAG, timestamp: tResolucionPrimera });
+      const aprobadaSegunda = random() < PROB_APROBACION_SAG_SEGUNDA;
+      const tReinspeccion = sumarMinutos(tResolucionPrimera, entreEnteros(SAG_REESPERA_EXTRA_MIN.min, SAG_REESPERA_EXTRA_MIN.max));
+      const tResolucionSegunda = sumarMinutos(tReinspeccion, entreEnteros(SAG_ESPERA_MIN.min, SAG_ESPERA_MIN.max));
+
+      eventos.push({ estado: EstadoCamion.ESPERANDO_SAG, timestamp: tReinspeccion });
+      filas.inspeccionesSAG.push({
+        id: nuevoId('sag'),
+        camionId,
+        inspectorId: ctx.inspectorSAG.id,
+        estado: aprobadaSegunda ? EstadoInspeccion.APROBADO : EstadoInspeccion.RECHAZADO,
+        timestampInicio: tReinspeccion,
+        timestampResolucion: tResolucionSegunda,
+        observaciones: aprobadaSegunda ? 'Conforme en reinspección.' : 'Rechazo confirmado en reinspección. Requiere reprogramación.',
+      });
+
+      if (aprobadaSegunda) {
+        sagAprobadoFinal = true;
+        eventos.push({ estado: EstadoCamion.APROBADO_SAG, timestamp: tResolucionSegunda });
+        tAprobacionFinal = tResolucionSegunda;
+      } else {
+        sagAprobadoFinal = false;
+        tAprobacionFinal = tResolucionSegunda;
+      }
+    }
+
+    if (sagAprobadoFinal) {
+      const tListo = sumarMinutos(tAprobacionFinal, entreEnteros(5, 20) + extraOutlierMin);
+      const tSalida = sumarMinutos(tListo, entreEnteros(5, 15));
+      eventos.push({ estado: EstadoCamion.LISTO, timestamp: tListo });
+      eventos.push({ estado: EstadoCamion.DESPACHADO, timestamp: tSalida });
+      horaSalidaReal = tSalida;
+      estadoFinal = EstadoCamion.DESPACHADO;
+    } else {
+      // Rechazo confirmado: el camión queda pendiente de reprogramación (no se despacha en este ciclo)
+      estadoFinal = EstadoCamion.RECHAZADO_SAG;
+      horaSalidaReal = null;
+      filas.incidentesCamion.push({
+        id: nuevoId('inc'),
+        camionId,
+        tipo: TipoIncidente.REPROGRAMACION,
+        accion: AccionIncidente.REPROGRAMAR,
+        estadoCamionEnIncidente: EstadoCamion.RECHAZADO_SAG,
+        descripcion: 'Rechazo SAG confirmado en reinspección. Carga se reprograma para nuevo despacho.',
+        registradoPorId: ctx.supervisor.id,
+        timestamp: tAprobacionFinal,
+        resueltoEn: sumarMinutos(tAprobacionFinal, entreEnteros(60, 300)),
+      });
+    }
+  } else {
+    // Nacional / Interplanta: sin túnel de frío ni SAG
+    const tListo = sumarMinutos(tFinCarga, entreEnteros(5, 20) + extraOutlierMin);
+    const tSalida = sumarMinutos(tListo, entreEnteros(5, 15));
+    eventos.push({ estado: EstadoCamion.LISTO, timestamp: tListo });
+    eventos.push({ estado: EstadoCamion.DESPACHADO, timestamp: tSalida });
+    horaSalidaReal = tSalida;
+    estadoFinal = EstadoCamion.DESPACHADO;
+  }
+
+  filas.camiones.push({
+    id: camionId,
+    patente,
+    numeroTransporte,
+    tipo,
+    estado: estadoFinal,
+    clienteId: cliente.id,
+    pedidoId,
+    andenId: anden.id,
+    horaLlegadaPlanificada,
+    horaSalidaPlanificada,
+    horaLlegadaReal,
+    horaSalidaReal,
   });
 
-  // Entrega
-  const entrega = await prisma.entrega.create({
-    data: {
-      camionId: camion.id,
-      paradaId: parada.id,
-    },
+  filas.paradas.push({
+    id: paradaId,
+    camionId,
+    andenId: anden.id,
+    edificioTipo,
+    orden: 1,
+    estado: EstadoParada.COMPLETADO,
+    cantidadPalletsSolicitados: numPallets,
+    horaInicio: tInicioCarga,
+    horaFin: tFinCarga,
   });
 
-  // EntregaItems: cantidades solicitadas por producto
-  const productosEntrega = [];
+  filas.entregas.push({ id: entregaId, camionId, paradaId });
+
   const numProductosDistintos = entreEnteros(3, 6);
   const productosSel = [...ctx.productos].sort(() => random() - 0.5).slice(0, numProductosDistintos);
+  const productosEntrega: { producto: Producto; cantidadSolicitada: number }[] = [];
   for (const prod of productosSel) {
     const cantidadSolicitada = entreEnteros(50, 200);
-    await prisma.entregaItem.create({
-      data: { entregaId: entrega.id, productoId: prod.id, cantidadSolicitada },
-    });
+    filas.entregaItems.push({ id: nuevoId('ei'), entregaId, productoId: prod.id, cantidadSolicitada });
     productosEntrega.push({ producto: prod, cantidadSolicitada });
   }
 
-  // Pallets: armar + cargar
+  const inFull = !(estadoFinal === EstadoCamion.RECHAZADO_SAG) && random() < 0.90;
+
   for (let i = 0; i < numPallets; i++) {
     const pickinero = elemAleatorio(ctx.pickineros);
     const cargador = elemAleatorio(ctx.cargadores);
-    const tInicio = sumarMinutos(horaInicioParada, entreEnteros(0, Math.max(1, Math.round(duracionReal * 0.4))));
-    const tArmadoSegundos = Math.round(entreFloats(180, 480) * (1.15 - 0.25 * mejora)); // mejora baja el tiempo
-    const tFin = new Date(tInicio.getTime() + tArmadoSegundos * 1000);
+    const palletId = nuevoId('pl');
+    const tInicioPallet = sumarMinutos(tInicioCarga, entreEnteros(0, Math.max(1, Math.round(cargaMin * 0.6))));
+    const tArmadoSegundos = Math.round(entreFloats(180, 480));
+    const tFinPallet = new Date(tInicioPallet.getTime() + tArmadoSegundos * 1000);
 
-    const pallet = await prisma.pallet.create({
-      data: {
-        codigoUnico: `P-${String(contadorPallet++).padStart(7, '0')}`,
-        entregaId: entrega.id,
-        pedidoId: pedido.id,
-        pickineroId: pickinero.id,
-        cargadorId: cargador.id,
-        edificioId: anden.edificioId,
-        estado: EstadoPallet.CARGADO,
-        timestampInicio: tInicio,
-        timestampFin: tFin,
-        tiempoArmadoSegundos: tArmadoSegundos,
-      },
+    filas.pallets.push({
+      id: palletId,
+      codigoUnico: nuevoId('P'),
+      entregaId,
+      pedidoId,
+      pickineroId: pickinero.id,
+      cargadorId: cargador.id,
+      edificioId: anden.edificioId,
+      estado: EstadoPallet.CARGADO,
+      timestampInicio: tInicioPallet,
+      timestampFin: tFinPallet,
+      tiempoArmadoSegundos: tArmadoSegundos,
     });
 
-    // Productos del pallet
     const cuantosProds = entreEnteros(PRODUCTOS_POR_PALLET.min, PRODUCTOS_POR_PALLET.max);
     const prodsDistintos = [...productosEntrega].sort(() => random() - 0.5).slice(0, cuantosProds);
     for (const pe of prodsDistintos) {
-      // Si in-full=false y el camión es de exportación falta producto: cargar menos
       let cantidad = entreEnteros(UNIDADES_POR_PRODUCTO.min, UNIDADES_POR_PRODUCTO.max);
       if (!inFull && random() < 0.4) cantidad = Math.round(cantidad * entreFloats(0.5, 0.85));
-      await prisma.productoPallet.create({
-        data: {
-          palletId: pallet.id,
-          productoId: pe.producto.id,
-          descripcion: pe.producto.nombre,
-          cantidad,
-          pesoKg: pe.producto.pesoKgUnitario ? cantidad * pe.producto.pesoKgUnitario : null,
-        },
+      filas.productosPallet.push({
+        id: nuevoId('pp'),
+        palletId,
+        productoId: pe.producto.id,
+        descripcion: pe.producto.nombre,
+        cantidad,
+        pesoKg: pe.producto.pesoKgUnitario ? cantidad * pe.producto.pesoKgUnitario : null,
       });
     }
   }
 
-  // Eventos de camión (timeline)
-  const usuarioGenericoId = ctx.supervisor?.id ?? ctx.pickineros[0]?.id;
-  const eventos: { estado: EstadoCamion; timestamp: Date }[] = [
-    { estado: EstadoCamion.ESPERADO, timestamp: sumarMinutos(plan.horaPlanificada, -60) },
-    { estado: EstadoCamion.EN_PORTERIA, timestamp: horaLlegadaReal },
-    { estado: EstadoCamion.ASIGNADO, timestamp: sumarMinutos(horaLlegadaReal, 5) },
-    { estado: EstadoCamion.EN_CARGA, timestamp: horaInicioParada },
-  ];
-  if (plan.tipo === TipoCamion.EXPORTACION) {
-    eventos.push({ estado: EstadoCamion.EN_TUNEL_FRIO, timestamp: sumarMinutos(horaFinParada, 5) });
-    eventos.push({ estado: EstadoCamion.ESPERANDO_SAG, timestamp: sumarMinutos(horaFinParada, 50) });
-    const sagAprobado = random() < 0.93;
-    eventos.push({ estado: sagAprobado ? EstadoCamion.APROBADO_SAG : EstadoCamion.RECHAZADO_SAG, timestamp: sumarMinutos(horaFinParada, 80) });
-    if (!sagAprobado) {
-      eventos.push({ estado: EstadoCamion.ESPERANDO_SAG, timestamp: sumarMinutos(horaFinParada, 120) });
-      eventos.push({ estado: EstadoCamion.APROBADO_SAG, timestamp: sumarMinutos(horaFinParada, 145) });
-    }
-    // Inspección SAG
-    await prisma.inspeccionSAG.create({
-      data: {
-        camionId: camion.id,
-        inspectorId: ctx.inspectorSAG.id,
-        estado: sagAprobado ? EstadoInspeccion.APROBADO : EstadoInspeccion.RECHAZADO,
-        timestampInicio: sumarMinutos(horaFinParada, 50),
-        timestampResolucion: sumarMinutos(horaFinParada, sagAprobado ? 80 : 145),
-      },
-    });
-  }
-  eventos.push({ estado: EstadoCamion.LISTO, timestamp: sumarMinutos(horaSalidaReal, -10) });
-  eventos.push({ estado: EstadoCamion.DESPACHADO, timestamp: horaSalidaReal });
-
-  await prisma.eventoCamion.createMany({
-    data: eventos.map(e => ({
-      camionId: camion.id,
-      estado: e.estado,
-      timestamp: e.timestamp,
-      usuarioId: usuarioGenericoId,
-    })),
-  });
-
-  // Justificación de atraso
-  if (!onTime && random() < 0.65) {
-    const causa = escenario === 'FALLA_ANDEN'
-      ? CausaJustificacion.FALLA_ANDEN
-      : escenario === 'FALTA_PRODUCTO'
-        ? CausaJustificacion.FALTA_PRODUCTO
-        : eligePeso<CausaJustificacion>(
-          [
-            CausaJustificacion.FALLA_ANDEN,
-            CausaJustificacion.FALLA_MECANICA,
-            CausaJustificacion.FALTA_PERSONAL,
-            CausaJustificacion.FALTA_PRODUCTO,
-            CausaJustificacion.VOLUMEN_EXCESIVO,
-            CausaJustificacion.PROBLEMA_CALIDAD,
-            CausaJustificacion.OTRO,
-          ],
-          [0.20, 0.15, 0.18, 0.12, 0.20, 0.08, 0.07],
-        );
-    await prisma.justificacionAtraso.create({
-      data: {
-        paradaId: parada.id,
-        causa,
-        descripcion: 'Atraso justificado por el supervisor.',
-        excluirDelCalculo: random() < 0.5,
-        registradoPorId: ctx.supervisor?.id ?? usuarioGenericoId!,
-      },
-    });
+  for (const ev of eventos) {
+    filas.eventosCamion.push({ id: nuevoId('ev'), camionId, estado: ev.estado, timestamp: ev.timestamp, usuarioId: ctx.jefe.id });
   }
 
-  return { camion, parada };
+  // Justificación de atraso para outliers con salida real tardía
+  if (horaSalidaReal && horaSalidaReal > horaSalidaPlanificada && random() < 0.7) {
+    const causa = eligePeso({
+      FALLA_ANDEN: 0.18, FALLA_MECANICA: 0.22, FALTA_PERSONAL: 0.15,
+      FALTA_PRODUCTO: 0.12, VOLUMEN_EXCESIVO: 0.20, PROBLEMA_CALIDAD: 0.08, OTRO: 0.05,
+    }) as CausaJustificacion;
+    filas.justificacionesAtraso.push({
+      id: nuevoId('ja'),
+      paradaId,
+      causa,
+      descripcion: 'Atraso justificado por el supervisor de turno.',
+      excluirDelCalculo: random() < 0.5,
+      registradoPorId: ctx.supervisor.id,
+    });
+  }
 }
 
-// ─── Escenarios emblemáticos ────────────────────────────────────────────────
+// ─── Fallas de andén (historial completo, no solo estado actual) ───────────
 
-async function aplicarEscenarioAveria(camionAfectadoId: string, fecha: Date, ctx: ContextoGen) {
-  // Crear sustituto Y simulado: marcar camion X como AVERIADO con sustituto en evento
-  const x = await prisma.camion.findUnique({ where: { id: camionAfectadoId } });
-  if (!x) return;
-  await prisma.camion.update({
-    where: { id: x.id },
-    data: { estado: EstadoCamion.AVERIADO },
-  });
-  await prisma.incidenteCamion.create({
+function generarFallasAnden(ctx: ContextoGen, filas: Filas) {
+  const semanas = Math.ceil(DIAS / 7);
+  const eventosGenerados: { andenId: string; desde: Date }[] = [];
+
+  for (let s = 0; s < semanas; s++) {
+    const outagesEstaSemana = entreEnteros(OUTAGES_POR_SEMANA.min, OUTAGES_POR_SEMANA.max);
+    for (let o = 0; o < outagesEstaSemana; o++) {
+      const edificioTipo = eligePeso(PESO_EDIFICIO_OUTAGE) as TipoEdificio;
+      const andenesEdif = ctx.andenesPorEdificio[edificioTipo];
+      if (!andenesEdif || andenesEdif.length === 0) continue;
+      const anden = elemAleatorio(andenesEdif);
+
+      const diaEnSemana = entreEnteros(1, 6); // evita domingo
+      const fechaBase = new Date(INICIO);
+      fechaBase.setDate(fechaBase.getDate() + s * 7 + diaEnSemana);
+      if (fechaBase > HOY) continue;
+
+      const desde = fechaConHora(fechaBase, entreEnteros(0, 20), entreEnteros(0, 59));
+      const esCorta = random() < PROB_OUTAGE_CORTA;
+      const duracionMin = esCorta
+        ? entreEnteros(OUTAGE_CORTA_MIN.min, OUTAGE_CORTA_MIN.max)
+        : entreEnteros(OUTAGE_LARGA_MIN.min, OUTAGE_LARGA_MIN.max);
+      const hasta = sumarMinutos(desde, duracionMin);
+
+      filas.historialAnden.push({
+        id: nuevoId('hf'),
+        andenId: anden.id,
+        motivo: elemAleatorio(MOTIVOS_OUTAGE),
+        desde,
+        hasta,
+        marcadoPorId: ctx.supervisor.id,
+        reactivadoPorId: ctx.supervisor.id,
+      });
+      eventosGenerados.push({ andenId: anden.id, desde });
+    }
+  }
+  console.log(`  🔧 ${filas.historialAnden.length} fallas de andén generadas a lo largo de ${semanas} semanas`);
+}
+
+/** Deja un andén (Aves o Cerdo) actualmente fuera de servicio para demo en vivo. */
+async function dejarAndenFueraDeServicioEnVivo(ctx: ContextoGen) {
+  const candidatos = [...ctx.andenesPorEdificio[TipoEdificio.AVES], ...ctx.andenesPorEdificio[TipoEdificio.CERDO]];
+  const anden = elemAleatorio(candidatos);
+  const desde = sumarMinutos(new Date(), -entreEnteros(30, 240));
+
+  await prisma.anden.update({
+    where: { id: anden.id },
     data: {
-      camionId: x.id,
-      tipo: TipoIncidente.AVERIA,
-      accion: AccionIncidente.SUSTITUIR,
-      estadoCamionEnIncidente: EstadoCamion.EN_CARGA,
-      descripcion: 'Falla mecánica del remolque. Se gestiona sustitución con transportista.',
-      registradoPorId: ctx.supervisor!.id,
-      timestamp: sumarMinutos(fecha, 11 * 60),
-      resueltoEn: sumarMinutos(fecha, 12 * 60),
+      fueraDeServicio: true,
+      motivoFueraServicio: elemAleatorio(MOTIVOS_OUTAGE),
+      fueraServicioDesde: desde,
+      fueraServicioPorId: ctx.supervisor.id,
     },
   });
-}
-
-async function aplicarEscenarioFallaAnden(fecha: Date, ctx: ContextoGen) {
-  // Marcar varios camiones del día con justificación FALLA_ANDEN
-  const camionesDia = await prisma.camion.findMany({
-    where: { horaLlegadaPlanificada: { gte: fecha, lt: sumarMinutos(fecha, 24 * 60) } },
-    take: 5,
+  await prisma.historialAndenFueraServicio.create({
+    data: {
+      andenId: anden.id,
+      motivo: 'Falla detectada esta jornada — pendiente de reparación',
+      desde,
+      marcadoPorId: ctx.supervisor.id,
+    },
   });
-  for (const c of camionesDia) {
-    const parada = await prisma.paradaExpedicion.findFirst({ where: { camionId: c.id } });
-    if (!parada) continue;
-    const existing = await prisma.justificacionAtraso.findUnique({ where: { paradaId: parada.id } });
-    if (!existing) {
-      await prisma.justificacionAtraso.create({
-        data: {
-          paradaId: parada.id,
-          causa: CausaJustificacion.FALLA_ANDEN,
-          descripcion: 'Andén F2 fuera de servicio por mantenimiento de emergencia.',
-          excluirDelCalculo: true,
-          registradoPorId: ctx.supervisor!.id,
-        },
-      });
-    }
-  }
+  console.log(`  🔴 Andén ${anden.codigo} dejado fuera de servicio (en vivo, para demo)`);
 }
 
 // ─── Generador principal ────────────────────────────────────────────────────
@@ -532,61 +655,68 @@ async function main() {
 
   await reset();
   const { pickineros, cargadores } = await crearOperadoresExtra();
-  const polivalentes = [...pickineros, ...cargadores].filter(u => u.polivalente);
   const clientes = await prisma.cliente.findMany();
-  const andenes = await prisma.anden.findMany();
+  const andenes = await prisma.anden.findMany({ include: { edificio: true } });
   const productos = await prisma.producto.findMany();
   const inspectorSAG = await prisma.usuario.findFirst({ where: { rol: RolUsuario.SAG } });
   const supervisor = await prisma.usuario.findFirst({ where: { rol: RolUsuario.SUPERVISOR } });
-  const portero = await prisma.usuario.findFirst({ where: { rol: RolUsuario.PORTERO } });
+  const jefe = await prisma.usuario.findFirst({ where: { rol: RolUsuario.JEFE_DESPACHO } });
 
-  if (!inspectorSAG || !supervisor) throw new Error('Faltan usuarios base. Corré npm run prisma:seed primero.');
+  if (!inspectorSAG || !supervisor || !jefe) throw new Error('Faltan usuarios base. Corré npm run prisma:seed primero.');
 
-  const ctx: ContextoGen = {
-    pickineros,
-    cargadores,
-    polivalentes,
-    andenes,
-    productos,
-    inspectorSAG,
-    porteroId: portero?.id ?? null,
-    supervisor,
+  const andenesPorEdificio: Record<string, Anden[]> = {};
+  for (const a of andenes) {
+    const tipo = a.edificio.tipo;
+    (andenesPorEdificio[tipo] ??= []).push(a);
+  }
+
+  const clientesPorTipo: Record<TipoCamion, Cliente[]> = {
+    NACIONAL: clientes.filter(c => c.tipoDestino === TipoCamion.NACIONAL),
+    EXPORTACION: clientes.filter(c => c.tipoDestino === TipoCamion.EXPORTACION),
+    INTERPLANTA: clientes.filter(c => c.tipoDestino === TipoCamion.INTERPLANTA),
   };
 
-  console.log('🚚 Generando camiones día por día...');
+  const ctx: ContextoGen = { pickineros, cargadores, andenesPorEdificio, productos, clientesPorTipo, inspectorSAG, supervisor, jefe };
+
+  console.log('🚚 Generando camiones día por día (en memoria)...');
+  const filas = filasVacias();
   let totalCamiones = 0;
-  let camionAveriaId: string | null = null;
 
   for (let d = 0; d < DIAS; d++) {
     const fecha = new Date(INICIO); fecha.setDate(fecha.getDate() + d);
-    const esPico = d === DIA_PICO;
-    const plan = generarPlanDiario(fecha, clientes, d, esPico);
+    const cfg = VOLUMEN_POR_DIA_SEMANA[fecha.getDay()];
+    const totalDia = entreEnteros(cfg.min, cfg.max);
 
-    for (let i = 0; i < plan.length; i++) {
-      const p = plan[i];
-      let escenario: 'AVERIA' | 'FALLA_ANDEN' | 'FALTA_PRODUCTO' | undefined;
-
-      if (d === DIA_AVERIA && i === 3 && p.tipo === TipoCamion.NACIONAL) escenario = 'AVERIA';
-      else if (d === DIA_FALTA_PRODUCTO && p.tipo === TipoCamion.EXPORTACION && !camionAveriaId) escenario = 'FALTA_PRODUCTO';
-
-      const { camion } = await generarCamion(p, d, ctx, escenario);
-      if (escenario === 'AVERIA') camionAveriaId = camion.id;
+    for (let i = 0; i < totalDia; i++) {
+      generarCamion(fecha, d, ctx, filas);
       totalCamiones++;
     }
 
-    if (d === DIA_AVERIA && camionAveriaId) await aplicarEscenarioAveria(camionAveriaId, fecha, ctx);
-    if (d === DIA_FALLA_ANDEN) await aplicarEscenarioFallaAnden(fecha, ctx);
-
-    if ((d + 1) % 10 === 0) console.log(`  ... día ${d + 1}/${DIAS} (${totalCamiones} camiones acumulados)`);
+    if ((d + 1) % 30 === 0) console.log(`  ... día ${d + 1}/${DIAS} (${totalCamiones} camiones acumulados)`);
   }
 
-  console.log(`✅ Datos sintéticos generados: ${totalCamiones} camiones a lo largo de ${DIAS} días.`);
-  console.log('🎯 Curva de mejora: OTIF y cumplimiento crecen, atrasos y tiempo de ciclo decrecen.');
-  console.log('🚩 Días emblemáticos:');
-  console.log(`   - Día ${DIA_AVERIA + 1}: avería + sustitución de camión NACIONAL`);
-  console.log(`   - Día ${DIA_FALLA_ANDEN + 1}: falla de andén F2 (5 camiones afectados)`);
-  console.log(`   - Día ${DIA_FALTA_PRODUCTO + 1}: falta de producto en EXPORTACIÓN`);
-  console.log(`   - Día ${DIA_PICO + 1}: día pico (30+ camiones)`);
+  generarFallasAnden(ctx, filas);
+
+  console.log(`📦 Insertando ${totalCamiones} camiones y todos sus registros asociados...`);
+  await insertarEnLotes('Pedidos', filas.pedidos, (l) => prisma.pedido.createMany({ data: l }));
+  await insertarEnLotes('Camiones', filas.camiones, (l) => prisma.camion.createMany({ data: l }));
+  await insertarEnLotes('Paradas de expedición', filas.paradas, (l) => prisma.paradaExpedicion.createMany({ data: l }));
+  await insertarEnLotes('Entregas', filas.entregas, (l) => prisma.entrega.createMany({ data: l }));
+  await insertarEnLotes('Ítems de entrega', filas.entregaItems, (l) => prisma.entregaItem.createMany({ data: l }));
+  await insertarEnLotes('Pallets', filas.pallets, (l) => prisma.pallet.createMany({ data: l }));
+  await insertarEnLotes('Productos por pallet', filas.productosPallet, (l) => prisma.productoPallet.createMany({ data: l }));
+  await insertarEnLotes('Eventos de camión', filas.eventosCamion, (l) => prisma.eventoCamion.createMany({ data: l }));
+  await insertarEnLotes('Inspecciones SAG', filas.inspeccionesSAG, (l) => prisma.inspeccionSAG.createMany({ data: l }));
+  await insertarEnLotes('Incidentes de camión', filas.incidentesCamion, (l) => prisma.incidenteCamion.createMany({ data: l }));
+  await insertarEnLotes('Justificaciones de atraso', filas.justificacionesAtraso, (l) => prisma.justificacionAtraso.createMany({ data: l }));
+  await insertarEnLotes('Historial de andenes fuera de servicio', filas.historialAnden, (l) => prisma.historialAndenFueraServicio.createMany({ data: l }));
+
+  await dejarAndenFueraDeServicioEnVivo(ctx);
+
+  console.log(`✅ Dataset sintético generado: ${totalCamiones} camiones a lo largo de ${DIAS} días.`);
+  console.log('🎯 Contexto reflejado: martes pico, cierre dominical, cerdo sin exportación,');
+  console.log('   túnel de frío 8-8.5h, rechazo SAG 60-70%, outliers de atraso 5-10%,');
+  console.log('   historial de fallas de andén y un andén dejado fuera de servicio en vivo.');
 }
 
 main()

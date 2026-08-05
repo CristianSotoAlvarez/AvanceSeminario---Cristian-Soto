@@ -219,12 +219,13 @@ export class ReportesService {
         : null;
 
     // Métricas nuevas (rediseño 2026-05-06) — se ejecutan en paralelo
-    const [cumplimientoYOtif, productividad, tiempoTunel, comparativo, incidentesOperativos] = await Promise.all([
+    const [cumplimientoYOtif, productividad, tiempoTunel, comparativo, incidentesOperativos, fallasAnden] = await Promise.all([
       this.calcularCumplimientoYOtif(desde, hasta),
       this.calcularProductividadOperadores(desde, hasta),
       this.calcularTiempoTunel(desde, hasta),
       this.calcularComparativoPeriodoAnterior(desdePrev, hastaPrev),
       this.calcularIncidentesOperativos(desde, hasta),
+      this.calcularFallasAnden(desde, hasta),
     ]);
 
     // Motor de medianas + IQR por edificio (últimos 30 días, sin justificados)
@@ -311,6 +312,45 @@ export class ReportesService {
       tiempoPromedioTunelMinutos: tiempoTunel,
       comparativoPeriodoAnterior: comparativo,
       incidentesOperativos,
+      fallasAnden,
+    };
+  }
+
+  /**
+   * Historial de fallas de andén dentro del rango: frecuencia por andén y
+   * tiempo promedio de resolución (desde que se marca fuera de servicio
+   * hasta que se reactiva). Se apoya en HistorialAndenFueraServicio, que
+   * a diferencia de los campos de Anden persiste incluso tras reactivar.
+   */
+  private async calcularFallasAnden(desde: Date, hasta: Date) {
+    const filas = await this.prisma.$queryRaw<Array<{
+      codigo: string;
+      cantidad: bigint;
+      minutos_promedio: number | null;
+      abiertas: bigint;
+    }>>(Prisma.sql`
+      SELECT
+        a.codigo AS codigo,
+        COUNT(h.id) AS cantidad,
+        AVG(EXTRACT(EPOCH FROM (h.hasta - h.desde)) / 60) FILTER (WHERE h.hasta IS NOT NULL) AS minutos_promedio,
+        COUNT(*) FILTER (WHERE h.hasta IS NULL) AS abiertas
+      FROM historial_anden_fuera_servicio h
+      INNER JOIN andenes a ON a.id = h."andenId"
+      WHERE h.desde >= ${desde} AND h.desde <= ${hasta}
+      GROUP BY a.codigo
+      ORDER BY cantidad DESC
+    `);
+
+    const total = filas.reduce((s, f) => s + Number(f.cantidad), 0);
+
+    return {
+      total,
+      porAnden: filas.map(f => ({
+        andenCodigo: f.codigo,
+        cantidad: Number(f.cantidad),
+        tiempoPromedioResolucionMinutos: f.minutos_promedio != null ? Math.round(Number(f.minutos_promedio)) : null,
+        actualmenteFueraDeServicio: Number(f.abiertas) > 0,
+      })),
     };
   }
 
