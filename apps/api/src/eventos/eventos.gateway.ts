@@ -68,4 +68,8 @@ export class EventosGateway implements OnGatewayInit {
   emitirAndenesActualizados() {
     this.servidor.emit('andenes:actualizados');
   }
+
+  emitirTunelesActualizados() {
+    this.servidor.emit('tuneles:actualizados');
+  }
 }

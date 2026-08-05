@@ -8,7 +8,7 @@ import { ActualizarUsuarioDto } from './dto/actualizar-usuario.dto';
 export class UsuariosService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async crear(dto: CrearUsuarioDto) {
+  async crear(dto: CrearUsuarioDto, actorId: string) {
     // Verificar unicidad de RUT y email
     const existente = await this.prisma.usuario.findFirst({
       where: { OR: [{ rut: dto.rut }, { email: dto.email }] },
@@ -20,7 +20,7 @@ export class UsuariosService {
 
     const passwordHash = await bcrypt.hash(dto.password, 10);
 
-    return this.prisma.usuario.create({
+    const usuario = await this.prisma.usuario.create({
       data: {
         nombre: dto.nombre,
         rut: dto.rut,
@@ -40,6 +40,18 @@ export class UsuariosService {
         creadoEn: true,
       },
     });
+
+    await this.prisma.auditLog.create({
+      data: {
+        usuarioId: actorId,
+        accion: 'CREAR_USUARIO',
+        entidadTipo: 'Usuario',
+        entidadId: usuario.id,
+        payload: { nombre: usuario.nombre, rol: usuario.rol },
+      },
+    });
+
+    return usuario;
   }
 
   async listar() {
@@ -81,8 +93,8 @@ export class UsuariosService {
     return usuario;
   }
 
-  async actualizar(id: string, dto: ActualizarUsuarioDto) {
-    await this.obtenerPorId(id); // Verifica que existe
+  async actualizar(id: string, dto: ActualizarUsuarioDto, actorId: string) {
+    const anterior = await this.obtenerPorId(id); // Verifica que existe
 
     const { password, ...resto } = dto;
     const datos: any = { ...resto };
@@ -91,7 +103,7 @@ export class UsuariosService {
       datos.passwordHash = await bcrypt.hash(password, 10);
     }
 
-    return this.prisma.usuario.update({
+    const actualizado = await this.prisma.usuario.update({
       where: { id },
       data: datos,
       select: {
@@ -104,14 +116,42 @@ export class UsuariosService {
         activo: true,
       },
     });
+
+    await this.prisma.auditLog.create({
+      data: {
+        usuarioId: actorId,
+        accion: 'ACTUALIZAR_USUARIO',
+        entidadTipo: 'Usuario',
+        entidadId: id,
+        payload: {
+          cambios: resto,
+          passwordCambiada: !!password,
+          rolAnterior: anterior.rol,
+          rolNuevo: actualizado.rol,
+        },
+      },
+    });
+
+    return actualizado;
   }
 
-  async desactivar(id: string) {
+  async desactivar(id: string, actorId: string) {
     await this.obtenerPorId(id);
 
-    return this.prisma.usuario.update({
+    const desactivado = await this.prisma.usuario.update({
       where: { id },
       data: { activo: false },
     });
+
+    await this.prisma.auditLog.create({
+      data: {
+        usuarioId: actorId,
+        accion: 'DESACTIVAR_USUARIO',
+        entidadTipo: 'Usuario',
+        entidadId: id,
+      },
+    });
+
+    return desactivado;
   }
 }

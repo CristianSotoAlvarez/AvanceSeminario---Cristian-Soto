@@ -78,7 +78,7 @@ async function bootstrap() {
   if (process.env.NODE_ENV !== 'production') {
     const configSwagger = new DocumentBuilder()
       .setTitle('DispatchTrack API')
-      .setDescription('API del Sistema de Trazabilidad de Despacho — Agrosuper S.A.')
+      .setDescription('API del Sistema de Trazabilidad de Despacho — Grupo AgroIndustrial S.A.')
       .setVersion('1.0')
       .addBearerAuth()
       .build();

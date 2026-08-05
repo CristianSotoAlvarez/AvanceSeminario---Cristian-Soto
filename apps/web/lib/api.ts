@@ -166,6 +166,8 @@ export interface Camion {
   cliente: Cliente | null;
   andenId: string | null;
   anden: { id: string; codigo: string } | null;
+  tunelId: string | null;
+  tunel: { id: string; codigo: string } | null;
   pedido: { id: string; numero: string; cliente: { nombre: string } } | null;
   horaLlegadaPlanificada: string;
   horaSalidaPlanificada: string | null;
@@ -373,6 +375,44 @@ export async function marcarAndenFueraServicioApi(id: string, motivo: string): P
 
 export async function reactivarAndenApi(id: string): Promise<Anden> {
   return fetchApi<Anden>(`/andenes/${id}/reactivar`, { method: 'PATCH' });
+}
+
+// =====================
+// Endpoints de Túneles de frío
+// =====================
+
+export interface TunelFrio {
+  id: string;
+  codigo: string;
+  ocupado: boolean;
+  fueraDeServicio: boolean;
+  motivoFueraServicio: string | null;
+  fueraServicioDesde: string | null;
+  fueraServicioPor: { nombre: string } | null;
+  edificio: { id: string; nombre: string; tipo: string };
+  camiones: Camion[];
+}
+
+export async function listarTunelesApi(): Promise<TunelFrio[]> {
+  return fetchApi<TunelFrio[]>('/tuneles');
+}
+
+export async function ingresarTunelApi(camionId: string, tunelId: string): Promise<Camion> {
+  return fetchApi<Camion>(`/tuneles/${camionId}/ingresar`, {
+    method: 'PATCH',
+    body: JSON.stringify({ tunelId }),
+  });
+}
+
+export async function marcarTunelFueraServicioApi(id: string, motivo: string): Promise<TunelFrio> {
+  return fetchApi<TunelFrio>(`/tuneles/${id}/fuera-servicio`, {
+    method: 'PATCH',
+    body: JSON.stringify({ motivo }),
+  });
+}
+
+export async function reactivarTunelApi(id: string): Promise<TunelFrio> {
+  return fetchApi<TunelFrio>(`/tuneles/${id}/reactivar`, { method: 'PATCH' });
 }
 
 // =====================

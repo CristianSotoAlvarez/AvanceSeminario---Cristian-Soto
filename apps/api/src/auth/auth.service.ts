@@ -13,7 +13,7 @@ export class AuthService {
   ) {}
 
   /** Autentica usuario por RUT/email y contraseña */
-  async login(identificador: string, password: string) {
+  async login(identificador: string, password: string, ip?: string) {
     // Buscar por RUT o email
     const usuario = await this.prisma.usuario.findFirst({
       where: {
@@ -34,6 +34,16 @@ export class AuthService {
     if (!passwordValido) {
       throw new UnauthorizedException('Credenciales inválidas');
     }
+
+    await this.prisma.auditLog.create({
+      data: {
+        usuarioId: usuario.id,
+        accion: 'LOGIN',
+        entidadTipo: 'Usuario',
+        entidadId: usuario.id,
+        ip: ip ?? null,
+      },
+    });
 
     return this.generarTokens(usuario);
   }

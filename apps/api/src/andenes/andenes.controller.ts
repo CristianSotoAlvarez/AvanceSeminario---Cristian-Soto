@@ -34,7 +34,7 @@ export class AndenesController {
   @Patch(':id/reactivar')
   @Roles('JEFE_DESPACHO', 'COORDINADOR_TRANSPORTE', 'COORDINADOR', 'SUPERVISOR')
   @ApiOperation({ summary: 'Reactivar un andén fuera de servicio' })
-  reactivar(@Param('id') id: string) {
-    return this.andenesService.reactivar(id);
+  reactivar(@Param('id') id: string, @UsuarioActual('id') usuarioId: string) {
+    return this.andenesService.reactivar(id, usuarioId);
   }
 }
