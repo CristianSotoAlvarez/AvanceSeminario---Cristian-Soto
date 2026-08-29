@@ -67,6 +67,9 @@ export interface DatosCamionParaPrediccion {
   edificioTipo: string;
   horaLlegadaPlanificada: Date;
   cantidadPalletsSolicitados: number | null;
+  /** Temperatura registrada al salir del túnel de frío (solo exportación).
+   * Variable causal del riesgo SAG — ver bitácora sección 9.6. */
+  temperaturaRegistrada?: number;
 }
 
 export function featurizarCamion(datos: DatosCamionParaPrediccion): Record<string, number> {
@@ -84,6 +87,9 @@ export function featurizarCamion(datos: DatosCamionParaPrediccion): Record<strin
   }
   features['horaLlegada'] = datos.horaLlegadaPlanificada.getHours();
   features['cantidadPalletsSolicitados'] = datos.cantidadPalletsSolicitados ?? 0;
+  if (datos.temperaturaRegistrada !== undefined) {
+    features['temperaturaRegistrada'] = datos.temperaturaRegistrada;
+  }
 
   return features;
 }

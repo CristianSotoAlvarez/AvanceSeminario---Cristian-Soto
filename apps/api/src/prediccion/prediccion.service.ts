@@ -38,20 +38,26 @@ export class PrediccionService {
     };
   }
 
-  /** Predicción de riesgo para un camión específico: OTIF siempre, SAG solo si es de exportación. */
+  /** Predicción de riesgo para un camión específico: OTIF siempre, SAG solo si es de exportación
+   * y ya tiene temperatura de túnel registrada (variable causal del modelo — ver bitácora 9.6). */
   async predecirParaCamion(camionId: string) {
     const camion = await this.prisma.camion.findUnique({
       where: { id: camionId },
-      include: { paradas: { where: { orden: 1 }, take: 1 } },
+      include: {
+        paradas: { where: { orden: 1 }, take: 1 },
+        eventosTunel: { orderBy: { timestamp: 'desc' }, take: 1 },
+      },
     });
     if (!camion) throw new NotFoundException('Camión no encontrado');
 
     const parada = camion.paradas[0];
+    const temperatura = camion.eventosTunel[0]?.temperaturaRegistrada;
     const datos = {
       tipoCamion: camion.tipo,
       edificioTipo: parada?.edificioTipo ?? 'AVES',
       horaLlegadaPlanificada: camion.horaLlegadaPlanificada,
       cantidadPalletsSolicitados: parada?.cantidadPalletsSolicitados ?? null,
+      temperaturaRegistrada: temperatura,
     };
     const features = featurizarCamion(datos);
 
@@ -61,8 +67,12 @@ export class PrediccionService {
       riesgoSAG: null,
     };
 
-    if (camion.tipo === 'EXPORTACION' && this.modeloSag) {
-      resultado.riesgoSAG = this.formatearResultado(evaluarArbol(this.modeloSag.arbol, features), 'sag');
+    if (camion.tipo === 'EXPORTACION') {
+      if (temperatura === undefined) {
+        resultado.riesgoSAG = { disponible: false, motivo: 'Aún no se registra la temperatura de salida del túnel de frío.' };
+      } else if (this.modeloSag) {
+        resultado.riesgoSAG = { disponible: true, ...this.formatearResultado(evaluarArbol(this.modeloSag.arbol, features), 'sag') };
+      }
     }
 
     return resultado;

@@ -123,10 +123,12 @@ def extraer_datos_sag(conn) -> pd.DataFrame:
           EXTRACT(HOUR FROM c."horaLlegadaPlanificada")::int AS "horaLlegada",
           p."cantidadPalletsSolicitados",
           i.estado AS "estadoInspeccion",
-          i."timestampResolucion"
+          i."timestampResolucion",
+          et."temperaturaRegistrada"
         FROM camiones c
         INNER JOIN paradas_expedicion p ON p."camionId" = c.id AND p.orden = 1
         INNER JOIN inspecciones_sag i ON i."camionId" = c.id
+        LEFT JOIN eventos_tunel et ON et."camionId" = c.id
         WHERE c.tipo = 'EXPORTACION' AND i.estado IN ('APROBADO', 'RECHAZADO')
     """
     return pd.read_sql(sql, conn)
@@ -147,6 +149,7 @@ CATEGORIAS_DIA = [0, 1, 2, 3, 4, 5, 6]  # 0=domingo ... 6=sábado (Postgres DOW)
 
 
 def featurizar(df: pd.DataFrame) -> pd.DataFrame:
+    tiene_temperatura = "temperaturaRegistrada" in df.columns
     filas = []
     for _, r in df.iterrows():
         fila = {}
@@ -158,6 +161,8 @@ def featurizar(df: pd.DataFrame) -> pd.DataFrame:
             fila[f"diaSemana_{d}"] = 1 if int(r["diaSemana"]) == d else 0
         fila["horaLlegada"] = float(r["horaLlegada"])
         fila["cantidadPalletsSolicitados"] = float(r["cantidadPalletsSolicitados"] or 0)
+        if tiene_temperatura:
+            fila["temperaturaRegistrada"] = float(r["temperaturaRegistrada"]) if pd.notna(r["temperaturaRegistrada"]) else -18.0
         filas.append(fila)
     return pd.DataFrame(filas)
 
