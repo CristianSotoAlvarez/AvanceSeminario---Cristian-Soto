@@ -168,15 +168,19 @@ def exportar_arbol(modelo: DecisionTreeClassifier, feature_names: list[str]) -> 
 
     def nodo(i: int) -> dict:
         if arbol.children_left[i] == arbol.children_right[i]:  # hoja
+            # OJO: arbol.value[i] son conteos PONDERADOS por class_weight="balanced",
+            # no la cantidad real de camiones históricos — usar siempre n_node_samples
+            # (conteo real, sin ponderar) para reportar "confianza" de forma honesta.
             valores = arbol.value[i][0]
-            total = valores.sum()
+            total_real = int(arbol.n_node_samples[i])
             clase = int(valores.argmax())
-            prob = float(valores[clase] / total) if total > 0 else 0.5
+            total_ponderado = valores.sum()
+            prob = float(valores[clase] / total_ponderado) if total_ponderado > 0 else 0.5
             return {
                 "hoja": True,
                 "prediccion": clase,
                 "probabilidad": round(prob, 4),
-                "muestras": int(total),
+                "muestras": total_real,
             }
         return {
             "hoja": False,

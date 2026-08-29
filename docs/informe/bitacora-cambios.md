@@ -361,6 +361,15 @@ Ambos árboles se entrenaron con `class_weight="balanced"` (compensa el desbalan
 
 **Beneficio.** Aporta un componente de aprendizaje automático supervisado, interpretable y defendible académicamente (árbol de decisión con métricas estándar, matriz de confusión e importancia de variables), integrado en la operación real del sistema sin comprometer la estabilidad de la infraestructura de despliegue.
 
+**Corrección posterior — conteo de "confianza" por predicción.** Al revisar cuántos casos históricos respaldan cada predicción individual, se detectó un error en la exportación del árbol: la cantidad de muestras por hoja se calculaba sumando el arreglo de valores *ponderados* por `class_weight="balanced"` (usado para compensar el desbalance de clases), en vez de la cantidad real de camiones históricos (`n_node_samples`, no ponderada). Esto hacía que el campo "confianza" mostrado en la interfaz reportara números artificialmente bajos —en algún caso llegando a 0— sin reflejar el respaldo estadístico real de la predicción. Se corrigió para usar siempre el conteo real. Con la corrección, la distribución real de respaldo por hoja quedó así:
+
+| Modelo | N° de hojas | Mínimo de casos por hoja | Mediana | Máximo |
+|---|---|---|---|---|
+| Riesgo OTIF | 9 | 156 | 600 | 4.843 |
+| Riesgo SAG | 15 | 26 | 120 | 1.720 |
+
+El modelo OTIF queda bien respaldado (mínimo 156 casos por predicción). El modelo SAG tiene algunas hojas cercanas al mínimo configurado (`min_samples_leaf=25`), especialmente las que separan por combinaciones finas de día/hora — predicciones puntuales de esas ramas son estadísticamente más frágiles que el resto. Se documenta como una limitación honesta a mencionar si se pregunta en la defensa, no oculta.
+
 ---
 
 ## 10. Apéndice — Inventario de cambios (Etapa 2)
