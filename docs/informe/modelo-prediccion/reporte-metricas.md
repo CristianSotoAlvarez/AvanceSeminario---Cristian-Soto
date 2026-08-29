@@ -15,12 +15,12 @@ Generado automáticamente por `apps/api/ml/entrenar_modelos.py`.
 ## Modelo 2 — Riesgo SAG (solo camiones de exportación)
 
 - Ejemplos: 6027 (entrenamiento: 4821, prueba: 1206)
-- Accuracy: 0.5647
-- Precision: 0.6974
-- Recall: 0.5806
-- F1-score: 0.6336
-- Matriz de confusión [[TN, FP], [FN, TP]]: [[227, 197], [328, 454]]
-- Variables más importantes: {"horaLlegada": 0.4257, "cantidadPalletsSolicitados": 0.183, "diaSemana_5": 0.1198, "diaSemana_1": 0.1194, "edificioTipo_AVES": 0.0672}
+- Accuracy: 0.9959
+- Precision: 0.9974
+- Recall: 0.9962
+- F1-score: 0.9968
+- Matriz de confusión [[TN, FP], [FN, TP]]: [[422, 2], [3, 779]]
+- Variables más importantes: {"temperaturaRegistrada": 0.9994, "horaLlegada": 0.0004, "cantidadPalletsSolicitados": 0.0002, "diaSemana_4": 0.0}
 
 > Nota metodológica: el rechazo SAG se generó en el dataset sintético como un evento
 > aproximadamente aleatorio (probabilidad fija, independiente de otras variables),

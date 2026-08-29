@@ -328,10 +328,15 @@ export interface PrediccionRiesgo {
   confianza: number;
 }
 
+/** Riesgo SAG solo está disponible una vez el camión registra temperatura en el túnel. */
+export type PrediccionSAG =
+  | ({ disponible: true } & PrediccionRiesgo)
+  | { disponible: false; motivo: string };
+
 export interface PrediccionCamion {
   camionId: string;
   riesgoOTIF: PrediccionRiesgo | null;
-  riesgoSAG: PrediccionRiesgo | null;
+  riesgoSAG: PrediccionSAG | null;
 }
 
 export async function predecirCamionApi(camionId: string): Promise<PrediccionCamion> {

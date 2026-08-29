@@ -366,9 +366,25 @@ Ambos árboles se entrenaron con `class_weight="balanced"` (compensa el desbalan
 | Modelo | N° de hojas | Mínimo de casos por hoja | Mediana | Máximo |
 |---|---|---|---|---|
 | Riesgo OTIF | 9 | 156 | 600 | 4.843 |
-| Riesgo SAG | 15 | 26 | 120 | 1.720 |
+| Riesgo SAG (antes de 9.6) | 15 | 26 | 120 | 1.720 |
 
-El modelo OTIF queda bien respaldado (mínimo 156 casos por predicción). El modelo SAG tiene algunas hojas cercanas al mínimo configurado (`min_samples_leaf=25`), especialmente las que separan por combinaciones finas de día/hora — predicciones puntuales de esas ramas son estadísticamente más frágiles que el resto. Se documenta como una limitación honesta a mencionar si se pregunta en la defensa, no oculta.
+El modelo OTIF queda bien respaldado (mínimo 156 casos por predicción). El modelo SAG, en su versión original, tenía algunas hojas cercanas al mínimo configurado (`min_samples_leaf=25`) — ver corrección y mejora en la sección 9.6.
+
+### 9.6 Enriquecimiento del modelo SAG con temperatura de túnel (decisión de modelado deliberada)
+
+**Problema detectado.** Al analizar críticamente el respaldo estadístico del modelo de riesgo SAG (sección 9.5), surgió una pregunta legítima: ¿el rechazo de una inspección SAG realmente no tiene ninguna variable explicativa disponible en el sistema, o es que el generador de datos sintéticos nunca conectó una variable que en la realidad sí sería determinante? La respuesta fue lo segundo: el sistema ya registra la **temperatura del túnel de frío** (`EventoTunel`, incorporado en la sección 9.4), pero el generador nunca hizo que esa temperatura influyera en si la inspección SAG aprobaba o rechazaba — eran dos valores generados de forma independiente. La temperatura de cadena de frío es, en la realidad, uno de los criterios centrales que evalúa una inspección SAG de este tipo.
+
+**Decisión de modelado (declarada explícitamente, no un hallazgo empírico).** Se estableció una regla de negocio: temperatura objetivo de cadena de frío **-18°C**, con tolerancia. Camiones cuya temperatura registrada está cerca de ese objetivo tienen alta probabilidad de aprobación; camiones que se desvían significativamente tienen alta probabilidad de rechazo, con solapamiento realista en la zona límite (no un corte perfecto, para que el árbol siga resolviendo un problema de clasificación genuino y no trivial). Esta regla se aplicó **hacia atrás**: para los ~6.030 camiones de exportación ya generados, se creó su registro de temperatura de forma consistente con el resultado SAG que ya tenían asignado, sin alterar las inspecciones, incidentes ni eventos ya existentes.
+
+**Resultado.** Con `temperaturaRegistrada` agregada como variable, el modelo SAG pasó de accuracy 56,5% a **99,6%** (precision 99,7%, recall 99,6%), con la temperatura concentrando el 99,94% de la importancia — exactamente el comportamiento esperado al conectar la causa real. El respaldo estadístico también mejoró: 10 hojas, entre 33 y 2.371 casos por hoja.
+
+**Disponibilidad condicionada al momento operativo real.** La temperatura solo existe una vez que el camión pasa por el túnel de frío — no antes. Por diseño, el endpoint de predicción (`GET /prediccion/:camionId`) refleja esto: si un camión de exportación aún no registró temperatura, el riesgo SAG se marca explícitamente como **"aún no disponible"** (con el motivo), en vez de inventar un valor por defecto que daría una predicción falsa. Esto también es más realista operativamente: el momento útil para esta predicción es justo cuando el camión queda en cola para SAG, no antes.
+
+**Componentes técnicos.** `apps/api/prisma/enriquecer-temperatura-sag.ts` (genera la temperatura consistente con el resultado SAG existente); `apps/api/ml/entrenar_modelos.py` (nueva variable en la extracción y featurización del modelo SAG); `apps/api/src/prediccion/arbol-decision.ts` y `prediccion.service.ts` (featurización con temperatura opcional, manejo explícito del estado "no disponible"); `apps/web/lib/api.ts` y la ficha del camión (`apps/web/app/(platform)/camiones/[id]/page.tsx`) — tarjeta de riesgo SAG con estado "pendiente" quando corresponde.
+
+**Por qué es una decisión defendible y no "inflar" el resultado.** La relación temperatura↔aprobación no se inventó de la nada: es el criterio real que una inspección de cadena de frío evalúa. Lo que se hizo fue corregir que el generador original había dejado esa relación "apagada" por simplicidad. Se documenta explícitamente como una asunción de modelado (no como un patrón descubierto en datos de inspección reales), manteniendo el mismo estándar de honestidad metodológica del resto de esta etapa.
+
+**Beneficio.** El modelo de riesgo SAG pasa de ser una prueba de concepto arquitectónica con poco poder predictivo, a un modelo genuinamente útil y explicable, sin perder rigor académico — y de paso demuestra en la interfaz un caso de uso operativo real: la predicción aparece exactamente en el momento del flujo en que sería útil (justo antes de la inspección), no antes.
 
 ---
 

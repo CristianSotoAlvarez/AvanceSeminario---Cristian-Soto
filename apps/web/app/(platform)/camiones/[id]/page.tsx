@@ -245,6 +245,19 @@ function BadgeRiesgo({ titulo, riesgo }: { titulo: string; riesgo: PrediccionRie
 
 type PrediccionRiesgoUI = NonNullable<PrediccionCamion["riesgoOTIF"]>;
 
+function BadgePendiente({ titulo, motivo }: { titulo: string; motivo: string }) {
+  return (
+    <div className="flex-1 rounded-lg p-3 border" style={{ background: "#F8FAFC", borderColor: "#E2E8F0" }}>
+      <p className="font-display text-[10px] uppercase text-text-muted tracking-wide mb-1">{titulo}</p>
+      <div className="flex items-center gap-2">
+        <div className="w-2 h-2 rounded-full bg-slate-300" />
+        <p className="font-display text-sm font-bold text-text-muted">Aún no disponible</p>
+      </div>
+      <p className="font-data text-[10px] text-text-muted mt-1">{motivo}</p>
+    </div>
+  );
+}
+
 function TarjetaPrediccion({ camionId }: { camionId: string }) {
   const [prediccion, setPrediccion] = useState<PrediccionCamion | null>(null);
   const [cargando, setCargando] = useState(true);
@@ -274,7 +287,11 @@ function TarjetaPrediccion({ camionId }: { camionId: string }) {
       </div>
       <div className="flex gap-3 flex-wrap">
         {prediccion.riesgoOTIF && <BadgeRiesgo titulo="Riesgo OTIF" riesgo={prediccion.riesgoOTIF} />}
-        {prediccion.riesgoSAG && <BadgeRiesgo titulo="Riesgo inspección SAG" riesgo={prediccion.riesgoSAG} />}
+        {prediccion.riesgoSAG && (
+          prediccion.riesgoSAG.disponible
+            ? <BadgeRiesgo titulo="Riesgo inspección SAG" riesgo={prediccion.riesgoSAG} />
+            : <BadgePendiente titulo="Riesgo inspección SAG" motivo={prediccion.riesgoSAG.motivo} />
+        )}
       </div>
       <p className="font-display text-[10px] text-text-muted mt-2">
         Estimación generada por un modelo entrenado sobre el histórico de camiones — no reemplaza el criterio operativo.
