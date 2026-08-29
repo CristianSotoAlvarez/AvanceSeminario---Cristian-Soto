@@ -330,11 +330,36 @@ Esta etapa se realizó en preparación de la **defensa de avance del proyecto de
 
 **Beneficio.** Cierra una brecha de trazabilidad simétrica a la de andenes para el único recurso físico de la planta que antes no era gestionable, y corrige dos fallas reales que impedían que el flujo de túnel funcionara como estaba pensado.
 
-### 9.5 Trabajo en curso al cierre de esta etapa
+### 9.5 Modelo predictivo: árboles de decisión para riesgo OTIF y riesgo SAG
 
-Por solicitud explícita del profesor guía, se inició el diseño de un **modelo predictivo basado en árbol de decisión** sobre el conjunto de datos sintéticos generado, con dos variables objetivo acordadas con el estudiante: riesgo de rechazo en inspección SAG y riesgo de incumplimiento OTIF. Se definió que el modelo se entrenará con **Python/scikit-learn** y quedará **integrado en vivo** en la aplicación. Este trabajo queda documentado en detalle en una entrega posterior de esta bitácora, una vez finalizado.
+Por solicitud explícita del profesor guía, se implementó un **modelo predictivo basado en árbol de decisión (CART)** sobre el conjunto de datos sintéticos de 180 días, con dos variables objetivo: riesgo de incumplimiento OTIF y riesgo de rechazo en inspección SAG. El modelo se entrenó con **Python/scikit-learn** y quedó **integrado en vivo** en la aplicación (arquitectura descrita en el punto 7 del documento de diseño, opción B: entrenamiento con Python, evaluación del árbol ya entrenado dentro del backend NestJS, sin infraestructura nueva).
 
-> **Nota metodológica para el informe.** Dado que el rechazo SAG se modeló en el generador como un evento aproximadamente aleatorio (probabilidad fija, independiente de otras variables), es esperable que ese árbol específico muestre bajo poder predictivo — un hallazgo honesto y reportable ("el sistema actual no captura variables que expliquen el rechazo; se recomienda registrar variables adicionales como temperatura real o historial de calidad del proveedor"), no una limitación del modelo en sí. En cambio, el árbol de riesgo OTIF sí debería mostrar una relación real y explicable: los camiones de exportación rechazados en SAG nunca se despachan a tiempo, por lo que el tipo de camión debiera emerger como predictor genuino.
+**Hallazgo adicional durante la preparación de los datos de entrenamiento.** Al extraer los datos para entrenar, se detectó que el corte de disco de Railway (sección 9.3) había ocurrido *antes* de que el generador alcanzara a insertar `EventoCamion`, `InspeccionSAG`, `IncidenteCamion` y `JustificacionAtraso` — estas cuatro tablas estaban prácticamente vacías para los 180 días (solo 39 eventos y 1 inspección SAG en total, cuando debían ser decenas de miles). Se reconstruyeron con un script de recuperación adicional (`completar-eventos-sag-incidentes.ts`) que replica la misma lógica probabilística del generador original a partir de los datos ya persistidos (horarios reales, estado final del camión), insertando finalmente 96.345 eventos, 10.278 inspecciones SAG, 2.117 incidentes y 3.132 justificaciones de atraso. Sin esta corrección, además de imposibilitar el entrenamiento del modelo SAG, los reportes de tiempo de túnel e incidentes operativos habrían aparecido vacíos para todo el período histórico.
+
+**Metodología y resultados** (dataset de prueba, 20% de los datos, no usado en entrenamiento):
+
+| Modelo | Ejemplos | Accuracy | Precision | Recall | F1-score |
+|---|---|---|---|---|---|
+| Riesgo OTIF (todos los tipos) | 12.323 | 70,6 % | 33,6 % | 96,0 % | 49,7 % |
+| Riesgo SAG (solo exportación) | 6.027 | 56,5 % | 69,7 % | 58,1 % | 63,4 % |
+
+Ambos árboles se entrenaron con `class_weight="balanced"` (compensa el desbalance de clases: solo 15% de los camiones cumplen OTIF), profundidad máxima 4 (interpretabilidad) e impureza Gini.
+
+- **Riesgo OTIF:** la variable `cantidadPalletsSolicitados` concentra el 98,9% de la importancia del modelo. Esto es coherente y explicable: el volumen de pallets solicitados es, por diseño del dataset, un proxy casi perfecto del tipo de camión (exportación pide sistemáticamente más pallets que nacional/interplanta), y el tipo de camión determina el riesgo estructural de incumplimiento (los camiones de exportación dependen de superar la inspección SAG para poder despacharse a tiempo).
+- **Riesgo SAG:** mostró más poder predictivo del esperado (accuracy 56,5%, mejor que el azar) pese a que el rechazo se modeló como un evento aproximadamente aleatorio en el generador. Se documenta como limitación metodológica que parte de esta señal podría deberse a una autocorrelación débil del generador de números pseudoaleatorios simple (congruencial lineal) usado tanto en el generador de datos original como en el script de recuperación, más que a una relación causal real — un punto a discutir honestamente si se pregunta en la defensa.
+
+**Componentes técnicos.**
+- `apps/api/ml/entrenar_modelos.py` (extracción de datos, entrenamiento, métricas, exportación de reglas a JSON, visualización del árbol) y `apps/api/ml/requirements.txt`.
+- `apps/api/prisma/completar-eventos-sag-incidentes.ts` (script de recuperación de las cuatro tablas afectadas por el corte de disco).
+- Nuevo módulo `apps/api/src/prediccion/` (NestJS): `arbol-decision.ts` (evaluador del árbol exportado + featurización idéntica a la de entrenamiento), `prediccion.service.ts` (carga los JSON al iniciar la API, calcula predicciones por camión), `prediccion.controller.ts` (endpoints `GET /prediccion/:camionId` y `GET /prediccion/modelos`).
+- `apps/api/src/prediccion/modelos/arbol-otif.json` y `arbol-sag.json` — árboles entrenados, exportados como reglas (umbral por nodo), sin ninguna dependencia de Python en producción.
+- `nest-cli.json` — se agregó configuración de `assets` para que el build copie los JSON de los modelos al `dist/`.
+- Frontend: tarjeta "Predicción de riesgo" en la ficha del camión (`apps/web/app/(platform)/camiones/[id]/page.tsx`), que muestra el riesgo OTIF (todos los camiones) y el riesgo SAG (solo exportación) con su nivel de confianza.
+- Visualizaciones y reporte de métricas para el informe en `docs/informe/modelo-prediccion/` (`arbol-otif.png`, `arbol-sag.png`, `reporte-metricas.md`).
+
+**Decisión de arquitectura.** Se optó explícitamente por *no* desplegar un microservicio Python en Railway (opción A del diseño), dado el incidente de disco de esta misma etapa: minimizar infraestructura nueva antes de la defensa. El entrenamiento y la evaluación de métricas ocurren en Python (cumpliendo el requisito del profesor guía), pero la inferencia en producción es una función pura de TypeScript que camina la estructura del árbol ya entrenado — sin llamadas de red adicionales ni procesos externos.
+
+**Beneficio.** Aporta un componente de aprendizaje automático supervisado, interpretable y defendible académicamente (árbol de decisión con métricas estándar, matriz de confusión e importancia de variables), integrado en la operación real del sistema sin comprometer la estabilidad de la infraestructura de despliegue.
 
 ---
 

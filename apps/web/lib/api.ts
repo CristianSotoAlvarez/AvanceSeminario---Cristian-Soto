@@ -317,6 +317,27 @@ export async function obtenerCamionApi(id: string): Promise<CamionDetalle> {
   return fetchApi<CamionDetalle>(`/camiones/${id}`);
 }
 
+// =====================
+// Predicción de riesgo (árboles de decisión)
+// =====================
+
+export interface PrediccionRiesgo {
+  prediccion: 0 | 1;
+  etiqueta: string;
+  probabilidad: number;
+  confianza: number;
+}
+
+export interface PrediccionCamion {
+  camionId: string;
+  riesgoOTIF: PrediccionRiesgo | null;
+  riesgoSAG: PrediccionRiesgo | null;
+}
+
+export async function predecirCamionApi(camionId: string): Promise<PrediccionCamion> {
+  return fetchApi<PrediccionCamion>(`/prediccion/${camionId}`);
+}
+
 export async function cambiarEstadoCamionApi(id: string, endpoint: string, body?: Record<string, unknown>) {
   return fetchApi<Camion>(`/camiones/${id}/${endpoint}`, {
     method: 'PATCH',

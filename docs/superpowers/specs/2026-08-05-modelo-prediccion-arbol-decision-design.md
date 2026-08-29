@@ -2,7 +2,7 @@
 
 **Fecha:** 5 de agosto de 2026
 **Origen del requisito:** solicitado explícitamente por el profesor guía, en el marco de la defensa de avance del proyecto de título.
-**Estado:** diseño aprobado para documentar; **implementación aún no iniciada**.
+**Estado:** ✅ implementado el mismo día (5 de agosto de 2026). Resultados y componentes técnicos finales documentados en `docs/informe/bitacora-cambios.md`, sección 9.5. Se optó por la **opción B** de la sección 7 (entrenamiento con Python, evaluación del árbol ya entrenado en NestJS).
 
 ---
 
@@ -76,4 +76,4 @@ Dado que la decisión es entrenar e inferir con Python (no reimplementar el árb
 
 ---
 
-> Este documento describe únicamente el diseño. No se ha escrito código de entrenamiento ni de integración; se ejecutará cuando el usuario lo autorice explícitamente.
+> Este documento describía el diseño previo a la implementación. El resultado final, con métricas y decisiones tomadas durante la construcción (incluyendo la recuperación de datos faltantes por el corte de disco), está documentado en `docs/informe/bitacora-cambios.md`, sección 9.5.
