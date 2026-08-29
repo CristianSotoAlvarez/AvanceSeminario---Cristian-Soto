@@ -63,7 +63,7 @@
           "hoja": true,
           "prediccion": 0,
           "probabilidad": 0.7992,
-          "muestras": 1
+          "muestras": 41
         },
         "derecha": {
           "hoja": false,
@@ -74,13 +74,13 @@
             "hoja": true,
             "prediccion": 0,
             "probabilidad": 0.5392,
-            "muestras": 1
+            "muestras": 49
           },
           "derecha": {
             "hoja": true,
             "prediccion": 0,
             "probabilidad": 0.5754,
-            "muestras": 1
+            "muestras": 26
           }
         }
       },
@@ -98,13 +98,13 @@
             "hoja": true,
             "prediccion": 1,
             "probabilidad": 0.5318,
-            "muestras": 1
+            "muestras": 220
           },
           "derecha": {
             "hoja": true,
             "prediccion": 1,
             "probabilidad": 0.7461,
-            "muestras": 1
+            "muestras": 45
           }
         },
         "derecha": {
@@ -116,13 +116,13 @@
             "hoja": true,
             "prediccion": 1,
             "probabilidad": 0.6262,
-            "muestras": 1
+            "muestras": 86
           },
           "derecha": {
             "hoja": true,
             "prediccion": 1,
             "probabilidad": 0.7912,
-            "muestras": 1
+            "muestras": 120
           }
         }
       }
@@ -146,13 +146,13 @@
             "hoja": true,
             "prediccion": 0,
             "probabilidad": 0.5715,
-            "muestras": 1
+            "muestras": 1720
           },
           "derecha": {
             "hoja": true,
             "prediccion": 1,
             "probabilidad": 0.5439,
-            "muestras": 1
+            "muestras": 426
           }
         },
         "derecha": {
@@ -164,13 +164,13 @@
             "hoja": true,
             "prediccion": 1,
             "probabilidad": 0.5107,
-            "muestras": 1
+            "muestras": 82
           },
           "derecha": {
             "hoja": true,
             "prediccion": 1,
             "probabilidad": 0.6189,
-            "muestras": 1
+            "muestras": 204
           }
         }
       },
@@ -188,13 +188,13 @@
             "hoja": true,
             "prediccion": 1,
             "probabilidad": 0.5361,
-            "muestras": 0
+            "muestras": 1113
           },
           "derecha": {
             "hoja": true,
             "prediccion": 1,
             "probabilidad": 0.6073,
-            "muestras": 1
+            "muestras": 324
           }
         },
         "derecha": {
@@ -206,13 +206,13 @@
             "hoja": true,
             "prediccion": 0,
             "probabilidad": 0.5791,
-            "muestras": 1
+            "muestras": 328
           },
           "derecha": {
             "hoja": true,
             "prediccion": 1,
             "probabilidad": 0.6274,
-            "muestras": 1
+            "muestras": 37
           }
         }
       }

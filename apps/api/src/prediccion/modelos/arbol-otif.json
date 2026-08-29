@@ -64,13 +64,13 @@
             "hoja": true,
             "prediccion": 0,
             "probabilidad": 0.6489,
-            "muestras": 1
+            "muestras": 409
           },
           "derecha": {
             "hoja": true,
             "prediccion": 0,
             "probabilidad": 0.5365,
-            "muestras": 1
+            "muestras": 412
           }
         },
         "derecha": {
@@ -82,13 +82,13 @@
             "hoja": true,
             "prediccion": 1,
             "probabilidad": 0.5627,
-            "muestras": 0
+            "muestras": 600
           },
           "derecha": {
             "hoja": true,
             "prediccion": 1,
             "probabilidad": 0.6895,
-            "muestras": 1
+            "muestras": 349
           }
         }
       },
@@ -106,13 +106,13 @@
             "hoja": true,
             "prediccion": 1,
             "probabilidad": 0.6881,
-            "muestras": 1
+            "muestras": 1112
           },
           "derecha": {
             "hoja": true,
             "prediccion": 1,
             "probabilidad": 0.8002,
-            "muestras": 0
+            "muestras": 156
           }
         },
         "derecha": {
@@ -124,13 +124,13 @@
             "hoja": true,
             "prediccion": 1,
             "probabilidad": 0.8179,
-            "muestras": 1
+            "muestras": 1196
           },
           "derecha": {
             "hoja": true,
             "prediccion": 1,
             "probabilidad": 0.7571,
-            "muestras": 1
+            "muestras": 781
           }
         }
       }
@@ -139,7 +139,7 @@
       "hoja": true,
       "prediccion": 0,
       "probabilidad": 1.0,
-      "muestras": 1
+      "muestras": 4843
     }
   }
 }
