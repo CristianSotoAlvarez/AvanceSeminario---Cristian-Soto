@@ -1,0 +1,221 @@
+{
+  "objetivo": "riesgoSAG",
+  "featureNames": [
+    "tipoCamion_NACIONAL",
+    "tipoCamion_EXPORTACION",
+    "tipoCamion_INTERPLANTA",
+    "edificioTipo_AVES",
+    "edificioTipo_CERDO",
+    "edificioTipo_FRIGORIFICO",
+    "diaSemana_0",
+    "diaSemana_1",
+    "diaSemana_2",
+    "diaSemana_3",
+    "diaSemana_4",
+    "diaSemana_5",
+    "diaSemana_6",
+    "horaLlegada",
+    "cantidadPalletsSolicitados"
+  ],
+  "metricas": {
+    "accuracy": 0.5647,
+    "precision": 0.6974,
+    "recall": 0.5806,
+    "f1": 0.6336,
+    "matrizConfusion": [
+      [
+        227,
+        197
+      ],
+      [
+        328,
+        454
+      ]
+    ],
+    "nEntrenamiento": 4821,
+    "nPrueba": 1206
+  },
+  "importanciaFeatures": {
+    "horaLlegada": 0.4257,
+    "cantidadPalletsSolicitados": 0.183,
+    "diaSemana_5": 0.1198,
+    "diaSemana_1": 0.1194,
+    "edificioTipo_AVES": 0.0672,
+    "edificioTipo_FRIGORIFICO": 0.0494,
+    "diaSemana_6": 0.0355
+  },
+  "arbol": {
+    "hoja": false,
+    "feature": "cantidadPalletsSolicitados",
+    "umbral": 18.5,
+    "muestras": 4821,
+    "izquierda": {
+      "hoja": false,
+      "feature": "horaLlegada",
+      "umbral": 4.5,
+      "muestras": 587,
+      "izquierda": {
+        "hoja": false,
+        "feature": "edificioTipo_FRIGORIFICO",
+        "umbral": 0.5,
+        "muestras": 116,
+        "izquierda": {
+          "hoja": true,
+          "prediccion": 0,
+          "probabilidad": 0.7992,
+          "muestras": 1
+        },
+        "derecha": {
+          "hoja": false,
+          "feature": "horaLlegada",
+          "umbral": 3.5,
+          "muestras": 75,
+          "izquierda": {
+            "hoja": true,
+            "prediccion": 0,
+            "probabilidad": 0.5392,
+            "muestras": 1
+          },
+          "derecha": {
+            "hoja": true,
+            "prediccion": 0,
+            "probabilidad": 0.5754,
+            "muestras": 1
+          }
+        }
+      },
+      "derecha": {
+        "hoja": false,
+        "feature": "edificioTipo_AVES",
+        "umbral": 0.5,
+        "muestras": 471,
+        "izquierda": {
+          "hoja": false,
+          "feature": "horaLlegada",
+          "umbral": 16.5,
+          "muestras": 265,
+          "izquierda": {
+            "hoja": true,
+            "prediccion": 1,
+            "probabilidad": 0.5318,
+            "muestras": 1
+          },
+          "derecha": {
+            "hoja": true,
+            "prediccion": 1,
+            "probabilidad": 0.7461,
+            "muestras": 1
+          }
+        },
+        "derecha": {
+          "hoja": false,
+          "feature": "horaLlegada",
+          "umbral": 9.5,
+          "muestras": 206,
+          "izquierda": {
+            "hoja": true,
+            "prediccion": 1,
+            "probabilidad": 0.6262,
+            "muestras": 1
+          },
+          "derecha": {
+            "hoja": true,
+            "prediccion": 1,
+            "probabilidad": 0.7912,
+            "muestras": 1
+          }
+        }
+      }
+    },
+    "derecha": {
+      "hoja": false,
+      "feature": "cantidadPalletsSolicitados",
+      "umbral": 22.5,
+      "muestras": 4234,
+      "izquierda": {
+        "hoja": false,
+        "feature": "diaSemana_5",
+        "umbral": 0.5,
+        "muestras": 2432,
+        "izquierda": {
+          "hoja": false,
+          "feature": "diaSemana_1",
+          "umbral": 0.5,
+          "muestras": 2146,
+          "izquierda": {
+            "hoja": true,
+            "prediccion": 0,
+            "probabilidad": 0.5715,
+            "muestras": 1
+          },
+          "derecha": {
+            "hoja": true,
+            "prediccion": 1,
+            "probabilidad": 0.5439,
+            "muestras": 1
+          }
+        },
+        "derecha": {
+          "hoja": false,
+          "feature": "horaLlegada",
+          "umbral": 5.5,
+          "muestras": 286,
+          "izquierda": {
+            "hoja": true,
+            "prediccion": 1,
+            "probabilidad": 0.5107,
+            "muestras": 1
+          },
+          "derecha": {
+            "hoja": true,
+            "prediccion": 1,
+            "probabilidad": 0.6189,
+            "muestras": 1
+          }
+        }
+      },
+      "derecha": {
+        "hoja": false,
+        "feature": "horaLlegada",
+        "umbral": 14.5,
+        "muestras": 1802,
+        "izquierda": {
+          "hoja": false,
+          "feature": "horaLlegada",
+          "umbral": 11.5,
+          "muestras": 1437,
+          "izquierda": {
+            "hoja": true,
+            "prediccion": 1,
+            "probabilidad": 0.5361,
+            "muestras": 0
+          },
+          "derecha": {
+            "hoja": true,
+            "prediccion": 1,
+            "probabilidad": 0.6073,
+            "muestras": 1
+          }
+        },
+        "derecha": {
+          "hoja": false,
+          "feature": "diaSemana_6",
+          "umbral": 0.5,
+          "muestras": 365,
+          "izquierda": {
+            "hoja": true,
+            "prediccion": 0,
+            "probabilidad": 0.5791,
+            "muestras": 1
+          },
+          "derecha": {
+            "hoja": true,
+            "prediccion": 1,
+            "probabilidad": 0.6274,
+            "muestras": 1
+          }
+        }
+      }
+    }
+  }
+}

@@ -8,14 +8,14 @@ import { TruckState, TRUCK_STATE_COLOR } from "@dispatch-track/types";
 import {
   ArrowLeft, Truck, Clock, CheckCircle2, XCircle, AlertTriangle,
   User, Calendar, Package, Shield, FileText, Trash2, X, Plus, Loader2, ExternalLink, Info,
-  ChevronUp, ChevronDown, Printer, Wrench, AlertOctagon, ArrowRightLeft,
+  ChevronUp, ChevronDown, Printer, Wrench, AlertOctagon, ArrowRightLeft, BrainCircuit,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
   obtenerCamionApi, justificarParadaApi, eliminarJustificacionApi,
   crearPalletApi, crearEntregaApi, reordenarParadasApi,
-  registrarIncidenteApi, marcarReparadoApi,
-  type CamionDetalle, type ParadaExpedicion, type EntregaResumen,
+  registrarIncidenteApi, marcarReparadoApi, predecirCamionApi,
+  type CamionDetalle, type ParadaExpedicion, type EntregaResumen, type PrediccionCamion,
 } from "@/lib/api";
 import { QrCamion } from "@/components/qr-camion";
 import { etiquetasEstado, etiquetasTipo } from "@/lib/camion-config";
@@ -221,6 +221,67 @@ function ModalJustificar({ parada, onCerrar, onGuardado }: ModalJustificarProps)
 }
 
 // ─── Sección: KPIs de tiempos ─────────────────────────────────────────────────
+
+// ─── Tarjeta de predicción de riesgo (árbol de decisión) ────────────────────
+
+function BadgeRiesgo({ titulo, riesgo }: { titulo: string; riesgo: PrediccionRiesgoUI }) {
+  const favorable = riesgo.prediccion === 1;
+  const color = favorable ? "#16A34A" : "#DC2626";
+  const bg = favorable ? "#F0FDF4" : "#FEF2F2";
+  const border = favorable ? "#BBF7D0" : "#FECACA";
+  return (
+    <div className="flex-1 rounded-lg p-3 border" style={{ background: bg, borderColor: border }}>
+      <p className="font-display text-[10px] uppercase text-text-muted tracking-wide mb-1">{titulo}</p>
+      <div className="flex items-center gap-2">
+        <div className="w-2 h-2 rounded-full" style={{ background: color }} />
+        <p className="font-display text-sm font-bold" style={{ color }}>{riesgo.etiqueta}</p>
+      </div>
+      <p className="font-data text-[10px] text-text-muted mt-1">
+        Confianza del modelo: {Math.round(riesgo.probabilidad * 100)}% (basado en {riesgo.confianza} casos históricos similares)
+      </p>
+    </div>
+  );
+}
+
+type PrediccionRiesgoUI = NonNullable<PrediccionCamion["riesgoOTIF"]>;
+
+function TarjetaPrediccion({ camionId }: { camionId: string }) {
+  const [prediccion, setPrediccion] = useState<PrediccionCamion | null>(null);
+  const [cargando, setCargando] = useState(true);
+
+  useEffect(() => {
+    predecirCamionApi(camionId)
+      .then(setPrediccion)
+      .catch(() => setPrediccion(null))
+      .finally(() => setCargando(false));
+  }, [camionId]);
+
+  if (cargando) {
+    return <Skeleton className="h-20 w-full rounded-xl" />;
+  }
+  if (!prediccion || (!prediccion.riesgoOTIF && !prediccion.riesgoSAG)) return null;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }}
+      className="rounded-xl border border-bg-elevated bg-bg-surface p-4"
+    >
+      <div className="flex items-center gap-2 mb-3">
+        <BrainCircuit size={15} className="text-accent" />
+        <p className="font-display text-xs uppercase tracking-widest text-text-muted font-semibold">
+          Predicción de riesgo (árbol de decisión)
+        </p>
+      </div>
+      <div className="flex gap-3 flex-wrap">
+        {prediccion.riesgoOTIF && <BadgeRiesgo titulo="Riesgo OTIF" riesgo={prediccion.riesgoOTIF} />}
+        {prediccion.riesgoSAG && <BadgeRiesgo titulo="Riesgo inspección SAG" riesgo={prediccion.riesgoSAG} />}
+      </div>
+      <p className="font-display text-[10px] text-text-muted mt-2">
+        Estimación generada por un modelo entrenado sobre el histórico de camiones — no reemplaza el criterio operativo.
+      </p>
+    </motion.div>
+  );
+}
 
 function KpiTiempos({ camion }: { camion: CamionDetalle }) {
   const llegadaReal  = camion.horaLlegadaReal;
@@ -1261,6 +1322,9 @@ export default function DetalleCamionPage() {
           onIncidenteRegistrado={setCamion}
         />
       )}
+
+      {/* Predicción de riesgo (árbol de decisión) */}
+      <TarjetaPrediccion camionId={camion.id} />
 
       {/* KPIs de tiempos */}
       <KpiTiempos camion={camion} />

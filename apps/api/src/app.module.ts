@@ -8,6 +8,7 @@ import { UsuariosModule } from './usuarios/usuarios.module';
 import { CamionesModule } from './camiones/camiones.module';
 import { AndenesModule } from './andenes/andenes.module';
 import { TunelesModule } from './tuneles/tuneles.module';
+import { PrediccionModule } from './prediccion/prediccion.module';
 import { EventosModule } from './eventos/eventos.module';
 import { ReportesModule } from './reportes/reportes.module';
 import { JustificacionesModule } from './justificaciones/justificaciones.module';
@@ -50,6 +51,9 @@ import { PorteriaModule } from './porteria/porteria.module';
 
     // Gestión de túneles de frío
     TunelesModule,
+
+    // Predicción de riesgo (árboles de decisión entrenados con Python)
+    PrediccionModule,
 
     // WebSocket — eventos en tiempo real
     EventosModule,
