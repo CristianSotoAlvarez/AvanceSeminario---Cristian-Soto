@@ -1,0 +1,4 @@
+# Evidencia de verificación automatizada (capturas y recibos): se regenera con visual-check
+*.visual-check.json
+*.visual-check.html
+*.visual-check.*.png

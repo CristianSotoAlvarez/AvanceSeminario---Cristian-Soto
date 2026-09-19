@@ -1,0 +1,254 @@
+{
+  "schema_version": 1,
+  "diagram_type": "lifecycle",
+  "meta": {
+    "title": "DispatchTrack — Ciclo de vida del camión",
+    "quality_profile": "showcase",
+    "views": [
+      {
+        "id": "camino-comun",
+        "label": "Camino común",
+        "focus": [
+          "esperado",
+          "en_porteria",
+          "asignado",
+          "en_carga",
+          "listo"
+        ],
+        "note": "Etapas que recorre todo camión, sin importar su tipo."
+      },
+      {
+        "id": "desvio-exportacion",
+        "label": "Desvío de exportación",
+        "focus": [
+          "en_carga",
+          "en_tunel",
+          "esperando_sag",
+          "listo"
+        ],
+        "note": "Solo los camiones de exportación pasan por túnel de frío e inspección SAG."
+      },
+      {
+        "id": "excepciones",
+        "label": "Excepciones",
+        "focus": [
+          "esperando_sag",
+          "rechazado_sag",
+          "asignado",
+          "averiado"
+        ],
+        "note": "El rechazo SAG admite reinspección; la avería cierra el ciclo."
+      }
+    ]
+  },
+  "lanes": [
+    {
+      "id": "main",
+      "label": "Ciclo común a todo camión"
+    },
+    {
+      "id": "exportacion",
+      "label": "Desvío de exportación"
+    },
+    {
+      "id": "terminal",
+      "label": "Resultados y cierre"
+    }
+  ],
+  "states": [
+    {
+      "id": "esperado",
+      "type": "start",
+      "label": "ESPERADO",
+      "sublabel": "programado, sin llegar",
+      "lane": "main",
+      "col": 0,
+      "step": "01",
+      "tag": "entrada"
+    },
+    {
+      "id": "en_porteria",
+      "type": "active",
+      "label": "EN_PORTERIA",
+      "sublabel": "llegada registrada",
+      "lane": "main",
+      "col": 1,
+      "step": "02",
+      "tag": "≤ 10 min"
+    },
+    {
+      "id": "asignado",
+      "type": "active",
+      "label": "ASIGNADO",
+      "sublabel": "andén asignado",
+      "lane": "main",
+      "col": 2,
+      "step": "03"
+    },
+    {
+      "id": "en_carga",
+      "type": "active",
+      "label": "EN_CARGA",
+      "sublabel": "pallets al camión",
+      "lane": "main",
+      "col": 3,
+      "step": "04",
+      "tag": "≤ 1h30"
+    },
+    {
+      "id": "listo",
+      "type": "active",
+      "label": "LISTO",
+      "sublabel": "habilitado para salir",
+      "lane": "main",
+      "col": 4,
+      "step": "05"
+    },
+    {
+      "id": "en_tunel",
+      "type": "waiting",
+      "label": "EN_TUNEL_FRIO",
+      "sublabel": "enfriamiento",
+      "lane": "exportacion",
+      "col": 0,
+      "tag": "8 – 8,5 h"
+    },
+    {
+      "id": "esperando_sag",
+      "type": "decision",
+      "label": "ESPERANDO_SAG",
+      "sublabel": "en cola de inspección",
+      "lane": "exportacion",
+      "col": 2
+    },
+    {
+      "id": "averiado",
+      "type": "failure",
+      "label": "AVERIADO",
+      "sublabel": "fuera del ciclo",
+      "lane": "terminal",
+      "col": 0,
+      "tag": "terminal"
+    },
+    {
+      "id": "rechazado_sag",
+      "type": "failure",
+      "label": "RECHAZADO_SAG",
+      "sublabel": "no conforme",
+      "lane": "terminal",
+      "col": 1,
+      "tag": "reinspeccionable"
+    },
+    {
+      "id": "despachado",
+      "type": "success",
+      "label": "DESPACHADO",
+      "sublabel": "salió de planta",
+      "lane": "terminal",
+      "col": 2,
+      "tag": "terminal"
+    }
+  ],
+  "transitions": [
+    {
+      "id": "carga-tunel",
+      "from": "en_carga",
+      "to": "en_tunel",
+      "label": "exportación",
+      "variant": "emphasis"
+    },
+    {
+      "id": "tunel-sag",
+      "from": "en_tunel",
+      "to": "esperando_sag",
+      "label": "temperatura registrada"
+    },
+    {
+      "id": "sag-aprueba",
+      "from": "esperando_sag",
+      "to": "listo",
+      "label": "aprobado por SAG",
+      "variant": "emphasis"
+    },
+    {
+      "id": "sag-rechaza",
+      "from": "esperando_sag",
+      "to": "rechazado_sag",
+      "label": "no conforme",
+      "variant": "security",
+      "labelDx": -40
+    },
+    {
+      "id": "reinspeccion",
+      "from": "rechazado_sag",
+      "to": "esperando_sag",
+      "label": "reinspección",
+      "variant": "emphasis",
+      "labelDx": 55
+    },
+    {
+      "id": "listo-despacho",
+      "from": "listo",
+      "to": "despachado",
+      "label": "salida de planta",
+      "variant": "emphasis",
+      "route": "right-channel",
+      "labelAt": [
+        805,
+        350
+      ]
+    },
+    {
+      "id": "averia",
+      "from": "asignado",
+      "to": "averiado",
+      "label": "avería registrada",
+      "note": "Puede ocurrir desde cualquier estado activo",
+      "variant": "security",
+      "toSide": "left",
+      "via": [
+        [
+          402,
+          215
+        ],
+        [
+          20,
+          215
+        ],
+        [
+          20,
+          479
+        ]
+      ]
+    }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "Camino común a todo camión",
+      "items": [
+        "Cinco etapas ordenadas desde la programación hasta quedar listo para salir",
+        "Cada transición queda registrada con usuario y marca de tiempo en EventoCamion",
+        "Un camión nacional o interplanta pasa directo de EN_CARGA a LISTO"
+      ]
+    },
+    {
+      "dot": "cyan",
+      "title": "Desvío obligatorio de exportación",
+      "items": [
+        "Tras la carga pasa 8 a 8,5 horas en túnel de frío antes de presentarse a SAG",
+        "Al salir del túnel se registra la temperatura, que libera el túnel físico",
+        "El código incluye un estado intermedio APROBADO_SAG entre la aprobación y LISTO; aquí se muestra como la transición «aprobado por SAG»"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Excepciones y cierre",
+      "items": [
+        "Un rechazo SAG no es terminal: admite corrección y reinspección",
+        "La avería la aplica el flujo de incidentes, fuera de la máquina de estados",
+        "DESPACHADO y AVERIADO no tienen camino de retorno"
+      ]
+    }
+  ]
+}

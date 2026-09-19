@@ -1,0 +1,336 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "DispatchTrack — Arquitectura del sistema",
+    "quality_profile": "showcase",
+    "repository": {
+      "url": "https://github.com/CristianSotoAlvarez/AvanceSeminario---Cristian-Soto",
+      "provider": "github",
+      "revision": "890556bd91b273b646ef604a4a5115c3a8b3feab"
+    },
+    "views": [
+      {
+        "id": "camino-principal",
+        "label": "Camino principal",
+        "focus": [
+          "usuarios",
+          "web",
+          "api",
+          "db"
+        ],
+        "note": "Recorrido de una petición operativa desde el navegador hasta el estado persistido."
+      },
+      {
+        "id": "tiempo-real",
+        "label": "Tiempo real",
+        "focus": [
+          "api",
+          "ws",
+          "redis",
+          "web"
+        ],
+        "note": "Propagación de cambios de estado a todas las pantallas conectadas."
+      },
+      {
+        "id": "prediccion",
+        "label": "Predicción",
+        "focus": [
+          "db",
+          "entrenamiento",
+          "prediccion",
+          "api"
+        ],
+        "note": "Los árboles se entrenan fuera de línea y se evalúan dentro de la API."
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "usuarios",
+      "type": "external",
+      "label": "Usuarios",
+      "sublabel": "9 roles operativos",
+      "tag": "Portería · Picking · SAG",
+      "pos": [
+        50,
+        350
+      ],
+      "size": [
+        140,
+        64
+      ]
+    },
+    {
+      "id": "web",
+      "type": "frontend",
+      "label": "Next.js 15",
+      "sublabel": "App Router · React 19",
+      "pos": [
+        270,
+        350
+      ],
+      "size": [
+        150,
+        64
+      ],
+      "sources": [
+        {
+          "path": "apps/web/components/sidebar.tsx",
+          "label": "rutas por rol"
+        }
+      ]
+    },
+    {
+      "id": "api",
+      "type": "backend",
+      "label": "API NestJS 10",
+      "sublabel": "REST /api/v1",
+      "pos": [
+        510,
+        350
+      ],
+      "size": [
+        150,
+        64
+      ],
+      "sources": [
+        {
+          "path": "apps/api/src/app.module.ts",
+          "label": "17 módulos de dominio"
+        }
+      ]
+    },
+    {
+      "id": "db",
+      "type": "database",
+      "label": "PostgreSQL",
+      "sublabel": "Prisma ORM",
+      "pos": [
+        880,
+        350
+      ],
+      "size": [
+        150,
+        64
+      ],
+      "sources": [
+        {
+          "path": "apps/api/src/prisma/schema.prisma",
+          "label": "modelo de dominio"
+        }
+      ]
+    },
+    {
+      "id": "auth",
+      "type": "security",
+      "label": "Auth JWT",
+      "sublabel": "access + refresh",
+      "pos": [
+        510,
+        160
+      ],
+      "size": [
+        150,
+        64
+      ],
+      "sources": [
+        {
+          "path": "apps/api/src/auth/auth.service.ts"
+        }
+      ]
+    },
+    {
+      "id": "prediccion",
+      "type": "backend",
+      "label": "Módulo Predicción",
+      "sublabel": "evalúa árbol CART",
+      "pos": [
+        770,
+        160
+      ],
+      "size": [
+        160,
+        64
+      ],
+      "sources": [
+        {
+          "path": "apps/api/src/prediccion/arbol-decision.ts"
+        }
+      ]
+    },
+    {
+      "id": "entrenamiento",
+      "type": "external",
+      "label": "Python + scikit-learn",
+      "sublabel": "entrenamiento offline",
+      "pos": [
+        1090,
+        160
+      ],
+      "size": [
+        160,
+        64
+      ],
+      "sources": [
+        {
+          "path": "apps/api/ml/entrenar_modelos.py"
+        }
+      ]
+    },
+    {
+      "id": "ws",
+      "type": "messagebus",
+      "label": "Gateway WebSocket",
+      "sublabel": "namespace /eventos",
+      "pos": [
+        510,
+        512
+      ],
+      "size": [
+        160,
+        64
+      ],
+      "sources": [
+        {
+          "path": "apps/api/src/eventos/eventos.gateway.ts"
+        }
+      ]
+    },
+    {
+      "id": "redis",
+      "type": "messagebus",
+      "label": "Redis",
+      "sublabel": "adapter Socket.IO",
+      "pos": [
+        840,
+        512
+      ],
+      "size": [
+        150,
+        64
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "Railway — producción",
+      "wraps": [
+        "web",
+        "api",
+        "db",
+        "auth",
+        "prediccion",
+        "ws",
+        "redis"
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "u-web",
+      "from": "usuarios",
+      "to": "web",
+      "label": "HTTPS",
+      "variant": "emphasis"
+    },
+    {
+      "id": "web-api",
+      "from": "web",
+      "to": "api",
+      "label": "REST autenticado",
+      "variant": "emphasis"
+    },
+    {
+      "id": "api-db",
+      "from": "api",
+      "to": "db",
+      "label": "SQL vía Prisma",
+      "variant": "emphasis"
+    },
+    {
+      "id": "auth-api",
+      "from": "auth",
+      "to": "api",
+      "label": "valida token",
+      "variant": "security",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelDy": 45
+    },
+    {
+      "id": "api-pred",
+      "from": "api",
+      "to": "prediccion",
+      "label": "consulta riesgo"
+    },
+    {
+      "id": "entren-pred",
+      "from": "entrenamiento",
+      "to": "prediccion",
+      "label": "exporta JSON de reglas",
+      "variant": "dashed"
+    },
+    {
+      "id": "db-entren",
+      "from": "db",
+      "to": "entrenamiento",
+      "label": "extrae histórico",
+      "variant": "dashed",
+      "fromSide": "top",
+      "toSide": "left"
+    },
+    {
+      "id": "api-ws",
+      "from": "api",
+      "to": "ws",
+      "label": "emite eventos",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "id": "ws-redis",
+      "from": "ws",
+      "to": "redis",
+      "label": "pub/sub entre instancias",
+      "variant": "dashed"
+    },
+    {
+      "id": "ws-web",
+      "from": "ws",
+      "to": "web",
+      "label": "push en vivo",
+      "fromSide": "left",
+      "toSide": "bottom"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Aplicación web",
+      "items": [
+        "Next.js 15 con App Router y React 19",
+        "Rutas agrupadas por rol: (platform), (operativo), (sag)",
+        "Las pantallas se refrescan solas al llegar eventos"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "API y dominio",
+      "items": [
+        "NestJS con 17 módulos: camiones, andenes, túneles, portería, pallets, reportes",
+        "Máquina de estados del camión validada en el backend",
+        "Prisma ORM sobre PostgreSQL gestionado en Railway"
+      ]
+    },
+    {
+      "dot": "violet",
+      "title": "Predicción y tiempo real",
+      "items": [
+        "Árboles CART entrenados en Python, evaluados en TypeScript sin Python en producción",
+        "Redis actúa como adapter de Socket.IO para escalar a varias instancias"
+      ]
+    }
+  ]
+}

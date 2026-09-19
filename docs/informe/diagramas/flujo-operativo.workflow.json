@@ -1,0 +1,319 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "DispatchTrack — Flujo operativo por rol",
+    "quality_profile": "showcase",
+    "views": [
+      {
+        "id": "camino-feliz",
+        "label": "Camino completo",
+        "focus": [
+          "programa",
+          "llegada",
+          "asigna",
+          "picking",
+          "carga",
+          "tunel",
+          "sag",
+          "despacho"
+        ],
+        "note": "Recorrido de un camión de exportación desde la programación hasta su salida."
+      },
+      {
+        "id": "planta",
+        "label": "Operación en planta",
+        "focus": [
+          "picking",
+          "carga",
+          "tunel"
+        ],
+        "note": "Las tres pantallas operativas, cada una con su rol responsable."
+      },
+      {
+        "id": "excepciones",
+        "label": "Excepciones",
+        "focus": [
+          "carga",
+          "incidente",
+          "asigna"
+        ],
+        "note": "El supervisor registra el incidente y devuelve el camión a coordinación."
+      }
+    ]
+  },
+  "lanes": [
+    {
+      "id": "entrada",
+      "label": "Programación y portería"
+    },
+    {
+      "id": "operacion",
+      "label": "Coordinación de patio"
+    },
+    {
+      "id": "planta",
+      "label": "Operación en planta"
+    },
+    {
+      "id": "calidad",
+      "label": "Calidad y excepciones",
+      "variant": "exception"
+    },
+    {
+      "id": "cierre",
+      "label": "Análisis"
+    }
+  ],
+  "phases": [
+    {
+      "id": "ingreso",
+      "label": "Ingreso",
+      "fromCol": 0,
+      "toCol": 1
+    },
+    {
+      "id": "preparacion",
+      "label": "Preparación y carga",
+      "fromCol": 2,
+      "toCol": 3,
+      "variant": "emphasis"
+    },
+    {
+      "id": "salida",
+      "label": "Calidad y salida",
+      "fromCol": 4,
+      "toCol": 5,
+      "variant": "dashed"
+    }
+  ],
+  "mainPath": [
+    "programa",
+    "llegada",
+    "asigna",
+    "picking",
+    "carga",
+    "tunel",
+    "sag",
+    "despacho"
+  ],
+  "semanticChecks": {
+    "allowedRoots": [
+      "programa"
+    ],
+    "allowedTerminals": [
+      "reportes"
+    ]
+  },
+  "nodes": [
+    {
+      "id": "programa",
+      "lane": "entrada",
+      "col": 0,
+      "type": "frontend",
+      "label": "Programa camión",
+      "sublabel": "COORDINADOR_TRANSPORTE",
+      "width": 138
+    },
+    {
+      "id": "llegada",
+      "lane": "entrada",
+      "col": 1,
+      "type": "frontend",
+      "label": "Registra llegada",
+      "sublabel": "PORTERO · QR o manual",
+      "tag": "≤ 10 min",
+      "width": 138
+    },
+    {
+      "id": "asigna",
+      "lane": "operacion",
+      "col": 2,
+      "type": "backend",
+      "label": "Asigna andén",
+      "sublabel": "COORDINADOR",
+      "width": 138
+    },
+    {
+      "id": "picking",
+      "lane": "planta",
+      "col": 2,
+      "type": "backend",
+      "label": "Arma pallets",
+      "sublabel": "PICKINERO",
+      "width": 138
+    },
+    {
+      "id": "carga",
+      "lane": "planta",
+      "col": 3,
+      "type": "backend",
+      "label": "Carga al camión",
+      "sublabel": "CARGADOR",
+      "tag": "≤ 1h30",
+      "width": 138
+    },
+    {
+      "id": "tunel",
+      "lane": "planta",
+      "col": 4,
+      "type": "backend",
+      "label": "Túnel de frío",
+      "sublabel": "OPERADOR_TUNEL",
+      "tag": "8 – 8,5 h",
+      "width": 138
+    },
+    {
+      "id": "sag",
+      "lane": "calidad",
+      "col": 4,
+      "type": "security",
+      "label": "Inspección SAG",
+      "sublabel": "SAG",
+      "width": 138
+    },
+    {
+      "id": "incidente",
+      "lane": "calidad",
+      "col": 3,
+      "type": "security",
+      "label": "Incidente o avería",
+      "sublabel": "SUPERVISOR",
+      "width": 138
+    },
+    {
+      "id": "despacho",
+      "lane": "operacion",
+      "col": 5,
+      "type": "backend",
+      "label": "Despacha camión",
+      "sublabel": "COORDINADOR",
+      "width": 138
+    },
+    {
+      "id": "reportes",
+      "lane": "cierre",
+      "col": 5,
+      "type": "database",
+      "label": "KPIs y reportes",
+      "sublabel": "JEFE_DESPACHO",
+      "width": 138
+    }
+  ],
+  "edges": [
+    {
+      "id": "prog-llegada",
+      "from": "programa",
+      "to": "llegada",
+      "variant": "emphasis",
+      "role": "main"
+    },
+    {
+      "id": "llegada-asigna",
+      "from": "llegada",
+      "to": "asigna",
+      "variant": "emphasis",
+      "role": "main"
+    },
+    {
+      "id": "asigna-picking",
+      "from": "asigna",
+      "to": "picking",
+      "label": "entrega por parada",
+      "role": "main"
+    },
+    {
+      "id": "picking-carga",
+      "from": "picking",
+      "to": "carga",
+      "label": "pallets armados",
+      "variant": "emphasis",
+      "role": "main"
+    },
+    {
+      "id": "carga-tunel",
+      "from": "carga",
+      "to": "tunel",
+      "label": "exportación",
+      "variant": "emphasis",
+      "role": "main"
+    },
+    {
+      "id": "tunel-sag",
+      "from": "tunel",
+      "to": "sag",
+      "label": "temperatura registrada",
+      "role": "main"
+    },
+    {
+      "id": "sag-despacho",
+      "from": "sag",
+      "to": "despacho",
+      "label": "aprobado",
+      "variant": "emphasis",
+      "role": "main"
+    },
+    {
+      "id": "carga-despacho",
+      "from": "carga",
+      "to": "despacho",
+      "label": "nacional / interplanta",
+      "variant": "dashed",
+      "role": "branch"
+    },
+    {
+      "id": "carga-incidente",
+      "from": "carga",
+      "to": "incidente",
+      "label": "avería o faltante",
+      "variant": "security",
+      "role": "error"
+    },
+    {
+      "id": "incidente-asigna",
+      "from": "incidente",
+      "to": "asigna",
+      "label": "reprograma o sustituye",
+      "variant": "security",
+      "role": "return",
+      "route": "return-left"
+    },
+    {
+      "id": "despacho-reportes",
+      "from": "despacho",
+      "to": "reportes",
+      "label": "alimenta indicadores",
+      "variant": "dashed",
+      "role": "async"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Cada rol tiene su pantalla",
+      "items": [
+        "Portería registra la llegada escaneando el QR de la hoja de ruta, sin iniciar sesión",
+        "Picking, carga y túnel son pantallas operativas separadas, pensadas para uso móvil",
+        "El backend valida qué rol puede ejecutar cada transición"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Trazabilidad por acción",
+      "items": [
+        "Cada pallet guarda quién lo armó y quién lo cargó, por separado",
+        "La salida del túnel registra operador, temperatura y hora",
+        "Un operario polivalente puede ejercer ambas funciones sin perder ese detalle"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Excepciones del supervisor",
+      "items": [
+        "Avería con reparación in situ o sustitución del camión, manteniendo la trazabilidad",
+        "Andén o túnel fuera de servicio, con historial permanente de cada falla",
+        "Justificación de atraso por parada, que puede excluirse del cálculo de KPIs"
+      ]
+    }
+  ]
+}

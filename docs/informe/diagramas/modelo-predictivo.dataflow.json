@@ -1,0 +1,219 @@
+{
+  "schema_version": 1,
+  "diagram_type": "dataflow",
+  "meta": {
+    "title": "DispatchTrack — Pipeline del modelo predictivo",
+    "quality_profile": "showcase",
+    "views": [
+      {
+        "id": "entrenamiento",
+        "label": "Entrenamiento",
+        "focus": [
+          "bd",
+          "features",
+          "etiquetas",
+          "entrena"
+        ],
+        "note": "El histórico se separa en variables observables y resultados ya conocidos."
+      },
+      {
+        "id": "artefactos",
+        "label": "Artefactos",
+        "focus": [
+          "entrena",
+          "arbol_otif",
+          "arbol_sag"
+        ],
+        "note": "Cada árbol se exporta como reglas en JSON, no como binario de scikit-learn."
+      },
+      {
+        "id": "inferencia",
+        "label": "Inferencia en vivo",
+        "focus": [
+          "arbol_otif",
+          "arbol_sag",
+          "prediccion"
+        ],
+        "note": "La API evalúa las reglas en TypeScript, sin Python en producción."
+      }
+    ],
+    "viewBox": [
+      1068,
+      505
+    ]
+  },
+  "stages": [
+    {
+      "label": "Origen"
+    },
+    {
+      "label": "Preparación"
+    },
+    {
+      "label": "Entrenamiento"
+    },
+    {
+      "label": "Artefacto"
+    },
+    {
+      "label": "Inferencia"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "bd",
+      "type": "database",
+      "label": "PostgreSQL",
+      "sublabel": "180 días de operación",
+      "stage": 0,
+      "row": 1,
+      "tag": "12.335 camiones"
+    },
+    {
+      "id": "features",
+      "type": "backend",
+      "label": "Variables",
+      "sublabel": "tipo, edificio, hora, T°",
+      "stage": 1,
+      "row": 0,
+      "tag": "predictoras"
+    },
+    {
+      "id": "etiquetas",
+      "type": "backend",
+      "label": "Etiquetas",
+      "sublabel": "OTIF · resultado SAG",
+      "stage": 1,
+      "row": 2,
+      "tag": "conocidas"
+    },
+    {
+      "id": "entrena",
+      "type": "backend",
+      "label": "Árbol CART",
+      "sublabel": "Gini · profundidad 4",
+      "stage": 2,
+      "row": 1,
+      "tag": "scikit-learn"
+    },
+    {
+      "id": "arbol_otif",
+      "type": "cloud",
+      "label": "arbol-otif.json",
+      "sublabel": "riesgo OTIF",
+      "stage": 3,
+      "row": 0,
+      "tag": "70,6 %"
+    },
+    {
+      "id": "arbol_sag",
+      "type": "cloud",
+      "label": "arbol-sag.json",
+      "sublabel": "riesgo SAG",
+      "stage": 3,
+      "row": 2,
+      "tag": "99,6 %"
+    },
+    {
+      "id": "prediccion",
+      "type": "backend",
+      "label": "Predicción",
+      "sublabel": "evaluador en NestJS",
+      "stage": 4,
+      "row": 1,
+      "tag": "en vivo"
+    }
+  ],
+  "flows": [
+    {
+      "id": "bd-features",
+      "from": "bd",
+      "to": "features",
+      "label": "datos observables",
+      "classification": "histórico",
+      "variant": "emphasis"
+    },
+    {
+      "id": "bd-etiquetas",
+      "from": "bd",
+      "to": "etiquetas",
+      "label": "resultados ya ocurridos",
+      "classification": "etiqueta",
+      "variant": "emphasis"
+    },
+    {
+      "id": "features-entrena",
+      "from": "features",
+      "to": "entrena",
+      "label": "matriz de entrenamiento",
+      "classification": "entrada",
+      "variant": "emphasis"
+    },
+    {
+      "id": "etiquetas-entrena",
+      "from": "etiquetas",
+      "to": "entrena",
+      "label": "clase objetivo",
+      "classification": "supervisión",
+      "variant": "emphasis"
+    },
+    {
+      "id": "entrena-otif",
+      "from": "entrena",
+      "to": "arbol_otif",
+      "label": "reglas y métricas",
+      "classification": "artefacto"
+    },
+    {
+      "id": "entrena-sag",
+      "from": "entrena",
+      "to": "arbol_sag",
+      "label": "reglas y métricas",
+      "classification": "artefacto"
+    },
+    {
+      "id": "otif-prediccion",
+      "from": "arbol_otif",
+      "to": "prediccion",
+      "label": "riesgo OTIF",
+      "classification": "inferencia",
+      "variant": "emphasis"
+    },
+    {
+      "id": "sag-prediccion",
+      "from": "arbol_sag",
+      "to": "prediccion",
+      "label": "riesgo SAG",
+      "classification": "inferencia",
+      "variant": "emphasis"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "Qué predice cada árbol",
+      "items": [
+        "Riesgo OTIF: 12.323 ejemplos, recall 96 % — detecta casi todos los casos problemáticos",
+        "Riesgo SAG: 6.027 camiones de exportación, con la temperatura del túnel como variable dominante",
+        "Ambos se entrenan con class_weight balanceado, priorizando detectar el riesgo sobre la exactitud global"
+      ]
+    },
+    {
+      "dot": "violet",
+      "title": "Por qué el artefacto es JSON",
+      "items": [
+        "El árbol entrenado se exporta como umbrales de decisión, no como binario de scikit-learn",
+        "La API lo recorre con una función pura de TypeScript, en microsegundos"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Límites declarados",
+      "items": [
+        "El dataset es sintético: los resultados demuestran la arquitectura, no miden una operación real",
+        "La relación temperatura → resultado SAG es una asunción de modelado declarada, no un hallazgo empírico",
+        "La predicción SAG solo aparece una vez que el camión registra temperatura en el túnel"
+      ]
+    }
+  ]
+}
