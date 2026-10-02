@@ -10,7 +10,7 @@ import { esTransicionValida, obtenerEstadosSiguientes } from './maquina-estados'
 const ESTADOS_BLOQUEADOS_INCIDENTE: EstadoCamion[] = [EstadoCamion.DESPACHADO, EstadoCamion.AVERIADO];
 
 // Mapea el estado de X (averiado) y el tipo al estado inicial del camión sustituto Y.
-function estadoInicialSustituto(estadoX: EstadoCamion, tipo: TipoCamion): EstadoCamion {
+export function estadoInicialSustituto(estadoX: EstadoCamion, tipo: TipoCamion): EstadoCamion {
   // Si X estaba antes de empezar carga → Y arranca en ASIGNADO
   if (estadoX === EstadoCamion.ESPERADO || estadoX === EstadoCamion.EN_PORTERIA || estadoX === EstadoCamion.ASIGNADO) {
     return EstadoCamion.ASIGNADO;
