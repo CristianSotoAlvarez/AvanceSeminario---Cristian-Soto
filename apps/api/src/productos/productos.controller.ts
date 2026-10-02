@@ -1,5 +1,5 @@
 import { Controller, Get, Post, Patch, Body, Param, Query, UseGuards } from '@nestjs/common';
-import { ROLES_GESTION_OPERATIVA, ROLES_GLOBALES, ROLES_SUPERVISION } from '../auth/roles';
+import { ROLES_GESTION_OPERATIVA, ROLES_GLOBALES } from '../auth/roles';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { ProductosService } from './productos.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';

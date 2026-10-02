@@ -6,12 +6,11 @@
     "dev": "next dev --port 3000",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@dispatch-track/types": "*",
     "@dispatch-track/ui": "*",
-    "@dispatch-track/utils": "*",
     "@hookform/resolvers": "^5.2.2",
     "html5-qrcode": "^2.3.8",
     "lucide-react": "^0.460",

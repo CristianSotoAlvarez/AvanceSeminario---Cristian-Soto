@@ -17,7 +17,6 @@ const random = rng(918273);
 function entreEnteros(min: number, max: number) {
   return Math.floor(random() * (max - min + 1)) + min;
 }
-function elemAleatorio<T>(arr: T[]): T { return arr[entreEnteros(0, arr.length - 1)]; }
 
 let contador = 0;
 function nuevoId() { contador++; return `ppr_${contador.toString(36)}`; }

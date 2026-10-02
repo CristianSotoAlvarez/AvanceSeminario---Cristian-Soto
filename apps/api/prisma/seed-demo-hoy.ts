@@ -15,7 +15,6 @@ async function main() {
   // Obtener referencias
   const jefe = await prisma.usuario.findFirst({ where: { rol: 'JEFE_DESPACHO' } });
   const pickinero = await prisma.usuario.findFirst({ where: { rol: 'PICKINERO' } });
-  const cargador = await prisma.usuario.findFirst({ where: { rol: 'CARGADOR' } });
   const inspector = await prisma.usuario.findFirst({ where: { rol: 'SAG' } });
 
   const aves = await prisma.edificio.findFirst({ where: { tipo: 'AVES' } });
@@ -38,12 +37,9 @@ async function main() {
   // Obtener productos
   const productos = await prisma.producto.findMany();
   const prodAve1 = productos.find(p => p.sku === 'AVE-001');
-  const prodAve2 = productos.find(p => p.sku === 'AVE-002');
   const prodAve3 = productos.find(p => p.sku === 'AVE-003');
   const prodCer1 = productos.find(p => p.sku === 'CER-001');
   const prodCer2 = productos.find(p => p.sku === 'CER-002');
-  const prodFri1 = productos.find(p => p.sku === 'FRI-001');
-  const prodFri2 = productos.find(p => p.sku === 'FRI-002');
 
   if (!jefe || !aves || !cerdo || !frigorifico) {
     console.error('❌ Faltan datos base. Ejecuta primero el seed principal.');

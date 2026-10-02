@@ -12,7 +12,6 @@ import { Header } from "@/components/header";
 
 // ─── Roles que pueden acceder al área operativa ────────────────────────────────
 
-const ROLES_OPERATIVO = ROLES_OPERATIVOS;
 
 // ─── Ítems de navegación según rol ────────────────────────────────────────────
 

@@ -9,13 +9,12 @@ import {
   Table,
   TableHeader,
   TableBody,
-  TableRow,
   TableHead,
   TableCell,
   Skeleton,
 } from "@dispatch-track/ui";
 import { TruckState, TRUCK_STATE_COLOR } from "@dispatch-track/types";
-import { Plus, X, AlertTriangle, ChevronRight, ChevronLeft, Calendar, SlidersHorizontal, Check, ArrowRight } from "lucide-react";
+import { Plus, X, AlertTriangle, ChevronRight, ChevronLeft, Calendar, SlidersHorizontal, Check } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useRef, useEffect } from "react";
 import { BotonActualizar } from "@/components/boton-actualizar";

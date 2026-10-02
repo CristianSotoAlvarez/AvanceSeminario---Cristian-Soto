@@ -1,5 +1,5 @@
 import { Controller, Get, Patch, Param, Body, UseGuards } from '@nestjs/common';
-import { ROLES_GESTION_OPERATIVA, ROLES_SUPERVISION } from '../auth/roles';
+import { ROLES_GESTION_OPERATIVA } from '../auth/roles';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { AndenesService } from './andenes.service';
 import { MarcarFueraServicioDto } from './dto/marcar-fuera-servicio.dto';

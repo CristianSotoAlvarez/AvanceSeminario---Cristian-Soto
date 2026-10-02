@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useCallback, useContext } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Truck, Loader2, X, Clock, Package, User, ChevronRight, MapPin, ArrowRight, CheckCircle2, Wrench, AlertTriangle } from "lucide-react";
 import { Button, Badge, Skeleton } from "@dispatch-track/ui";
@@ -14,7 +14,7 @@ import { cambiarEstadoCamionApi, marcarAndenFueraServicioApi, reactivarAndenApi 
 import { etiquetasEstado, etiquetasTipo, obtenerAcciones } from "@/lib/camion-config";
 import { formatearHora } from "@/lib/formato";
 import type { Anden, Camion, ParadaExpedicion } from "@/lib/api";
-import { AuthContext } from "@/lib/auth-context";
+import { useAuth } from "@/hooks/use-auth";
 
 const CONFIG_EDIFICIO: Record<string, { label: string; color: string; colorLight: string; bg: string; bgOcupado: string; border: string }> = {
   AVES:       { label: "Aves",       color: "#B45309", colorLight: "#F59E0B", bg: "#FFFBEB", bgOcupado: "#FEF3C7", border: "#FDE68A" },
@@ -856,7 +856,7 @@ function GrupoEdificio({ tipo, andenes, seleccionadoId, onSeleccionar, groupInde
 // ─── Página principal ────────────────────────────────────────────────────────
 
 export default function AndenesPage() {
-  const { usuario } = useContext(AuthContext);
+  const { usuario } = useAuth();
   // COORDINADOR_TRANSPORTE solo puede visualizar acciones de camión — no ejecutarlas
   const soloVista = usuario?.rol === "COORDINADOR_TRANSPORTE";
   // Pero sí puede gestionar el estado de los andenes (junto al resto de gestión)

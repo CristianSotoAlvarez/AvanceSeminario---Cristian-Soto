@@ -1,5 +1,5 @@
 import { Controller, Get, Post, Delete, Param, Body, UseGuards } from '@nestjs/common';
-import { ROLES_GESTION_OPERATIVA, ROLES_SUPERVISION } from '../auth/roles';
+import { ROLES_GESTION_OPERATIVA } from '../auth/roles';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decoradores/roles.decorator';

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { Plus, Upload, Package, Search, Pencil, Check, X, AlertTriangle } from "lucide-react";
+import { Plus, Upload, Search, Pencil, Check, X, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import {
   listarProductosApi, crearProductoApi, actualizarProductoApi,

@@ -1,13 +1,13 @@
 "use client";
 
-import { useContext, useEffect, useState, useCallback } from "react";
-import { ROLES_OPERATIVOS, ROLES_PORTERIA, ROLES_SUPERVISION, Rol, RolUsuario } from "@dispatch-track/types";
+import { useEffect, useState, useCallback } from "react";
+import { ROLES_PORTERIA, ROLES_SUPERVISION, Rol, RolUsuario } from "@dispatch-track/types";
 import { motion, AnimatePresence } from "motion/react";
 import {
   Settings, Users, Plus, Pencil, Trash2,
   X, Loader2, ShieldCheck, Eye, EyeOff, UserCheck,
 } from "lucide-react";
-import { AuthContext } from "@/lib/auth-context";
+import { useAuth } from "@/hooks/use-auth";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
@@ -39,14 +39,6 @@ const COLOR_ROL: Record<string, { bg: string; color: string }> = {
   SAG:                    { bg: "#FEF9C3", color: "#854D0E" },
 };
 
-const ROLES_NECESITAN_EDIFICIO = ROLES_OPERATIVOS;
-
-const EDIFICIOS_OPCIONES = [
-  { value: "", label: "Sin edificio" },
-  { value: "AVES",        label: "Planta Aves" },
-  { value: "CERDO",       label: "Planta Cerdo" },
-  { value: "FRIGORIFICO", label: "Frigorífico" },
-];
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
@@ -131,7 +123,6 @@ function ModalUsuario({
     }
   }
 
-  const necesitaEdificio = ROLES_NECESITAN_EDIFICIO.includes(form.rol);
 
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
@@ -293,7 +284,7 @@ function Dot({ activo }: { activo: boolean }) {
 type Tab = "usuarios" | "permisos";
 
 export default function ConfiguracionPage() {
-  const { usuario } = useContext(AuthContext);
+  const { usuario } = useAuth();
   const router = useRouter();
   const [tab, setTab] = useState<Tab>("usuarios");
   const [usuarios, setUsuarios] = useState<UsuarioAdmin[]>([]);

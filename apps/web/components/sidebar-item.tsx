@@ -13,7 +13,7 @@ export interface SidebarItemProps {
   darkBg?: boolean;
 }
 
-export function SidebarItem({ icon: Icon, label, href, active, collapsed, darkBg }: SidebarItemProps) {
+export function SidebarItem({ icon: Icon, label, href, active, collapsed }: SidebarItemProps) {
   return (
     <Link
       href={href}

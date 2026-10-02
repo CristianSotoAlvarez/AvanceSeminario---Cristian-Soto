@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { Skeleton } from "@dispatch-track/ui";
 import { TruckState, TRUCK_STATE_COLOR } from "@dispatch-track/types";
 import {
-  Package, Truck, ChevronDown, ChevronRight,
+  Package, Truck,  ChevronRight,
   Plus, Loader2, ExternalLink,
 } from "lucide-react";
 import { toast } from "sonner";

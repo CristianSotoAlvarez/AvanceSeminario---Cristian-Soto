@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import QRCode from 'qrcode';
 import { QrCode, Download, X } from 'lucide-react';
 import { generarQrCamionApi } from '@/lib/api';
@@ -14,7 +14,6 @@ export function QrCamion({ camionId, numeroTransporte }: Props) {
   const [abierto, setAbierto]   = useState(false);
   const [dataUrl, setDataUrl]   = useState('');
   const [cargando, setCargando] = useState(false);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
     if (!abierto) return;

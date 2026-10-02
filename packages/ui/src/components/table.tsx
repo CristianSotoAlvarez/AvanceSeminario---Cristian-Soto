@@ -14,7 +14,7 @@ export function TableHeader({ className, ...props }: HTMLAttributes<HTMLTableSec
 }
 
 export function TableBody({ className, ...props }: HTMLAttributes<HTMLTableSectionElement>) {
-  return <tbody {...props} />;
+  return <tbody className={cn(className)} {...props} />;
 }
 
 export function TableRow({ className, ...props }: HTMLAttributes<HTMLTableRowElement>) {

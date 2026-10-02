@@ -7,7 +7,6 @@ import { Sidebar } from "@/components/sidebar";
 import { Header } from "@/components/header";
 import { BannerConexion } from "@/components/banner-conexion";
 import { useAuth } from "@/hooks/use-auth";
-import { AuthContext } from "@/lib/auth-context";
 
 const titulosRuta: Record<string, string> = {
   "/dashboard":                "Tablero",
@@ -52,7 +51,6 @@ export default function PlatformLayout({
   if (!usuario) return null;
 
   return (
-    <AuthContext.Provider value={{ usuario }}>
     <div className="flex h-screen overflow-hidden">
       <Sidebar currentPath={pathname} />
       <div className="flex-1 flex flex-col overflow-hidden">
@@ -71,6 +69,5 @@ export default function PlatformLayout({
         richColors
       />
     </div>
-    </AuthContext.Provider>
   );
 }

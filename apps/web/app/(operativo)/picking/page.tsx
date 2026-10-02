@@ -5,10 +5,9 @@ import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "motion/react";
 import { Skeleton } from "@dispatch-track/ui";
 import {
-  Package, ChevronRight, Loader2, Plus, RefreshCw, Truck,
+  Package, ChevronRight, RefreshCw, Truck,
 } from "lucide-react";
 import { QrScanner } from "@/components/qr-scanner";
-import { toast } from "sonner";
 import { usePallets } from "@/hooks/use-pallets";
 import { useSocketCamiones } from "@/hooks/use-socket";
 import { type Pallet } from "@/lib/api";
@@ -28,9 +27,6 @@ const EDIFICIOS_ORDEN = ["AVES", "CERDO", "FRIGORIFICO"];
 function TarjetaPallet({ pallet }: { pallet: Pallet }) {
   const router = useRouter();
 
-  const edificioTipo = pallet.entrega?.camion
-    ? null
-    : null; // El edificio viene por la parada, no directamente del pallet
 
   const numeroCamion =
     pallet.entrega?.camion?.numeroTransporte ??

@@ -7,14 +7,13 @@
     "build": "nest build",
     "start": "node dist/main",
     "start:prod": "node dist/main",
-    "lint": "tsc --noEmit",
     "test": "jest",
-    "test:e2e": "jest --config ./test/jest-e2e.json",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:deploy": "prisma migrate deploy",
     "prisma:seed": "ts-node prisma/seed.ts",
-    "generar-datos:demo": "ts-node prisma/generar-datos-demo.ts"
+    "generar-datos:demo": "ts-node prisma/generar-datos-demo.ts",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@dispatch-track/types": "*",

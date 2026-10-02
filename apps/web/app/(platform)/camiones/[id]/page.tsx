@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useContext } from "react";
+import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "motion/react";
 import { Badge, Skeleton } from "@dispatch-track/ui";
@@ -20,7 +20,7 @@ import {
 import { QrCamion } from "@/components/qr-camion";
 import { etiquetasEstado, etiquetasTipo } from "@/lib/camion-config";
 import { formatearFechaHora, formatearAtraso, minutosAtraso } from "@/lib/formato";
-import { AuthContext } from "@/lib/auth-context";
+import { useAuth } from "@/hooks/use-auth";
 
 // ─── Config visual ────────────────────────────────────────────────────────────
 
@@ -1207,7 +1207,7 @@ function BannerSustitutoDe({ camion }: { camion: CamionDetalle }) {
 export default function DetalleCamionPage() {
   const { id } = useParams<{ id: string }>();
   const router  = useRouter();
-  const { usuario } = useContext(AuthContext);
+  const { usuario } = useAuth();
   const [camion, setCamion]     = useState<CamionDetalle | null>(null);
   const [cargando, setCargando] = useState(true);
   const [error, setError]       = useState<string | null>(null);

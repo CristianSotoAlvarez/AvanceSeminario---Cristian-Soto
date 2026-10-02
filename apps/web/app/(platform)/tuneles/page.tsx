@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useCallback, useContext } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Truck, Loader2, X, Clock, Wrench, AlertTriangle, CheckCircle2, Snowflake, MapPin } from "lucide-react";
 import { Button, Badge, Skeleton } from "@dispatch-track/ui";
@@ -14,7 +14,7 @@ import { ingresarTunelApi, marcarTunelFueraServicioApi, reactivarTunelApi } from
 import { etiquetasEstado, etiquetasTipo } from "@/lib/camion-config";
 import { formatearHora } from "@/lib/formato";
 import type { TunelFrio, Camion } from "@/lib/api";
-import { AuthContext } from "@/lib/auth-context";
+import { useAuth } from "@/hooks/use-auth";
 
 const COLOR = { main: "#0E7490", light: "#06B6D4", bg: "#ECFEFF", bgOcupado: "#CFFAFE", border: "#A5F3FC" };
 
@@ -439,7 +439,7 @@ function SeccionEsperandoTunel({ camiones, tuneles, onIngresar }: {
 // ─── Página principal ────────────────────────────────────────────────────────
 
 export default function TunelesPage() {
-  const { usuario } = useContext(AuthContext);
+  const { usuario } = useAuth();
   const puedeGestionar = !!usuario && ROLES_GESTION_OPERATIVA.includes(usuario.rol);
 
   const { tuneles, cargando, recargar: recargarTuneles } = useTuneles();

@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { EstadoCamion } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { QrService } from '../qr/qr.service';

@@ -5,7 +5,6 @@ WORKDIR /repo
 COPY package.json package-lock.json ./
 COPY packages/types/package.json  ./packages/types/package.json
 COPY packages/ui/package.json     ./packages/ui/package.json
-COPY packages/utils/package.json  ./packages/utils/package.json
 COPY apps/web/package.json        ./apps/web/package.json
 
 RUN npm ci

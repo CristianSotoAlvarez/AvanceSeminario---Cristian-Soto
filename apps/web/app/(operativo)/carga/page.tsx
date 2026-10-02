@@ -14,12 +14,6 @@ import { cambiarEstadoPalletApi, type Pallet } from "@/lib/api";
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
 
-const CONFIG_EDIFICIO: Record<string, { label: string; color: string; bg: string; border: string }> = {
-  AVES:        { label: "Aves",        color: "#B45309", bg: "#FEF3C7", border: "#FDE68A" },
-  CERDO:       { label: "Cerdo",       color: "#BE185D", bg: "#FFE4E6", border: "#FECDD3" },
-  FRIGORIFICO: { label: "Frigorífico", color: "#0E7490", bg: "#CFFAFE", border: "#A5F3FC" },
-};
-
 // ─── Tarjeta de pallet ────────────────────────────────────────────────────────
 
 function TarjetaPalletCarga({

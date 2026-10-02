@@ -56,10 +56,4 @@ export class QrService {
 
     return { tipo, entidadId, timestamp };
   }
-
-  /** URL de destino que codifica el QR */
-  generarUrl(tipo: 'camion' | 'pallet', entidadId: string, baseUrl: string): string {
-    const token = this.generarToken(tipo, entidadId);
-    return `${baseUrl}/qr/${token}`;
-  }
 }

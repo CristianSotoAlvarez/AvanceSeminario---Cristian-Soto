@@ -108,7 +108,7 @@ function KpiAndenes({ ocupados, cargando }: { ocupados: number; cargando?: boole
 
 // ─── Fila de tabla mejorada ───────────────────────────────────────────────────
 
-function FilaCamion({ camion, index, atrasado }: { camion: Camion; index: number; atrasado: boolean }) {
+function FilaCamion({ camion, index, atrasado, baseDelay }: { camion: Camion; index: number; atrasado: boolean; baseDelay: number }) {
   const router = useRouter();
   const min = atrasado ? minutosAtraso(camion.horaSalidaPlanificada!) : 0;
   const colorAtraso = min > 120 ? "#DC2626" : min > 60 ? "#C2410C" : "#D97706";
@@ -117,7 +117,7 @@ function FilaCamion({ camion, index, atrasado }: { camion: Camion; index: number
     <motion.tr
       initial={{ opacity: 0, x: -8 }}
       animate={{ opacity: 1, x: 0 }}
-      transition={{ duration: 0.2, delay: 0.32 + index * 0.04, ease: "easeOut" }}
+      transition={{ duration: 0.2, delay: baseDelay + index * 0.04, ease: "easeOut" }}
       onClick={() => router.push(`/camiones/${camion.id}`)}
       className="group border-b border-bg-elevated transition-colors duration-150 cursor-pointer"
       style={atrasado ? { background: "#FFF1F2" } : {}}
@@ -283,6 +283,7 @@ function TablaFilas({ camiones, baseDelay }: { camiones: Camion[]; baseDelay: nu
             camion={camion}
             index={i}
             atrasado={esAtrasado(camion)}
+            baseDelay={baseDelay}
           />
         ))}
       </tbody>

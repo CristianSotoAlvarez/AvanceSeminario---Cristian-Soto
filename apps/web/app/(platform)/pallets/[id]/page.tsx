@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useContext, useCallback } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { ROLES_SUPERVISION, Rol, RolUsuario } from "@dispatch-track/types";
 import { useParams, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "motion/react";
@@ -18,7 +18,7 @@ import {
 import { useSocketCamiones } from "@/hooks/use-socket";
 import { etiquetasEstadoPallet, colorEstadoPallet, bgEstadoPallet } from "@/lib/pallet-config";
 import { formatearFechaHora } from "@/lib/formato";
-import { AuthContext } from "@/lib/auth-context";
+import { useAuth } from "@/hooks/use-auth";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -91,7 +91,6 @@ function FilaProducto({
   actualizando: boolean;
   onCambiar: (delta: number) => void;
 }) {
-  const cfg = CONFIG_EDIFICIO["AVES"]; // fallback color for progress bar
   const completo = item.cantidadCargada >= item.cantidadSolicitada;
 
   return (
@@ -161,7 +160,7 @@ function FilaProducto({
 export default function DetallePalletPage() {
   const { id } = useParams<{ id: string }>();
   const router  = useRouter();
-  const { usuario } = useContext(AuthContext);
+  const { usuario } = useAuth();
 
   const [pallet, setPallet]         = useState<Pallet | null>(null);
   const [itemsEntrega, setItemsEntrega] = useState<EntregaItem[]>([]);
