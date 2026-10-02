@@ -47,6 +47,20 @@ export const ROLES_GLOBALES: readonly Rol[] = [R.JEFE_DESPACHO, R.COORDINADOR_TR
 /** Trabajan en planta. Acceden al grupo de rutas (operativo). */
 export const ROLES_OPERATIVOS: readonly Rol[] = [R.PICKINERO, R.CARGADOR, R.OPERADOR_TUNEL, R.SUPERVISOR];
 
+/**
+ * Acceden al grupo de rutas (platform): es la unión de los roles que tienen al
+ * menos una entrada de menú ahí. Quedan fuera picking, carga y SAG, que trabajan
+ * en sus propias áreas.
+ */
+export const ROLES_PLATAFORMA: readonly Rol[] = [
+  R.JEFE_DESPACHO,
+  R.COORDINADOR_TRANSPORTE,
+  R.COORDINADOR,
+  R.SUPERVISOR,
+  R.PORTERO,
+  R.OPERADOR_TUNEL,
+];
+
 /** Arman pallets y cargan camiones, más quienes los supervisan. */
 export const ROLES_PICKING_Y_CARGA: readonly Rol[] = [
   R.PICKINERO,

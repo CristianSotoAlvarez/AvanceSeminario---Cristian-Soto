@@ -7,6 +7,8 @@ import { Sidebar } from "@/components/sidebar";
 import { Header } from "@/components/header";
 import { BannerConexion } from "@/components/banner-conexion";
 import { useAuth } from "@/hooks/use-auth";
+import { ROLES_PLATAFORMA } from "@dispatch-track/types";
+import { rutaInicialPorRol } from "@/lib/rutas";
 
 const titulosRuta: Record<string, string> = {
   "/dashboard":                "Tablero",
@@ -35,8 +37,13 @@ export default function PlatformLayout({
   const titulo = tituloExacto ?? tituloParcial ?? "Justo A Tiempo";
 
   useEffect(() => {
-    if (!cargando && !usuario) {
+    if (cargando) return;
+    if (!usuario) {
       router.push("/login");
+      return;
+    }
+    if (!ROLES_PLATAFORMA.includes(usuario.rol)) {
+      router.push(rutaInicialPorRol(usuario.rol));
     }
   }, [cargando, usuario, router]);
 
@@ -48,7 +55,7 @@ export default function PlatformLayout({
     );
   }
 
-  if (!usuario) return null;
+  if (!usuario || !ROLES_PLATAFORMA.includes(usuario.rol)) return null;
 
   return (
     <div className="flex h-screen overflow-hidden">

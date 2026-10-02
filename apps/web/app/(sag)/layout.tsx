@@ -1,5 +1,6 @@
 "use client";
 
+import { rutaInicialPorRol } from "@/lib/rutas";
 import { useEffect } from "react";
 import { Rol, RolUsuario } from "@dispatch-track/types";
 import { useRouter } from "next/navigation";
@@ -29,7 +30,7 @@ export default function SagLayout({
       return;
     }
     if (!ROLES_SAG.includes(usuario.rol)) {
-      router.push("/dashboard");
+      router.push(rutaInicialPorRol(usuario.rol));
     }
   }, [cargando, usuario, router]);
 

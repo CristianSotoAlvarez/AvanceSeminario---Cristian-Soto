@@ -1,5 +1,6 @@
 "use client";
 
+import { rutaInicialPorRol } from "@/lib/rutas";
 import { useEffect } from "react";
 import { ROLES_OPERATIVOS, RolUsuario } from "@dispatch-track/types";
 import { usePathname, useRouter } from "next/navigation";
@@ -69,7 +70,7 @@ export default function OperativoLayout({
     }
     if (!ROLES_OPERATIVOS.includes(usuario.rol)) {
       // Redirigir al dashboard si el rol no tiene acceso operativo
-      router.push("/dashboard");
+      router.push(rutaInicialPorRol(usuario.rol));
     }
   }, [cargando, usuario, router]);
 

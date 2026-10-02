@@ -1,5 +1,6 @@
 "use client";
 
+import { rutaInicialPorRol } from "@/lib/rutas";
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
@@ -97,15 +98,6 @@ export default function LoginPage() {
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<FormLogin>({
     resolver: zodResolver(esquemaLogin),
   });
-
-  function rutaInicialPorRol(rol: string): string {
-    if (rol === "PORTERO") return "/porteria";
-    if (rol === "PICKINERO") return "/picking";
-    if (rol === "CARGADOR") return "/carga";
-    if (rol === "OPERADOR_TUNEL") return "/tunel";
-    if (rol === "SAG") return "/exportaciones";
-    return "/dashboard";
-  }
 
   useEffect(() => {
     if (!cargando && usuario) router.push(rutaInicialPorRol(usuario.rol));

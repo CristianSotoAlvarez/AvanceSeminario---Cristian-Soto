@@ -1,5 +1,6 @@
 "use client";
 
+import { rutaInicialPorRol } from "@/lib/rutas";
 import { useEffect, useState, useCallback } from "react";
 import { ROLES_PORTERIA, ROLES_SUPERVISION, Rol, RolUsuario } from "@dispatch-track/types";
 import { motion, AnimatePresence } from "motion/react";
@@ -294,11 +295,13 @@ export default function ConfiguracionPage() {
   const [modalUsuario, setModalUsuario] = useState<UsuarioAdmin | null | "nuevo">(null);
   const [eliminando, setEliminando] = useState<string | null>(null);
 
+  const autorizado = usuario?.rol === RolUsuario.JEFE_DESPACHO;
+
   useEffect(() => {
-    if (usuario && usuario.rol !== "JEFE_DESPACHO") {
-      router.replace("/dashboard");
+    if (usuario && !autorizado) {
+      router.replace(rutaInicialPorRol(usuario.rol));
     }
-  }, [usuario, router]);
+  }, [usuario, autorizado, router]);
 
   const cargar = useCallback(async () => {
     setCargando(true);
@@ -348,6 +351,9 @@ export default function ConfiguracionPage() {
     { id: "usuarios", label: "Trabajadores", icon: Users },
     { id: "permisos", label: "Permisos",     icon: ShieldCheck },
   ];
+
+  // No pintar el panel mientras se redirige a quien no corresponde.
+  if (!autorizado) return null;
 
   return (
     <div className="space-y-5 max-w-6xl">
