@@ -12,5 +12,8 @@ dist/
 productos_test.csv
 *.tsbuildinfo
 
+# Cobertura de pruebas (generada)
+coverage/
+
 # Figuras regeneradas por el entrenamiento de los modelos
 docs/informe/modelo-prediccion/*.png

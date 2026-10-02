@@ -30,6 +30,7 @@ export class UsuariosController {
   }
 
   @Get(':id')
+  @Roles('JEFE_DESPACHO', 'COORDINADOR')
   @ApiOperation({ summary: 'Obtener usuario por ID' })
   obtenerPorId(@Param('id') id: string) {
     return this.usuariosService.obtenerPorId(id);

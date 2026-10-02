@@ -34,7 +34,11 @@ export class QrService {
     const firmaRecibida = decoded.slice(separador + 1);
     const firmaEsperada = crypto.createHmac('sha256', this.secreto).update(payload).digest('hex');
 
-    if (!crypto.timingSafeEqual(Buffer.from(firmaRecibida), Buffer.from(firmaEsperada))) {
+    // timingSafeEqual lanza RangeError si los búferes difieren en longitud, y este
+    // token llega por un endpoint público: comparar longitudes antes evita un 500.
+    const bufRecibida = Buffer.from(firmaRecibida, 'utf-8');
+    const bufEsperada = Buffer.from(firmaEsperada, 'utf-8');
+    if (bufRecibida.length !== bufEsperada.length || !crypto.timingSafeEqual(bufRecibida, bufEsperada)) {
       throw new UnauthorizedException('Token QR con firma inválida');
     }
 
@@ -43,6 +47,7 @@ export class QrService {
 
     const [tipo, entidadId, tsStr] = partes;
     const timestamp = parseInt(tsStr);
+    if (!Number.isFinite(timestamp)) throw new UnauthorizedException('Token QR malformado');
 
     // Token válido por 24 horas
     if (Date.now() - timestamp > 24 * 60 * 60 * 1000) {

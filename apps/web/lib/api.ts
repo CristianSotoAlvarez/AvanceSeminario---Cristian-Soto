@@ -62,19 +62,31 @@ export async function fetchApi<T>(endpoint: string, opciones: RequestInit = {}):
   return respuesta.json();
 }
 
+// Un único refresco en vuelo: si varias peticiones reciben 401 a la vez, todas
+// esperan la misma promesa en vez de rotar la cookie de refresco en paralelo.
+let refrescoEnCurso: Promise<boolean> | null = null;
+
 async function intentarRefresh(): Promise<boolean> {
-  try {
-    const respuesta = await fetch(`${API_URL}/auth/refresh`, {
-      method: 'POST',
-      credentials: 'include',
-    });
-    if (!respuesta.ok) return false;
-    const datos = await respuesta.json();
-    accessToken = datos.accessToken;
-    return true;
-  } catch {
-    return false;
-  }
+  if (refrescoEnCurso) return refrescoEnCurso;
+
+  refrescoEnCurso = (async () => {
+    try {
+      const respuesta = await fetch(`${API_URL}/auth/refresh`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+      if (!respuesta.ok) return false;
+      const datos = await respuesta.json();
+      accessToken = datos.accessToken;
+      return true;
+    } catch {
+      return false;
+    } finally {
+      refrescoEnCurso = null;
+    }
+  })();
+
+  return refrescoEnCurso;
 }
 
 export class ApiError extends Error {

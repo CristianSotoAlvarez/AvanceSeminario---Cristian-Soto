@@ -195,13 +195,28 @@ export class CamionesService {
     if (anden.fueraDeServicio) throw new BadRequestException(`El andén ${anden.codigo} está fuera de servicio`);
 
     return this.prisma.$transaction(async (tx) => {
-      const camionActualizado = await tx.camion.update({
-        where: { id: camionId },
+      // Reserva atómica: la condición va en el WHERE para que dos coordinadores
+      // simultáneos no puedan tomar el mismo andén ni reasignar el mismo camión.
+      const reserva = await tx.anden.updateMany({
+        where: { id: andenId, ocupado: false, fueraDeServicio: false },
+        data: { ocupado: true },
+      });
+      if (reserva.count === 0) {
+        throw new BadRequestException(`El andén ${anden.codigo} dejó de estar disponible`);
+      }
+
+      const transicion = await tx.camion.updateMany({
+        where: { id: camionId, estado: EstadoCamion.EN_PORTERIA },
         data: { estado: EstadoCamion.ASIGNADO, andenId },
+      });
+      if (transicion.count === 0) {
+        throw new BadRequestException(`El camión ${camion.patente} ya no está en portería`);
+      }
+
+      const camionActualizado = await tx.camion.findUniqueOrThrow({
+        where: { id: camionId },
         include: INCLUDE_CAMION,
       });
-
-      await tx.anden.update({ where: { id: andenId }, data: { ocupado: true } });
 
       // Marcar la parada correspondiente como EN_PROCESO
       const parada = await tx.paradaExpedicion.findFirst({
@@ -242,6 +257,8 @@ export class CamionesService {
     nuevoEstado: EstadoCamion,
     usuarioId: string,
     nota?: string,
+    /** Trabajo adicional que debe quedar en la MISMA transacción que la transición. */
+    dentroDeTransaccion?: (tx: any) => Promise<void>,
   ) {
     const camion = await this.obtenerCamionOError(camionId);
     this.validarTransicion(camion, nuevoEstado);
@@ -267,9 +284,22 @@ export class CamionesService {
         notaTunel = `Salió del túnel ${tunel?.codigo ?? ''}`.trim();
       }
 
-      const camionActualizado = await tx.camion.update({
-        where: { id: camionId },
+      // La condición de estado va en el WHERE: si otra petición ya avanzó el camión,
+      // esta transición no se aplica dos veces (p. ej. doble clic en "Despachar").
+      const transicion = await tx.camion.updateMany({
+        where: { id: camionId, estado: camion.estado },
         data: datos,
+      });
+      if (transicion.count === 0) {
+        throw new BadRequestException(
+          `El camión ${camion.patente} ya cambió de estado; recarga la vista`,
+        );
+      }
+
+      if (dentroDeTransaccion) await dentroDeTransaccion(tx);
+
+      const camionActualizado = await tx.camion.findUniqueOrThrow({
+        where: { id: camionId },
         include: INCLUDE_CAMION,
       });
 
@@ -300,11 +330,19 @@ export class CamionesService {
       throw new BadRequestException('El camión no está en estado EN_TUNEL_FRIO');
     }
 
-    await this.prisma.eventoTunel.create({
-      data: { camionId, operadorId: usuarioId, temperaturaRegistrada: temperatura, observaciones },
-    });
-
-    return this.cambiarEstado(camionId, EstadoCamion.ESPERANDO_SAG, usuarioId, `Temperatura registrada: ${temperatura}°C`);
+    // La lectura de temperatura se guarda dentro de la MISMA transacción que la
+    // transición: si esta falla, no queda una medición huérfana ni el túnel ocupado.
+    return this.cambiarEstado(
+      camionId,
+      EstadoCamion.ESPERANDO_SAG,
+      usuarioId,
+      `Temperatura registrada: ${temperatura}°C`,
+      async (tx) => {
+        await tx.eventoTunel.create({
+          data: { camionId, operadorId: usuarioId, temperaturaRegistrada: temperatura, observaciones },
+        });
+      },
+    );
   }
 
   /** Finaliza carga: si hay más paradas → vuelve a EN_PORTERIA, si no → LISTO / EN_TUNEL_FRIO */
@@ -500,6 +538,7 @@ export class CamionesService {
     }
 
     return this.prisma.$transaction(async (tx) => {
+      let tunelLiberado = false;
       // Lock pessimista a nivel DB para evitar carrera entre dos supervisores
       const lockResult = await tx.$queryRaw<Array<{ id: string; estado: EstadoCamion; tipo: TipoCamion; enReparacion: boolean }>>`
         SELECT id, estado, tipo, "enReparacion"
@@ -588,12 +627,20 @@ export class CamionesService {
         await tx.entrega.updateMany({ where: { camionId }, data: { camionId: y.id } });
         await tx.paradaExpedicion.updateMany({ where: { camionId }, data: { camionId: y.id } });
 
+        // X libera el túnel de frío si lo estaba ocupando: el sustituto es otra
+        // unidad física y debe ingresar por el flujo normal del operador de túnel.
+        if (x.tunelId) {
+          await tx.tunelFrio.update({ where: { id: x.tunelId }, data: { ocupado: false } });
+          tunelLiberado = true;
+        }
+
         // Marcar X como AVERIADO y enlazarlo
         await tx.camion.update({
           where: { id: camionId },
           data: {
             estado: EstadoCamion.AVERIADO,
             andenId: null, // X libera el andén; Y ya lo tomó arriba
+            tunelId: null, // X sale del túnel; Y deberá ingresar explícitamente
             reemplazadoPorId: y.id,
             enReparacion: false,
             reparacionDesde: null,
@@ -625,6 +672,7 @@ export class CamionesService {
 
       const final = await tx.camion.findUnique({ where: { id: camionId }, include: INCLUDE_CAMION });
       if (final) this.eventosGateway.emitirCamionActualizado(final as unknown as Record<string, unknown>);
+      if (tunelLiberado) this.eventosGateway.emitirTunelesActualizados();
       return final;
     });
   }

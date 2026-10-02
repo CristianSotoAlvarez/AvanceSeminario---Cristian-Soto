@@ -37,53 +37,42 @@ export class TunelesService {
       throw new ConflictException('El camión ya tiene un túnel asignado');
     }
 
-    const resultado = await this.prisma.tunelFrio.updateMany({
-      where: { id: tunelId, ocupado: false, fueraDeServicio: false },
-      data: { ocupado: true },
-    });
-
-    if (resultado.count === 0) {
-      const tunel = await this.prisma.tunelFrio.findUnique({ where: { id: tunelId } });
-      if (!tunel) throw new NotFoundException('Túnel no encontrado');
-      if (tunel.fueraDeServicio) throw new ConflictException('El túnel está fuera de servicio.');
-      if (tunel.ocupado) throw new ConflictException('El túnel ya está ocupado por otro camión.');
-      throw new ConflictException('No se pudo asignar el túnel.');
-    }
-
     const tunel = await this.prisma.tunelFrio.findUnique({ where: { id: tunelId } });
-    await this.prisma.camion.update({ where: { id: camionId }, data: { tunelId } });
-    await this.prisma.eventoCamion.create({
-      data: {
-        camionId,
-        estado: EstadoCamion.EN_TUNEL_FRIO,
-        usuarioId,
-        nota: `Ingresó al túnel ${tunel?.codigo ?? tunelId}`,
-      },
+    if (!tunel) throw new NotFoundException('Túnel no encontrado');
+
+    // Todo dentro de una transacción: si el camión ya tomó otro túnel en paralelo,
+    // la reserva de este se revierte en vez de quedar ocupado sin camión.
+    await this.prisma.$transaction(async (tx) => {
+      const reserva = await tx.tunelFrio.updateMany({
+        where: { id: tunelId, ocupado: false, fueraDeServicio: false },
+        data: { ocupado: true },
+      });
+      if (reserva.count === 0) {
+        const actual = await tx.tunelFrio.findUnique({ where: { id: tunelId } });
+        if (actual?.fueraDeServicio) throw new ConflictException('El túnel está fuera de servicio.');
+        throw new ConflictException('El túnel ya está ocupado por otro camión.');
+      }
+
+      const asignacion = await tx.camion.updateMany({
+        where: { id: camionId, tunelId: null, estado: EstadoCamion.EN_TUNEL_FRIO },
+        data: { tunelId },
+      });
+      if (asignacion.count === 0) {
+        throw new ConflictException('El camión ya fue ingresado a otro túnel.');
+      }
+
+      await tx.eventoCamion.create({
+        data: {
+          camionId,
+          estado: EstadoCamion.EN_TUNEL_FRIO,
+          usuarioId,
+          nota: `Ingresó al túnel ${tunel.codigo}`,
+        },
+      });
     });
 
     this.eventos.emitirTunelesActualizados();
     return this.prisma.camion.findUnique({ where: { id: camionId }, include: { tunel: true } });
-  }
-
-  /** Libera el túnel asignado a un camión (llamado al avanzar fuera de EN_TUNEL_FRIO). */
-  async liberarTunelDeCamion(camionId: string, usuarioId: string, tx: any = this.prisma) {
-    const camion = await tx.camion.findUnique({ where: { id: camionId } });
-    if (!camion?.tunelId) return null;
-
-    const tunel = await tx.tunelFrio.findUnique({ where: { id: camion.tunelId } });
-    await tx.tunelFrio.update({ where: { id: camion.tunelId }, data: { ocupado: false } });
-    await tx.camion.update({ where: { id: camionId }, data: { tunelId: null } });
-    await tx.eventoCamion.create({
-      data: {
-        camionId,
-        estado: camion.estado,
-        usuarioId,
-        nota: `Salió del túnel ${tunel?.codigo ?? camion.tunelId}`,
-      },
-    });
-
-    this.eventos.emitirTunelesActualizados();
-    return tunel;
   }
 
   async marcarFueraServicio(id: string, motivo: string, usuarioId: string) {

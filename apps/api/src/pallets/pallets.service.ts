@@ -236,9 +236,18 @@ export class PalletsService {
       datos.cargadorId = usuarioId;
     }
 
-    const resultado = await this.prisma.pallet.update({
-      where: { id: palletId },
+    // La condición de estado va en el WHERE para que dos operarios simultáneos no
+    // apliquen la misma transición dos veces (reescribiendo cargador o tiempos).
+    const transicion = await this.prisma.pallet.updateMany({
+      where: { id: palletId, estado: pallet.estado },
       data: datos,
+    });
+    if (transicion.count === 0) {
+      throw new BadRequestException('El pallet ya cambió de estado; recarga la vista');
+    }
+
+    const resultado = await this.prisma.pallet.findUniqueOrThrow({
+      where: { id: palletId },
       include: INCLUDE_PALLET,
     });
     this.eventosGateway.emitirCamionActualizado({ palletActualizado: resultado.id });

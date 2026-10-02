@@ -12,7 +12,7 @@ const logger = new Logger('HTTP');
 function validarSecretos() {
   if (process.env.NODE_ENV !== 'production') return;
 
-  const requeridos = ['JWT_SECRET', 'JWT_REFRESH_SECRET', 'DATABASE_URL', 'FRONTEND_URL'];
+  const requeridos = ['JWT_SECRET', 'JWT_REFRESH_SECRET', 'QR_HMAC_SECRET', 'DATABASE_URL', 'FRONTEND_URL'];
   const faltantes = requeridos.filter((clave) => !process.env[clave]);
 
   if (faltantes.length > 0) {
@@ -21,7 +21,7 @@ function validarSecretos() {
   }
 
   const secretosDebiles = ['secret', 'password', '123', 'changeme', 'default'];
-  for (const clave of ['JWT_SECRET', 'JWT_REFRESH_SECRET']) {
+  for (const clave of ['JWT_SECRET', 'JWT_REFRESH_SECRET', 'QR_HMAC_SECRET']) {
     const valor = process.env[clave] ?? '';
     if (valor.length < 32 || secretosDebiles.some((d) => valor.toLowerCase().includes(d))) {
       console.error(`[FATAL] ${clave} es demasiado débil para producción. Genera uno con: openssl rand -hex 32`);

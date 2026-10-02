@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
-function mediana(valores: number[]): number | null {
+export function mediana(valores: number[]): number | null {
   if (!valores.length) return null;
   const sorted = [...valores].sort((a, b) => a - b);
   const mid = Math.floor(sorted.length / 2);
@@ -11,7 +11,7 @@ function mediana(valores: number[]): number | null {
     : (sorted[mid - 1] + sorted[mid]) / 2;
 }
 
-function iqr(valores: number[]): { q1: number; q3: number } {
+export function iqr(valores: number[]): { q1: number; q3: number } {
   const sorted = [...valores].sort((a, b) => a - b);
   const mid = Math.floor(sorted.length / 2);
   const bajos = sorted.slice(0, mid);
@@ -19,7 +19,7 @@ function iqr(valores: number[]): { q1: number; q3: number } {
   return { q1: mediana(bajos) ?? 0, q3: mediana(altos) ?? 0 };
 }
 
-function filtrarOutliers(valores: number[]): number[] {
+export function filtrarOutliers(valores: number[]): number[] {
   if (valores.length < 4) return valores;
   const { q1, q3 } = iqr(valores);
   const rango = q3 - q1;
@@ -114,7 +114,8 @@ export class ReportesService {
           FROM camiones
           WHERE estado = 'DESPACHADO'
             AND "horaSalidaReal" IS NOT NULL
-            AND "horaSalidaReal" >= NOW() - INTERVAL '30 days'
+            AND "horaSalidaReal" >= ${desde}
+            AND "horaSalidaReal" <= ${hasta}
           GROUP BY DATE("horaSalidaReal")
           ORDER BY dia ASC
         `,
