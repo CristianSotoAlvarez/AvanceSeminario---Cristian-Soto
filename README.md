@@ -1,4 +1,4 @@
-# DispatchTrack
+# Justo a Tiempo - Proyecto de Titulo
 
 Aplicación web para seguir, medir y auditar el área de despacho de una planta de alimentos. Se construyó sobre el caso de Agrosuper S.A., donde la salida de un camión depende de que coincidan tres cosas: que el pallet esté armado, que haya andén libre y, si va a exportación, que el SAG lo apruebe tras pasar por el túnel de frío. Cuando una de las tres falla, nadie se entera hasta que el camión ya va tarde.
 
