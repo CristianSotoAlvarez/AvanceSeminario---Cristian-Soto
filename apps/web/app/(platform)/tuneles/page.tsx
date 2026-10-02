@@ -4,7 +4,7 @@ import { useState, useMemo, useCallback, useContext } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Truck, Loader2, X, Clock, Wrench, AlertTriangle, CheckCircle2, Snowflake, MapPin } from "lucide-react";
 import { Button, Badge, Skeleton } from "@dispatch-track/ui";
-import { TruckState, TRUCK_STATE_COLOR } from "@dispatch-track/types";
+import { ROLES_GESTION_OPERATIVA, TRUCK_STATE_COLOR, TruckState } from "@dispatch-track/types";
 import { useTuneles } from "@/hooks/use-tuneles";
 import { useCamiones } from "@/hooks/use-camiones";
 import { useSocketTuneles } from "@/hooks/use-socket";
@@ -440,7 +440,7 @@ function SeccionEsperandoTunel({ camiones, tuneles, onIngresar }: {
 
 export default function TunelesPage() {
   const { usuario } = useContext(AuthContext);
-  const puedeGestionar = ["JEFE_DESPACHO", "COORDINADOR_TRANSPORTE", "COORDINADOR", "SUPERVISOR"].includes(usuario?.rol ?? "");
+  const puedeGestionar = !!usuario && ROLES_GESTION_OPERATIVA.includes(usuario.rol);
 
   const { tuneles, cargando, recargar: recargarTuneles } = useTuneles();
   const { camiones, recargar: recargarCamiones } = useCamiones({ estado: "EN_TUNEL_FRIO", porPagina: 100 });

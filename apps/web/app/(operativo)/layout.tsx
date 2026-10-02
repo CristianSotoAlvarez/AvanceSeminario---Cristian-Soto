@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { ROLES_OPERATIVOS, RolUsuario } from "@dispatch-track/types";
 import { usePathname, useRouter } from "next/navigation";
 import { Toaster } from "sonner";
 import { motion } from "motion/react";
@@ -11,7 +12,7 @@ import { Header } from "@/components/header";
 
 // ─── Roles que pueden acceder al área operativa ────────────────────────────────
 
-const ROLES_OPERATIVO = ["PICKINERO", "CARGADOR", "OPERADOR_TUNEL", "SUPERVISOR"];
+const ROLES_OPERATIVO = ROLES_OPERATIVOS;
 
 // ─── Ítems de navegación según rol ────────────────────────────────────────────
 
@@ -20,25 +21,25 @@ const ITEMS_NAV = [
     icon: LayoutDashboard,
     label: "Tablero",
     href: "/dashboard",
-    roles: ["PICKINERO", "CARGADOR", "OPERADOR_TUNEL", "SUPERVISOR"],
+    roles: ROLES_OPERATIVOS,
   },
   {
     icon: Package,
     label: "Picking",
     href: "/picking",
-    roles: ["PICKINERO", "SUPERVISOR"],
+    roles: [RolUsuario.PICKINERO, RolUsuario.SUPERVISOR],
   },
   {
     icon: Truck,
     label: "Carga",
     href: "/carga",
-    roles: ["CARGADOR", "SUPERVISOR"],
+    roles: [RolUsuario.CARGADOR, RolUsuario.SUPERVISOR],
   },
   {
     icon: Thermometer,
     label: "Túnel",
     href: "/tunel",
-    roles: ["OPERADOR_TUNEL", "SUPERVISOR"],
+    roles: [RolUsuario.OPERADOR_TUNEL, RolUsuario.SUPERVISOR],
   },
 ];
 
@@ -67,7 +68,7 @@ export default function OperativoLayout({
       router.push("/login");
       return;
     }
-    if (!ROLES_OPERATIVO.includes(usuario.rol)) {
+    if (!ROLES_OPERATIVOS.includes(usuario.rol)) {
       // Redirigir al dashboard si el rol no tiene acceso operativo
       router.push("/dashboard");
     }
@@ -81,7 +82,7 @@ export default function OperativoLayout({
     );
   }
 
-  if (!usuario || !ROLES_OPERATIVO.includes(usuario.rol)) return null;
+  if (!usuario || !ROLES_OPERATIVOS.includes(usuario.rol)) return null;
 
   // Filtrar ítems según rol del usuario, con soporte de polivalencia
   // (un PICKINERO polivalente también ve Carga, y viceversa).

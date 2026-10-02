@@ -1,4 +1,5 @@
 import { Controller, Get, Post, Patch, Body, Param, Query, UseGuards } from '@nestjs/common';
+import { ROLES_GESTION_OPERATIVA, ROLES_GLOBALES, ROLES_SUPERVISION } from '../auth/roles';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { ProductosService } from './productos.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -19,21 +20,21 @@ export class ProductosController {
   }
 
   @Post()
-  @Roles('JEFE_DESPACHO', 'COORDINADOR_TRANSPORTE', 'COORDINADOR')
+  @Roles(...ROLES_GLOBALES)
   @ApiOperation({ summary: 'Crear producto' })
   crear(@Body() body: { sku: string; nombre: string; unidadMedida?: string; pesoKgUnitario?: number }) {
     return this.productosService.crear(body);
   }
 
   @Patch(':id')
-  @Roles('JEFE_DESPACHO', 'COORDINADOR_TRANSPORTE', 'COORDINADOR')
+  @Roles(...ROLES_GLOBALES)
   @ApiOperation({ summary: 'Actualizar producto' })
   actualizar(@Param('id') id: string, @Body() body: { nombre?: string; unidadMedida?: string; pesoKgUnitario?: number; activo?: boolean }) {
     return this.productosService.actualizar(id, body);
   }
 
   @Post('importar-csv')
-  @Roles('JEFE_DESPACHO', 'COORDINADOR_TRANSPORTE', 'COORDINADOR')
+  @Roles(...ROLES_GLOBALES)
   @ApiOperation({ summary: 'Importar productos desde CSV (array de filas)' })
   importarCsv(@Body() body: { filas: { sku: string; nombre: string; unidadMedida?: string; pesoKgUnitario?: string }[] }) {
     return this.productosService.importarCsv(body.filas);
@@ -48,7 +49,7 @@ export class ProductosController {
   }
 
   @Post('entrega/:entregaId')
-  @Roles('JEFE_DESPACHO', 'COORDINADOR_TRANSPORTE', 'COORDINADOR', 'SUPERVISOR')
+  @Roles(...ROLES_GESTION_OPERATIVA)
   @ApiOperation({ summary: 'Establecer productos solicitados para una entrega' })
   setItemsEntrega(
     @Param('entregaId') entregaId: string,

@@ -1,4 +1,5 @@
 import { Controller, Get, Post, Patch, Delete, Body, Param, UseGuards } from '@nestjs/common';
+import { RolUsuario } from '@prisma/client';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { UsuariosService } from './usuarios.service';
 import { CrearUsuarioDto } from './dto/crear-usuario.dto';
@@ -16,35 +17,35 @@ export class UsuariosController {
   constructor(private readonly usuariosService: UsuariosService) {}
 
   @Post()
-  @Roles('JEFE_DESPACHO')
+  @Roles(RolUsuario.JEFE_DESPACHO)
   @ApiOperation({ summary: 'Crear un nuevo usuario (solo Jefe de Despacho)' })
   crear(@Body() dto: CrearUsuarioDto, @UsuarioActual('id') actorId: string) {
     return this.usuariosService.crear(dto, actorId);
   }
 
   @Get()
-  @Roles('JEFE_DESPACHO', 'COORDINADOR')
+  @Roles(RolUsuario.JEFE_DESPACHO, RolUsuario.COORDINADOR)
   @ApiOperation({ summary: 'Listar todos los usuarios' })
   listar() {
     return this.usuariosService.listar();
   }
 
   @Get(':id')
-  @Roles('JEFE_DESPACHO', 'COORDINADOR')
+  @Roles(RolUsuario.JEFE_DESPACHO, RolUsuario.COORDINADOR)
   @ApiOperation({ summary: 'Obtener usuario por ID' })
   obtenerPorId(@Param('id') id: string) {
     return this.usuariosService.obtenerPorId(id);
   }
 
   @Patch(':id')
-  @Roles('JEFE_DESPACHO')
+  @Roles(RolUsuario.JEFE_DESPACHO)
   @ApiOperation({ summary: 'Actualizar usuario' })
   actualizar(@Param('id') id: string, @Body() dto: ActualizarUsuarioDto, @UsuarioActual('id') actorId: string) {
     return this.usuariosService.actualizar(id, dto, actorId);
   }
 
   @Delete(':id')
-  @Roles('JEFE_DESPACHO')
+  @Roles(RolUsuario.JEFE_DESPACHO)
   @ApiOperation({ summary: 'Desactivar usuario (soft delete)' })
   desactivar(@Param('id') id: string, @UsuarioActual('id') actorId: string) {
     return this.usuariosService.desactivar(id, actorId);

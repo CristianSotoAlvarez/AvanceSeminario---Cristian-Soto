@@ -4,7 +4,7 @@ import { useEffect, useState, useContext } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "motion/react";
 import { Badge, Skeleton } from "@dispatch-track/ui";
-import { TruckState, TRUCK_STATE_COLOR } from "@dispatch-track/types";
+import { ROLES_GESTION_OPERATIVA, ROLES_SUPERVISION, TRUCK_STATE_COLOR, TruckState } from "@dispatch-track/types";
 import {
   ArrowLeft, Truck, Clock, CheckCircle2, XCircle, AlertTriangle,
   User, Calendar, Package, Shield, FileText, Trash2, X, Plus, Loader2, ExternalLink, Info,
@@ -79,7 +79,7 @@ const ETIQUETA_CAUSA: Record<string, string> = {
   OTRO:             "Otro",
 };
 
-const ROLES_PUEDEN_JUSTIFICAR = ["JEFE_DESPACHO", "SUPERVISOR", "COORDINADOR"];
+const ROLES_PUEDEN_JUSTIFICAR = ROLES_SUPERVISION;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -1214,8 +1214,8 @@ export default function DetalleCamionPage() {
   const [modalAveriaAbierto, setModalAveriaAbierto] = useState(false);
 
   const puedeJustificar  = !!usuario && ROLES_PUEDEN_JUSTIFICAR.includes(usuario.rol);
-  const puedeReordenar   = !!usuario && ["JEFE_DESPACHO", "COORDINADOR", "SUPERVISOR"].includes(usuario.rol);
-  const puedeReportarIncidente = !!usuario && ["JEFE_DESPACHO", "COORDINADOR_TRANSPORTE", "COORDINADOR", "SUPERVISOR"].includes(usuario.rol);
+  const puedeReordenar   = !!usuario && ROLES_SUPERVISION.includes(usuario.rol);
+  const puedeReportarIncidente = !!usuario && ROLES_GESTION_OPERATIVA.includes(usuario.rol);
 
   useEffect(() => {
     obtenerCamionApi(id)

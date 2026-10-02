@@ -1,4 +1,5 @@
 import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import { ROLES_PORTERIA } from '../auth/roles';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { PorteriaService } from './porteria.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -30,7 +31,7 @@ export class PorteriaController {
   @Get('camiones-hoy')
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('PORTERO', 'JEFE_DESPACHO', 'SUPERVISOR', 'COORDINADOR_TRANSPORTE', 'COORDINADOR')
+  @Roles(...ROLES_PORTERIA)
   @ApiOperation({ summary: 'Lista camiones planificados para hoy' })
   listarCamionesHoy() {
     return this.porteria.listarCamionesHoy();
@@ -39,7 +40,7 @@ export class PorteriaController {
   @Post('camion/:id/confirmar')
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('PORTERO', 'JEFE_DESPACHO', 'SUPERVISOR', 'COORDINADOR_TRANSPORTE', 'COORDINADOR')
+  @Roles(...ROLES_PORTERIA)
   @ApiOperation({ summary: 'Confirmar llegada del camión por ID (manual)' })
   confirmarPorId(@Param('id') id: string, @UsuarioActual('id') usuarioId: string) {
     return this.porteria.confirmarPorId(id, usuarioId);

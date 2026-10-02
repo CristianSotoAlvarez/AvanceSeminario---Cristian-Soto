@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { Rol, RolUsuario } from "@dispatch-track/types";
 import { useRouter } from "next/navigation";
 import { Toaster } from "sonner";
 import { Shield, LogOut } from "lucide-react";
@@ -8,7 +9,7 @@ import { useAuth } from "@/hooks/use-auth";
 
 // ─── Roles con acceso al área SAG ─────────────────────────────────────────────
 
-const ROLES_SAG = ["SAG"];
+const ROLES_SAG: readonly Rol[] = [RolUsuario.SAG];
 
 // ─── Layout ────────────────────────────────────────────────────────────────────
 

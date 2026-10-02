@@ -4,7 +4,7 @@ import { useState, useMemo, useCallback, useContext } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Truck, Loader2, X, Clock, Package, User, ChevronRight, MapPin, ArrowRight, CheckCircle2, Wrench, AlertTriangle } from "lucide-react";
 import { Button, Badge, Skeleton } from "@dispatch-track/ui";
-import { TruckState, TRUCK_STATE_COLOR } from "@dispatch-track/types";
+import { ROLES_GESTION_OPERATIVA, TRUCK_STATE_COLOR, TruckState } from "@dispatch-track/types";
 import { useAndenes } from "@/hooks/use-andenes";
 import { useCamiones } from "@/hooks/use-camiones";
 import { useSocketAndenes } from "@/hooks/use-socket";
@@ -860,7 +860,7 @@ export default function AndenesPage() {
   // COORDINADOR_TRANSPORTE solo puede visualizar acciones de camión — no ejecutarlas
   const soloVista = usuario?.rol === "COORDINADOR_TRANSPORTE";
   // Pero sí puede gestionar el estado de los andenes (junto al resto de gestión)
-  const puedeGestionarAnden = ["JEFE_DESPACHO", "COORDINADOR_TRANSPORTE", "COORDINADOR", "SUPERVISOR"].includes(usuario?.rol ?? "");
+  const puedeGestionarAnden = !!usuario && ROLES_GESTION_OPERATIVA.includes(usuario.rol);
 
   const { andenes, cargando, recargar: recargarAndenes } = useAndenes();
   const { camiones, recargar: recargarCamiones } = useCamiones();

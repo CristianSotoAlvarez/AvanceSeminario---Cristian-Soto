@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useContext, useCallback } from "react";
+import { ROLES_SUPERVISION, Rol, RolUsuario } from "@dispatch-track/types";
 import { useParams, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "motion/react";
 import { Skeleton } from "@dispatch-track/ui";
@@ -46,10 +47,10 @@ const ACCION_LABEL: Record<string, string> = {
   CARGADO:   "Verificar pallet",
 };
 
-const ROLES_POR_TRANSICION: Record<string, string[]> = {
-  EN_ARMADO: ["PICKINERO", "CARGADOR", "JEFE_DESPACHO", "SUPERVISOR"],
-  ARMADO:    ["CARGADOR", "PICKINERO", "JEFE_DESPACHO", "SUPERVISOR"],
-  CARGADO:   ["JEFE_DESPACHO", "SUPERVISOR", "COORDINADOR"],
+const ROLES_POR_TRANSICION: Record<string, readonly Rol[]> = {
+  EN_ARMADO: [RolUsuario.PICKINERO, RolUsuario.CARGADOR, RolUsuario.JEFE_DESPACHO, RolUsuario.SUPERVISOR],
+  ARMADO:    [RolUsuario.CARGADOR, RolUsuario.PICKINERO, RolUsuario.JEFE_DESPACHO, RolUsuario.SUPERVISOR],
+  CARGADO:   ROLES_SUPERVISION,
 };
 
 // ─── Barra de progreso ────────────────────────────────────────────────────────

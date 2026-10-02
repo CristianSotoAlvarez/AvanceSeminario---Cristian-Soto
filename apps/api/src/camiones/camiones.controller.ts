@@ -1,6 +1,7 @@
 import { Controller, Get, Post, Patch, Body, Param, Query, UseGuards } from '@nestjs/common';
+import { ROLES_CARGA, ROLES_GESTION_OPERATIVA, ROLES_INSPECCION_SAG, ROLES_SUPERVISION, ROLES_TUNEL } from '../auth/roles';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
-import { EstadoCamion } from '@prisma/client';
+import { EstadoCamion, RolUsuario } from '@prisma/client';
 import { CamionesService } from './camiones.service';
 import { CrearCamionDto } from './dto/crear-camion.dto';
 import { AsignarAndenDto } from './dto/asignar-anden.dto';
@@ -22,7 +23,7 @@ export class CamionesController {
   constructor(private readonly camionesService: CamionesService) {}
 
   @Post()
-  @Roles('COORDINADOR_TRANSPORTE')
+  @Roles(RolUsuario.COORDINADOR_TRANSPORTE)
   @ApiOperation({ summary: 'Crear camión programado (solo Coordinador Transporte)' })
   crear(@Body() dto: CrearCamionDto) {
     return this.camionesService.crear(dto);
@@ -43,7 +44,7 @@ export class CamionesController {
   // ——— Transiciones de estado ———
 
   @Patch(':id/en-porteria')
-  @Roles('COORDINADOR', 'JEFE_DESPACHO', 'SUPERVISOR')
+  @Roles(...ROLES_SUPERVISION)
   @ApiOperation({ summary: 'Registrar llegada a portería (ESPERADO → EN_PORTERIA)' })
   enPorteria(
     @Param('id') id: string,
@@ -53,7 +54,7 @@ export class CamionesController {
   }
 
   @Patch(':id/asignar')
-  @Roles('COORDINADOR', 'JEFE_DESPACHO', 'SUPERVISOR')
+  @Roles(...ROLES_SUPERVISION)
   @ApiOperation({ summary: 'Asignar andén a camión (EN_PORTERIA → ASIGNADO)' })
   asignarAnden(
     @Param('id') id: string,
@@ -64,7 +65,7 @@ export class CamionesController {
   }
 
   @Patch(':id/iniciar-carga')
-  @Roles('CARGADOR', 'SUPERVISOR', 'JEFE_DESPACHO')
+  @Roles(...ROLES_CARGA)
   @ApiOperation({ summary: 'Iniciar proceso de carga (ASIGNADO → EN_CARGA)' })
   iniciarCarga(
     @Param('id') id: string,
@@ -74,7 +75,7 @@ export class CamionesController {
   }
 
   @Patch(':id/finalizar-carga')
-  @Roles('CARGADOR', 'SUPERVISOR', 'JEFE_DESPACHO')
+  @Roles(...ROLES_CARGA)
   @ApiOperation({ summary: 'Finalizar proceso de carga — deriva según tipo de camión' })
   finalizarCarga(
     @Param('id') id: string,
@@ -84,7 +85,7 @@ export class CamionesController {
   }
 
   @Patch(':id/temperatura-ok')
-  @Roles('OPERADOR_TUNEL', 'JEFE_DESPACHO', 'SUPERVISOR')
+  @Roles(...ROLES_TUNEL)
   @ApiOperation({ summary: 'Registrar temperatura y validar salida del túnel (EN_TUNEL_FRIO → ESPERANDO_SAG)' })
   temperaturaOk(
     @Param('id') id: string,
@@ -95,7 +96,7 @@ export class CamionesController {
   }
 
   @Patch(':id/aprobar-sag')
-  @Roles('SAG', 'JEFE_DESPACHO')
+  @Roles(...ROLES_INSPECCION_SAG)
   @ApiOperation({ summary: 'Inspector SAG aprueba el camión (ESPERANDO_SAG → APROBADO_SAG)' })
   aprobarSag(
     @Param('id') id: string,
@@ -106,7 +107,7 @@ export class CamionesController {
   }
 
   @Patch(':id/rechazar-sag')
-  @Roles('SAG', 'JEFE_DESPACHO')
+  @Roles(...ROLES_INSPECCION_SAG)
   @ApiOperation({ summary: 'Inspector SAG rechaza el camión (ESPERANDO_SAG → RECHAZADO_SAG)' })
   rechazarSag(
     @Param('id') id: string,
@@ -117,7 +118,7 @@ export class CamionesController {
   }
 
   @Patch(':id/reinspeccionar')
-  @Roles('SAG', 'JEFE_DESPACHO', 'SUPERVISOR')
+  @Roles(RolUsuario.SAG, RolUsuario.JEFE_DESPACHO, RolUsuario.SUPERVISOR)
   @ApiOperation({ summary: 'Re-enviar a inspección SAG (RECHAZADO_SAG → ESPERANDO_SAG)' })
   reinspeccionar(
     @Param('id') id: string,
@@ -127,7 +128,7 @@ export class CamionesController {
   }
 
   @Patch(':id/listo')
-  @Roles('COORDINADOR', 'JEFE_DESPACHO', 'SUPERVISOR')
+  @Roles(...ROLES_SUPERVISION)
   @ApiOperation({ summary: 'Marcar camión listo para despacho (APROBADO_SAG → LISTO)' })
   listo(
     @Param('id') id: string,
@@ -137,7 +138,7 @@ export class CamionesController {
   }
 
   @Patch(':id/despachar')
-  @Roles('COORDINADOR', 'JEFE_DESPACHO', 'SUPERVISOR')
+  @Roles(...ROLES_SUPERVISION)
   @ApiOperation({ summary: 'Despachar camión (LISTO → DESPACHADO)' })
   despachar(
     @Param('id') id: string,
@@ -149,7 +150,7 @@ export class CamionesController {
   // ——— Incidentes ———
 
   @Post(':id/incidente')
-  @Roles('JEFE_DESPACHO', 'COORDINADOR_TRANSPORTE', 'COORDINADOR', 'SUPERVISOR')
+  @Roles(...ROLES_GESTION_OPERATIVA)
   @ApiOperation({ summary: 'Registrar incidente del camión (avería en v1)' })
   registrarIncidente(
     @Param('id') id: string,
@@ -160,7 +161,7 @@ export class CamionesController {
   }
 
   @Post(':id/marcar-reparado')
-  @Roles('JEFE_DESPACHO', 'COORDINADOR_TRANSPORTE', 'COORDINADOR', 'SUPERVISOR')
+  @Roles(...ROLES_GESTION_OPERATIVA)
   @ApiOperation({ summary: 'Cerrar reparación in situ del camión' })
   marcarReparado(
     @Param('id') id: string,
@@ -170,7 +171,7 @@ export class CamionesController {
   }
 
   @Patch(':id/paradas/reordenar')
-  @Roles('JEFE_DESPACHO', 'COORDINADOR', 'SUPERVISOR')
+  @Roles(...ROLES_SUPERVISION)
   @ApiOperation({ summary: 'Reordenar paradas PENDIENTES del camión' })
   reordenarParadas(
     @Param('id') id: string,

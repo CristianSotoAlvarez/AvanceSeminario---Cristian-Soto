@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { ROLES_CATALOGO, ROLES_GESTION_OPERATIVA, ROLES_GLOBALES, ROLES_PORTERIA, ROLES_SUPERVISION, Rol, RolUsuario } from "@dispatch-track/types";
 import { motion } from "motion/react";
 import {
   LayoutDashboard,
@@ -19,48 +20,48 @@ import { SidebarItem } from "./sidebar-item";
 import { useAuth } from "@/hooks/use-auth";
 
 // Grupos visuales del sidebar (cada uno con título)
-type SidebarItemDef = { icon: typeof LayoutDashboard; label: string; href: string; roles: string[] };
+type SidebarItemDef = { icon: typeof LayoutDashboard; label: string; href: string; roles: readonly Rol[] };
 type SidebarGrupo = { titulo: string; elementos: SidebarItemDef[] };
 
 const GRUPOS: SidebarGrupo[] = [
   {
     titulo: "Operación",
     elementos: [
-      { icon: LayoutDashboard, label: "Tablero",   href: "/dashboard", roles: ["JEFE_DESPACHO", "COORDINADOR_TRANSPORTE", "COORDINADOR", "SUPERVISOR"] },
-      { icon: Truck,           label: "Camiones",  href: "/camiones",  roles: ["JEFE_DESPACHO", "COORDINADOR_TRANSPORTE", "COORDINADOR", "SUPERVISOR"] },
-      { icon: Truck,           label: "Portería",  href: "/porteria",  roles: ["PORTERO", "JEFE_DESPACHO", "SUPERVISOR", "COORDINADOR_TRANSPORTE", "COORDINADOR"] },
-      { icon: Warehouse,       label: "Andenes",   href: "/andenes",   roles: ["JEFE_DESPACHO", "COORDINADOR_TRANSPORTE", "COORDINADOR", "SUPERVISOR"] },
-      { icon: Snowflake,       label: "Túneles",   href: "/tuneles",   roles: ["JEFE_DESPACHO", "COORDINADOR_TRANSPORTE", "COORDINADOR", "SUPERVISOR", "OPERADOR_TUNEL"] },
-      { icon: Package,         label: "Entregas",  href: "/pallets",   roles: ["JEFE_DESPACHO", "COORDINADOR", "SUPERVISOR"] },
+      { icon: LayoutDashboard, label: "Tablero",   href: "/dashboard", roles: ROLES_GESTION_OPERATIVA },
+      { icon: Truck,           label: "Camiones",  href: "/camiones",  roles: ROLES_GESTION_OPERATIVA },
+      { icon: Truck,           label: "Portería",  href: "/porteria",  roles: ROLES_PORTERIA },
+      { icon: Warehouse,       label: "Andenes",   href: "/andenes",   roles: ROLES_GESTION_OPERATIVA },
+      { icon: Snowflake,       label: "Túneles",   href: "/tuneles",   roles: [RolUsuario.JEFE_DESPACHO, RolUsuario.COORDINADOR_TRANSPORTE, RolUsuario.COORDINADOR, RolUsuario.SUPERVISOR, RolUsuario.OPERADOR_TUNEL] },
+      { icon: Package,         label: "Entregas",  href: "/pallets",   roles: ROLES_SUPERVISION },
     ],
   },
   {
     titulo: "Análisis",
     elementos: [
-      { icon: FileText,        label: "Reportes",  href: "/reportes",  roles: ["JEFE_DESPACHO", "COORDINADOR", "SUPERVISOR"] },
+      { icon: FileText,        label: "Reportes",  href: "/reportes",  roles: ROLES_SUPERVISION },
     ],
   },
   {
     titulo: "Calidad",
     elementos: [
-      { icon: Shield,          label: "SAG",       href: "/sag",       roles: ["JEFE_DESPACHO", "SUPERVISOR"] },
+      { icon: Shield,          label: "SAG",       href: "/sag",       roles: [RolUsuario.JEFE_DESPACHO, RolUsuario.SUPERVISOR] },
     ],
   },
   {
     titulo: "Operativo",
     elementos: [
-      { icon: Package,         label: "Picking",       href: "/picking",       roles: ["PICKINERO", "SUPERVISOR"] },
-      { icon: Truck,           label: "Carga",         href: "/carga",         roles: ["CARGADOR", "SUPERVISOR"] },
-      { icon: Warehouse,       label: "Túnel Frío",    href: "/tunel",         roles: ["OPERADOR_TUNEL", "SUPERVISOR"] },
-      { icon: Shield,          label: "Exportaciones", href: "/exportaciones", roles: ["SAG"] },
+      { icon: Package,         label: "Picking",       href: "/picking",       roles: [RolUsuario.PICKINERO, RolUsuario.SUPERVISOR] },
+      { icon: Truck,           label: "Carga",         href: "/carga",         roles: [RolUsuario.CARGADOR, RolUsuario.SUPERVISOR] },
+      { icon: Warehouse,       label: "Túnel Frío",    href: "/tunel",         roles: [RolUsuario.OPERADOR_TUNEL, RolUsuario.SUPERVISOR] },
+      { icon: Shield,          label: "Exportaciones", href: "/exportaciones", roles: [RolUsuario.SAG] },
     ],
   },
   {
     titulo: "Configuración",
     elementos: [
-      { icon: Users,           label: "Clientes",       href: "/configuracion/clientes",  roles: ["JEFE_DESPACHO", "COORDINADOR_TRANSPORTE"] },
-      { icon: Package,         label: "Productos",      href: "/configuracion/productos", roles: ["JEFE_DESPACHO", "COORDINADOR_TRANSPORTE", "COORDINADOR"] },
-      { icon: Settings,        label: "Configuración",  href: "/configuracion",           roles: ["JEFE_DESPACHO"] },
+      { icon: Users,           label: "Clientes",       href: "/configuracion/clientes",  roles: ROLES_CATALOGO },
+      { icon: Package,         label: "Productos",      href: "/configuracion/productos", roles: ROLES_GLOBALES },
+      { icon: Settings,        label: "Configuración",  href: "/configuracion",           roles: [RolUsuario.JEFE_DESPACHO] },
     ],
   },
 ];
@@ -69,7 +70,7 @@ interface SidebarProps {
   currentPath?: string;
 }
 
-function elementoVisible(elem: SidebarItemDef, rol: string, polivalente: boolean): boolean {
+function elementoVisible(elem: SidebarItemDef, rol: Rol, polivalente: boolean): boolean {
   if (elem.roles.includes(rol)) return true;
   if (polivalente) {
     if (rol === "PICKINERO" && elem.href === "/carga") return true;
@@ -81,13 +82,15 @@ function elementoVisible(elem: SidebarItemDef, rol: string, polivalente: boolean
 export function Sidebar({ currentPath = "/dashboard" }: SidebarProps) {
   const [colapsado, setColapsado] = useState(false);
   const { usuario } = useAuth();
-  const rol = usuario?.rol ?? "";
+  const rol = usuario?.rol;
   const polivalente = usuario?.polivalente ?? false;
 
   // Filtrar elementos por rol y aplanar grupos que quedan vacíos
-  const gruposVisibles = GRUPOS
-    .map(g => ({ titulo: g.titulo, elementos: g.elementos.filter(e => elementoVisible(e, rol, polivalente)) }))
-    .filter(g => g.elementos.length > 0);
+  const gruposVisibles = rol === undefined
+    ? []
+    : GRUPOS
+        .map(g => ({ titulo: g.titulo, elementos: g.elementos.filter(e => elementoVisible(e, rol, polivalente)) }))
+        .filter(g => g.elementos.length > 0);
 
   return (
     <motion.aside

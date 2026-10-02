@@ -1,4 +1,5 @@
 import { Controller, Get, Query, UseGuards } from '@nestjs/common';
+import { ROLES_GESTION_OPERATIVA, ROLES_SUPERVISION } from '../auth/roles';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { ReportesService } from './reportes.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -13,7 +14,7 @@ export class ReportesController {
   constructor(private readonly reportesService: ReportesService) {}
 
   @Get('resumen')
-  @Roles('JEFE_DESPACHO', 'COORDINADOR_TRANSPORTE', 'COORDINADOR', 'SUPERVISOR')
+  @Roles(...ROLES_GESTION_OPERATIVA)
   @ApiOperation({ summary: 'Obtener KPIs operacionales del rango de fechas indicado' })
   resumen(@Query() query: { desde?: string; hasta?: string }) {
     return this.reportesService.resumen(query);

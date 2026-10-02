@@ -1,3 +1,5 @@
+import type { Rol } from "@dispatch-track/types";
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1';
 
 let accessToken: string | null = null;
@@ -100,7 +102,7 @@ export interface UsuarioAuth {
   id: string;
   nombre: string;
   email: string;
-  rol: string;
+  rol: Rol;
   polivalente?: boolean;
   edificioId: string | null;
 }
@@ -822,7 +824,7 @@ export interface UsuarioAdmin {
   nombre: string;
   rut: string;
   email: string;
-  rol: string;
+  rol: Rol;
   activo: boolean;
   edificioId: string | null;
   edificio: { nombre: string; tipo: string } | null;
@@ -837,7 +839,7 @@ export async function crearUsuarioApi(datos: {
   rut: string;
   email: string;
   password: string;
-  rol: string;
+  rol: Rol;
   edificioId?: string;
 }): Promise<UsuarioAdmin> {
   return fetchApi<UsuarioAdmin>('/usuarios', { method: 'POST', body: JSON.stringify(datos) });

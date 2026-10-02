@@ -1,4 +1,5 @@
 import { Controller, Get, Patch, Param, Body, UseGuards } from '@nestjs/common';
+import { ROLES_GESTION_OPERATIVA, ROLES_SUPERVISION } from '../auth/roles';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { AndenesService } from './andenes.service';
 import { MarcarFueraServicioDto } from './dto/marcar-fuera-servicio.dto';
@@ -21,7 +22,7 @@ export class AndenesController {
   }
 
   @Patch(':id/fuera-servicio')
-  @Roles('JEFE_DESPACHO', 'COORDINADOR_TRANSPORTE', 'COORDINADOR', 'SUPERVISOR')
+  @Roles(...ROLES_GESTION_OPERATIVA)
   @ApiOperation({ summary: 'Marcar un andén como fuera de servicio (averiado)' })
   marcarFueraServicio(
     @Param('id') id: string,
@@ -32,7 +33,7 @@ export class AndenesController {
   }
 
   @Patch(':id/reactivar')
-  @Roles('JEFE_DESPACHO', 'COORDINADOR_TRANSPORTE', 'COORDINADOR', 'SUPERVISOR')
+  @Roles(...ROLES_GESTION_OPERATIVA)
   @ApiOperation({ summary: 'Reactivar un andén fuera de servicio' })
   reactivar(@Param('id') id: string, @UsuarioActual('id') usuarioId: string) {
     return this.andenesService.reactivar(id, usuarioId);

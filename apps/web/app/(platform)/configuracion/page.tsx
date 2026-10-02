@@ -1,6 +1,7 @@
 "use client";
 
 import { useContext, useEffect, useState, useCallback } from "react";
+import { ROLES_OPERATIVOS, ROLES_PORTERIA, ROLES_SUPERVISION, Rol, RolUsuario } from "@dispatch-track/types";
 import { motion, AnimatePresence } from "motion/react";
 import {
   Settings, Users, Plus, Pencil, Trash2,
@@ -38,7 +39,7 @@ const COLOR_ROL: Record<string, { bg: string; color: string }> = {
   SAG:                    { bg: "#FEF9C3", color: "#854D0E" },
 };
 
-const ROLES_NECESITAN_EDIFICIO = ["PICKINERO", "CARGADOR", "OPERADOR_TUNEL", "SUPERVISOR"];
+const ROLES_NECESITAN_EDIFICIO = ROLES_OPERATIVOS;
 
 const EDIFICIOS_OPCIONES = [
   { value: "", label: "Sin edificio" },
@@ -54,7 +55,7 @@ interface FormUsuario {
   rut: string;
   email: string;
   password: string;
-  rol: string;
+  rol: Rol;
   edificioTipo: string;
 }
 
@@ -62,7 +63,7 @@ const FORM_VACIO: FormUsuario = { nombre: "", rut: "", email: "", password: "", 
 
 // ─── Badge de rol ─────────────────────────────────────────────────────────────
 
-function BadgeRol({ rol }: { rol: string }) {
+function BadgeRol({ rol }: { rol: Rol }) {
   const cfg = COLOR_ROL[rol] ?? { bg: "#F8FAFC", color: "#94A3B8" };
   const label = ROLES.find(r => r.value === rol)?.label ?? rol;
   return (
@@ -260,22 +261,24 @@ function ModalUsuario({
 // ─── Matriz de permisos ───────────────────────────────────────────────────────
 
 const MATRIZ_ROLES = [
-  { accion: "Crear camiones",             roles: ["COORDINADOR_TRANSPORTE"] },
-  { accion: "Asignar andenes",            roles: ["JEFE_DESPACHO", "SUPERVISOR", "COORDINADOR"] },
-  { accion: "Reordenar paradas",          roles: ["JEFE_DESPACHO", "SUPERVISOR", "COORDINADOR"] },
-  { accion: "Iniciar / finalizar carga",  roles: ["JEFE_DESPACHO", "SUPERVISOR", "CARGADOR"] },
-  { accion: "Crear y armar pallets",      roles: ["JEFE_DESPACHO", "SUPERVISOR", "PICKINERO", "CARGADOR"] },
-  { accion: "Cargar pallets",             roles: ["JEFE_DESPACHO", "SUPERVISOR", "PICKINERO", "CARGADOR"] },
-  { accion: "Verificar pallets",          roles: ["JEFE_DESPACHO", "SUPERVISOR", "COORDINADOR"] },
-  { accion: "Justificar atrasos",         roles: ["JEFE_DESPACHO", "SUPERVISOR", "COORDINADOR"] },
-  { accion: "Validar temperatura túnel",  roles: ["JEFE_DESPACHO", "SUPERVISOR", "OPERADOR_TUNEL"] },
-  { accion: "Inspección SAG",             roles: ["SAG"] },
-  { accion: "Marcar listo / despachar",   roles: ["JEFE_DESPACHO", "SUPERVISOR", "COORDINADOR"] },
-  { accion: "Ver reportes",               roles: ["JEFE_DESPACHO", "SUPERVISOR", "COORDINADOR"] },
-  { accion: "Configuración del sistema",  roles: ["JEFE_DESPACHO"] },
+  { accion: "Crear camiones",             roles: [RolUsuario.COORDINADOR_TRANSPORTE] },
+  { accion: "Registrar llegada a planta", roles: ROLES_PORTERIA },
+  { accion: "Asignar andenes",            roles: ROLES_SUPERVISION },
+  { accion: "Reordenar paradas",          roles: ROLES_SUPERVISION },
+  { accion: "Iniciar / finalizar carga",  roles: [RolUsuario.JEFE_DESPACHO, RolUsuario.SUPERVISOR, RolUsuario.CARGADOR] },
+  { accion: "Crear y armar pallets",      roles: [RolUsuario.JEFE_DESPACHO, RolUsuario.SUPERVISOR, RolUsuario.PICKINERO, RolUsuario.CARGADOR] },
+  { accion: "Cargar pallets",             roles: [RolUsuario.JEFE_DESPACHO, RolUsuario.SUPERVISOR, RolUsuario.PICKINERO, RolUsuario.CARGADOR] },
+  { accion: "Verificar pallets",          roles: ROLES_SUPERVISION },
+  { accion: "Justificar atrasos",         roles: ROLES_SUPERVISION },
+  { accion: "Validar temperatura túnel",  roles: [RolUsuario.JEFE_DESPACHO, RolUsuario.SUPERVISOR, RolUsuario.OPERADOR_TUNEL] },
+  { accion: "Inspección SAG",             roles: [RolUsuario.SAG] },
+  { accion: "Marcar listo / despachar",   roles: ROLES_SUPERVISION },
+  { accion: "Ver reportes",               roles: ROLES_SUPERVISION },
+  { accion: "Configuración del sistema",  roles: [RolUsuario.JEFE_DESPACHO] },
 ];
 
-const TODOS_ROLES_MATRIZ = ["JEFE_DESPACHO", "COORDINADOR_TRANSPORTE", "COORDINADOR", "SUPERVISOR", "PICKINERO", "CARGADOR", "OPERADOR_TUNEL", "SAG"];
+/** Todos los roles del sistema. Se deriva del enum para que un rol nuevo aparezca solo. */
+const TODOS_ROLES_MATRIZ: readonly Rol[] = Object.values(RolUsuario);
 
 function Dot({ activo }: { activo: boolean }) {
   return (

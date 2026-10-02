@@ -1,4 +1,5 @@
 import { Controller, Get, Patch, Param, Body, UseGuards } from '@nestjs/common';
+import { ROLES_GESTION_OPERATIVA, ROLES_SUPERVISION, ROLES_TUNEL } from '../auth/roles';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { TunelesService } from './tuneles.service';
 import { MarcarFueraServicioDto } from './dto/marcar-fuera-servicio.dto';
@@ -22,7 +23,7 @@ export class TunelesController {
   }
 
   @Patch(':camionId/ingresar')
-  @Roles('OPERADOR_TUNEL', 'JEFE_DESPACHO', 'SUPERVISOR')
+  @Roles(...ROLES_TUNEL)
   @ApiOperation({ summary: 'Asignar un camión (EN_TUNEL_FRIO) a un túnel físico disponible' })
   ingresar(
     @Param('camionId') camionId: string,
@@ -33,7 +34,7 @@ export class TunelesController {
   }
 
   @Patch(':id/fuera-servicio')
-  @Roles('JEFE_DESPACHO', 'COORDINADOR_TRANSPORTE', 'COORDINADOR', 'SUPERVISOR')
+  @Roles(...ROLES_GESTION_OPERATIVA)
   @ApiOperation({ summary: 'Marcar un túnel de frío como fuera de servicio (averiado)' })
   marcarFueraServicio(
     @Param('id') id: string,
@@ -44,7 +45,7 @@ export class TunelesController {
   }
 
   @Patch(':id/reactivar')
-  @Roles('JEFE_DESPACHO', 'COORDINADOR_TRANSPORTE', 'COORDINADOR', 'SUPERVISOR')
+  @Roles(...ROLES_GESTION_OPERATIVA)
   @ApiOperation({ summary: 'Reactivar un túnel de frío fuera de servicio' })
   reactivar(@Param('id') id: string, @UsuarioActual('id') usuarioId: string) {
     return this.tunelesService.reactivar(id, usuarioId);
